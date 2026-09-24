@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Narsingdi Cluster & Hub Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1617,15 +1617,41 @@
 
             if (cloudUserCap) { try { myAccess.isOwner = !!(await cloudUserCap.isOwner()); } catch (e) { myAccess.isOwner = false; } } else { myAccess.isOwner = true; }
 
-            // 2) hub list (shared)
-            try {
-                const hubDoc = await cloudDb.doc('config/hubList').get();
-                if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
-                    hubList = hubDoc.data().hubList;
-                } else if (myAccess.isOwner) {
-                    await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
-                }
-            } catch (e) {}
+            // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
+            await Promise.all([
+                (async () => {
+                    try {
+                        const hubDoc = await cloudDb.doc('config/hubList').get();
+                        if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
+                            hubList = hubDoc.data().hubList;
+                        } else if (myAccess.isOwner) {
+                            await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
+                        }
+                    } catch (e) {}
+                })(),
+                (async () => {
+                    try {
+                        const taskDoc = await cloudDb.doc('config/taskData').get();
+                        if (taskDoc.exists) {
+                            if (Array.isArray(taskDoc.data().taskTabs)) taskTabs = taskDoc.data().taskTabs;
+                            if (taskDoc.data().taskSheets) taskSheets = taskDoc.data().taskSheets;
+                        } else if (myAccess.isOwner) {
+                            await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets });
+                        }
+                    } catch (e) {}
+                })(),
+                (async () => {
+                    try {
+                        const noticeDoc = await cloudDb.doc('config/notices').get();
+                        if (noticeDoc.exists && Array.isArray(noticeDoc.data().clusterNotices)) {
+                            clusterNotices = noticeDoc.data().clusterNotices;
+                        } else if (myAccess.isOwner) {
+                            await cloudDb.doc('config/notices').set({ clusterNotices });
+                        }
+                    } catch (e) {}
+                })()
+            ]);
+
             cloudDb.doc('config/hubList').onSnapshot(snap => {
                 if (pendingWrites.hubList > 0) return;                       // ignore echoes while our own write is in flight
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
@@ -1635,16 +1661,6 @@
                 }
             }, () => {});
 
-            // 3) tasks / tabs (shared)
-            try {
-                const taskDoc = await cloudDb.doc('config/taskData').get();
-                if (taskDoc.exists) {
-                    if (Array.isArray(taskDoc.data().taskTabs)) taskTabs = taskDoc.data().taskTabs;
-                    if (taskDoc.data().taskSheets) taskSheets = taskDoc.data().taskSheets;
-                } else if (myAccess.isOwner) {
-                    await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets });
-                }
-            } catch (e) {}
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
                     if (Array.isArray(snap.data().taskTabs)) taskTabs = snap.data().taskTabs;
@@ -1653,15 +1669,6 @@
                 }
             }, () => {});
 
-            // 4) notices (shared)
-            try {
-                const noticeDoc = await cloudDb.doc('config/notices').get();
-                if (noticeDoc.exists && Array.isArray(noticeDoc.data().clusterNotices)) {
-                    clusterNotices = noticeDoc.data().clusterNotices;
-                } else if (myAccess.isOwner) {
-                    await cloudDb.doc('config/notices').set({ clusterNotices });
-                }
-            } catch (e) {}
             cloudDb.doc('config/notices').onSnapshot(snap => {
                 if (snap.exists && Array.isArray(snap.data().clusterNotices)) {
                     clusterNotices = snap.data().clusterNotices;
@@ -3594,7 +3601,11 @@
         }
 
         window.onload = async function() {
-            await initCloudSync();
+            // Render immediately from local/cached data so the UI shows up right away,
+            // instead of waiting for the cloud sync round-trips to finish first.
+            loadLocalState();
+            loadTabsAndSheets();
+            loadNoticesFromStorage();
             applyOwnerOnlyUI();
             renderTaskTabs();
             renderDashboard();
@@ -3602,6 +3613,16 @@
             renderLeaderboard();
             renderClusterNotices();
             setInterval(updateLastUpdatedTime, 1000);
+
+            // Cloud sync (Firebase) runs in the background; UI re-renders again once it resolves.
+            initCloudSync().then(() => {
+                applyOwnerOnlyUI();
+                renderTaskTabs();
+                renderDashboard();
+                renderConsolidatedMatrix();
+                renderLeaderboard();
+                renderClusterNotices();
+            });
 
             initAttendanceReportListeners();
 
