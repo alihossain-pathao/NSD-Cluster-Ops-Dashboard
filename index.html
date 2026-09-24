@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -114,6 +117,19 @@
     </style>
 </head>
 <body class="min-h-screen antialiased flex flex-col">
+    <!-- GOOGLE LOGIN GATE (hidden automatically if Firebase is not configured) -->
+    <div id="loginGate" class="fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-4">
+        <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-sm p-7 text-center shadow-2xl">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 text-xl mb-3"><i class="fa-solid fa-compass"></i></div>
+            <h2 class="text-base font-black text-white">Narsingdi Cluster Dashboard</h2>
+            <p class="text-[11px] text-slate-400 font-semibold mt-1 mb-5">Gmail diye login korun</p>
+            <button id="btnGoogleLogin" type="button" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-lg transition">
+                <i class="fa-brands fa-google text-rose-500"></i> Sign in with Google
+            </button>
+            <p id="loginMsg" class="text-[11px] text-rose-400 font-bold mt-3 min-h-[1rem]"></p>
+        </div>
+    </div>
+
 
     <div class="toast-notify" id="toastNotify">
         <span id="toastMsg">Action completed successfully</span>
@@ -149,36 +165,36 @@
                 </div>
 
                 <!-- TASK NAVIGATION BUTTONS (dynamic) -->
-                <div class="space-y-1.5" data-option="taskTabs">
+                <div data-hide-key="taskTabs" class="space-y-1.5">
                     <div class="flex items-center justify-between px-3">
                         <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Daily Task Sheets</p>
-                        <button onclick="openManageTabsModal(); toggleSidebar();" title="Add / Edit / Remove Tabs" data-owner-only class="text-slate-500 hover:text-sky-400 transition text-xs">
+                        <button onclick="openManageTabsModal(); toggleSidebar();" title="Add / Edit / Remove Tabs" data-owner-only data-hide-key="tabsManage" class="text-slate-500 hover:text-sky-400 transition text-xs">
                             <i class="fa-solid fa-gear"></i>
                         </button>
                     </div>
                     <div id="sideTaskTabsContainer" class="space-y-1.5">
                         <!-- Rendered dynamically by renderTaskTabs() -->
                     </div>
-                    <button onclick="openManageTabsModal(); toggleSidebar();" data-owner-only class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold text-slate-500 border border-dashed border-slate-700 hover:text-white hover:border-slate-500 transition-all duration-200">
+                    <button onclick="openManageTabsModal(); toggleSidebar();" data-owner-only data-hide-key="tabsManage" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold text-slate-500 border border-dashed border-slate-700 hover:text-white hover:border-slate-500 transition-all duration-200">
                         <i class="fa-solid fa-plus"></i> Add / Manage Tabs
                     </button>
                 </div>
 
-                <div class="space-y-1.5">
+                <div data-hide-key="navAnalytics" class="space-y-1.5">
                     <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Analytics</p>
-                    <button onclick="openHubOverviewModal(); toggleSidebar();" data-option="hubOverview" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="openHubOverviewModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-sky-950/60 border border-sky-800/40 flex items-center justify-center flex-shrink-0 text-sky-400 text-sm">
                             <i class="fa-solid fa-table-list"></i>
                         </span>
                         <span class="truncate">Cluster Hubs Overview</span>
                     </button>
-                    <button onclick="switchDashboardTab('matrix'); toggleSidebar();" id="sideBtnMatrix" data-option="matrix" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="switchDashboardTab('matrix'); toggleSidebar();" id="sideBtnMatrix" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-800/40 flex items-center justify-center flex-shrink-0 text-cyan-400 text-sm">
                             <i class="fa-solid fa-chart-simple"></i>
                         </span>
                         <span class="truncate">All-Hub Comparison Matrix</span>
                     </button>
-                    <button onclick="switchDashboardTab('leaderboard'); toggleSidebar();" id="sideBtnLeaderboard" data-option="leaderboard" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="switchDashboardTab('leaderboard'); toggleSidebar();" id="sideBtnLeaderboard" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center flex-shrink-0 text-amber-400 text-sm">
                             <i class="fa-solid fa-trophy"></i>
                         </span>
@@ -188,41 +204,52 @@
 
                 <div class="space-y-1.5">
                     <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Hub Management</p>
-                    <button onclick="openClusterSummaryModal(); toggleSidebar();" data-option="clusterSummary" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button data-hide-key="hubSummary" onclick="openClusterSummaryModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center flex-shrink-0 text-emerald-400 text-sm">
                             <i class="fa-solid fa-chart-pie"></i>
                         </span>
                         <span class="truncate">All Hub Summary</span>
                     </button>
-                    <button onclick="openAddHubModal(); toggleSidebar();" data-owner-only class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="openAddHubModal(); toggleSidebar();" data-owner-only data-hide-key="hubAdd" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-sky-950/60 border border-sky-800/40 flex items-center justify-center flex-shrink-0 text-sky-400 text-sm">
                             <i class="fa-solid fa-plus"></i>
                         </span>
                         <span class="truncate">Add New Hub</span>
                     </button>
-                    <button onclick="openRemoveHubModal(); toggleSidebar();" data-owner-only class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="openRemoveHubModal(); toggleSidebar();" data-owner-only data-hide-key="hubRemove" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-rose-950/60 border border-rose-800/40 flex items-center justify-center flex-shrink-0 text-rose-400 text-sm">
                             <i class="fa-solid fa-trash-can"></i>
                         </span>
                         <span class="truncate">Remove Hub</span>
                     </button>
-                    <button onclick="openManageAccessModal(); toggleSidebar();" data-owner-only class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
-                        <span class="w-8 h-8 rounded-lg bg-violet-950/60 border border-violet-800/40 flex items-center justify-center flex-shrink-0 text-violet-400 text-sm">
-                            <i class="fa-solid fa-user-shield"></i>
+                </div>
+
+                <div class="space-y-1.5">
+                    <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Display</p>
+                    <button onclick="toggleHideMode()" id="sideBtnHideMode" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                        <span class="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center flex-shrink-0 text-amber-400 text-sm">
+                            <i class="fa-solid fa-eye" id="sideHideModeIcon"></i>
                         </span>
-                        <span class="truncate">Manage Access</span>
+                        <span class="truncate flex-1 text-left">Hide Selected Sections</span>
+                        <span id="sideHideModePill" class="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-800 text-slate-400">OFF</span>
+                    </button>
+                    <button onclick="openVisibilityModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                        <span class="w-8 h-8 rounded-lg bg-violet-950/60 border border-violet-800/40 flex items-center justify-center flex-shrink-0 text-violet-400 text-sm">
+                            <i class="fa-solid fa-list-check"></i>
+                        </span>
+                        <span class="truncate">Choose What To Hide</span>
                     </button>
                 </div>
 
                 <div class="space-y-1.5">
                     <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Data</p>
-                    <button onclick="exportDashboardData(); toggleSidebar();" data-option="exportData" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button data-hide-key="dataExport" onclick="exportDashboardData(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-sky-950/60 border border-sky-800/40 flex items-center justify-center flex-shrink-0 text-sky-400 text-sm">
                             <i class="fa-solid fa-download"></i>
                         </span>
                         <span class="truncate">Export Data (JSON)</span>
                     </button>
-                    <button onclick="triggerImportJSON(); toggleSidebar();" data-owner-only class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button onclick="triggerImportJSON(); toggleSidebar();" data-owner-only data-hide-key="dataImport" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center flex-shrink-0 text-emerald-400 text-sm">
                             <i class="fa-solid fa-upload"></i>
                         </span>
@@ -232,10 +259,7 @@
             </nav>
         </div>
 
-        <div class="pt-4 border-t border-slate-800 space-y-2">
-            <button onclick="handleFirebaseSignOutClick()" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500 transition">
-                <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-            </button>
+        <div class="pt-4 border-t border-slate-800">
             <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block text-center">Narsingdi Cluster Ops v2.0</span>
         </div>
     </aside>
@@ -276,7 +300,7 @@
         </div>
 
         <!-- TOP 4 KPI STAT CARDS -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-hide-key="kpiCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-sky-800/60 transition-all duration-200">
                 <div>
                     <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">TOTAL DISPATCH VOLUME</span>
@@ -392,20 +416,43 @@
             </div>
         </div>
 
+        <!-- LIVE PRESENCE: who is online now + who was active in the last 5 minutes -->
+        <div id="presenceBar" class="hidden flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#131d36] border border-slate-800 rounded-xl px-3 py-2">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-[10px] font-black text-slate-300 uppercase tracking-wider">Online now</span>
+                <div id="presenceOnline" class="flex items-center gap-1.5"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Active in last 5 min</span>
+                <div id="presenceRecent" class="flex items-center gap-1.5"></div>
+            </div>
+            <button id="btnSignOut" type="button" class="ml-auto text-[10px] font-bold text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-right-from-bracket"></i> Sign out
+            </button>
+        </div>
+
         <!-- NAVIGATION MENU TRIGGER & TASK TABS BAR -->
         <div class="flex flex-wrap items-center justify-between bg-[#131d36] p-2.5 rounded-xl border border-slate-800 gap-3">
             <div class="flex items-center gap-2">
                 <button onclick="toggleSidebar()" class="px-4 py-2 text-xs font-bold rounded-lg transition bg-sky-600 text-white shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-bars"></i> Navigation Menu
                 </button>
+                <button onclick="toggleHideMode()" id="topBtnHideMode" title="Hide / show the sections you selected" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
+                    <i class="fa-solid fa-eye" id="topHideModeIcon"></i> <span id="topHideModeLabel">Hide</span>
+                </button>
+                <button onclick="openVisibilityModal()" title="Choose what to hide" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
+                    <i class="fa-solid fa-list-check"></i>
+                </button>
             </div>
 
             <!-- TASK TABS (dynamic) -->
-            <div id="topTaskTabsContainer" class="flex items-center gap-2 flex-wrap">
+            <div id="topTaskTabsContainer" data-hide-key="taskTabs" class="flex items-center gap-2 flex-wrap">
                 <!-- Rendered dynamically by renderTaskTabs() -->
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="openManageTabsModal()" title="Add / Edit / Remove Tabs" data-owner-only class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-dashed border-slate-600">
+                <button onclick="openManageTabsModal()" title="Add / Edit / Remove Tabs" data-owner-only data-hide-key="tabsManage" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-dashed border-slate-600">
                     <i class="fa-solid fa-sliders"></i> Manage Tabs
                 </button>
             </div>
@@ -493,7 +540,7 @@
                     </h2>
                     <p class="text-xs text-slate-400 font-medium mt-0.5" id="genericTaskDesc">Manage and track your task sheets and related links</p>
                 </div>
-                <button onclick="openAddSheetModal(currentGenericTabType)" id="genericAddSheetBtn" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
+                <button data-hide-key="sheetActions" onclick="openAddSheetModal(currentGenericTabType)" id="genericAddSheetBtn" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
                     <i class="fa-solid fa-plus"></i> Add Sheet
                 </button>
             </div>
@@ -550,6 +597,9 @@
                     <p class="text-xs text-slate-400 font-medium mt-0.5">Ranked by Delivery Rate % and DA Productivity</p>
                 </div>
             </div>
+            <div class="bg-[#0b1329] border border-slate-800 rounded-xl p-3 mb-4" style="height: 240px;">
+                <canvas id="leaderboardChart"></canvas>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="leaderboardGrid">
             </div>
         </div>
@@ -557,13 +607,63 @@
         <!-- TAB 3: HUB MANAGEMENT CARDS (TABLE MOVED TO NAV MENU MODAL) -->
         <div id="viewOverview" class="space-y-6">
             <!-- HUB MANAGEMENT CARDS (UNTOUCHED) -->
-            <div>
+            <div data-hide-key="hubCards">
                 <h2 class="text-base font-extrabold text-white mb-3 flex items-center gap-2">
                     <i class="fa-solid fa-cubes text-sky-400"></i> Hub Management Cards
                 </h2>
                 <div id="hubCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- PIN MODAL (needed to un-hide / open hide settings) -->
+    <div id="pinModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+        <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-xs p-5 shadow-2xl">
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 mx-auto rounded-xl bg-amber-950/60 border border-amber-800/40 flex items-center justify-center text-amber-400 text-xl mb-2">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-sm font-black text-white">Enter PIN</h3>
+                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">PIN dile hidden section gulo abar dekha jabe</p>
+            </div>
+            <input type="password" id="pinInput" autocomplete="off" placeholder="PIN" onkeydown="if(event.key==='Enter') submitPin()" class="w-full bg-[#0b1329] text-sm text-center text-white placeholder-slate-500 rounded-lg px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-sky-500 tracking-widest">
+            <p id="pinError" class="hidden text-[11px] text-rose-400 font-bold text-center mt-2">Wrong PIN</p>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closePinModal()" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition">Cancel</button>
+                <button onclick="submitPin()" class="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHOW / HIDE SECTIONS MODAL -->
+    <div id="visibilityModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+        <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                <h3 class="text-sm font-black text-white flex items-center gap-2">
+                    <i class="fa-solid fa-eye-slash text-amber-400"></i> Choose What To Hide
+                </h3>
+                <button onclick="closeVisibilityModal()" class="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <button onclick="toggleHideMode()" id="visMasterBtn" class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-700 bg-[#0b1329] text-xs font-bold text-slate-300 transition mb-3">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-eye" id="visMasterIcon"></i> <span id="visMasterText">Hidden mode is OFF (everything visible)</span></span>
+                <span id="visMasterPill" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-800 text-slate-400">OFF</span>
+            </button>
+
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button onclick="setHidePreset('controls')" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">Only edit / add / remove buttons</button>
+                <button onclick="setHidePreset('all')" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">Everything</button>
+                <button onclick="setHidePreset('none')" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">Clear</button>
+            </div>
+
+            <div id="visibilityList" class="space-y-4"></div>
+
+            <p class="text-[10px] text-slate-500 font-semibold mt-4 leading-relaxed">
+                <i class="fa-solid fa-circle-info"></i> Ticked items get hidden when Hidden mode is ON. This only changes what is shown on this device/browser. It is not a password lock and does not delete any data.
+            </p>
         </div>
     </div>
 
@@ -1133,9 +1233,14 @@
                 <h3 class="text-sm font-black text-white flex items-center gap-2">
                     <i class="fa-solid fa-warehouse text-emerald-400"></i> Narsingdi Cluster - All Hub Summary
                 </h3>
-                <button onclick="closeClusterSummaryModal()" class="text-slate-400 hover:text-white text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportClusterSummaryImage()" title="Save this summary as an image" class="text-slate-400 hover:text-emerald-400 text-sm" data-html2canvas-ignore="true">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <button onclick="closeClusterSummaryModal()" class="text-slate-400 hover:text-white text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="flex items-center gap-2 mb-3">
@@ -1160,6 +1265,10 @@
             <p class="text-[11px] text-slate-400 font-semibold mb-3" id="clusterSummaryPeriodLabel">Today's report</p>
 
             <div id="clusterSummaryStatsGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5"></div>
+
+            <div class="bg-[#0b1329] border border-slate-800 rounded-lg p-3 mb-5" style="height: 220px;">
+                <canvas id="clusterSummaryChart"></canvas>
+            </div>
 
             <div class="border-t border-slate-800 pt-4">
                 <h4 class="text-xs font-black text-white mb-2 flex items-center gap-2">
@@ -1270,66 +1379,6 @@
         </div>
     </div>
 
-    <!-- NO ACCESS SCREEN -->
-    <div id="noAccessScreen" class="hidden fixed inset-0 bg-[#0b1329] z-[999] flex items-center justify-center p-6">
-        <div class="bg-[#131d36] border border-slate-800 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
-            <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-950/60 border border-amber-800/40 flex items-center justify-center text-amber-400 text-2xl mb-4">
-                <i class="fa-solid fa-lock"></i>
-            </div>
-            <h2 class="text-white font-black text-lg mb-2">No Access Assigned Yet</h2>
-            <p class="text-slate-400 text-sm leading-relaxed">Ei dashboard-e apnar kono Hub access dewa hoyni. Cluster admin/owner-er sathe jogajog korun, tini "Manage Access" theke apnake Hub assign korle apni dekhte parben.</p>
-        </div>
-    </div>
-
-    <!-- FIREBASE GOOGLE SIGN-IN GATE -->
-    <div id="firebaseLoginScreen" class="hidden fixed inset-0 bg-[#0b1329] z-[1000] flex items-center justify-center p-6">
-        <div class="bg-[#131d36] border border-slate-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div class="w-16 h-16 mx-auto rounded-2xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 text-2xl mb-4">
-                <i class="fa-brands fa-google"></i>
-            </div>
-            <h2 class="text-white font-black text-lg mb-2">Narsingdi Cluster Dashboard</h2>
-            <p class="text-slate-400 text-xs leading-relaxed mb-5">Continue korte Gmail diye sign in korun.</p>
-            <button id="firebaseSignInBtn" onclick="handleFirebaseSignInClick()" class="w-full flex items-center justify-center gap-2 bg-white text-slate-800 font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-slate-100 transition">
-                <i class="fa-brands fa-google"></i> Sign in with Google
-            </button>
-            <p id="firebaseLoginError" class="hidden text-rose-400 text-[11px] mt-3"></p>
-        </div>
-    </div>
-
-    <!-- MANAGE ACCESS MODAL -->
-    <div id="manageAccessModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-lg p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto">
-            <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-user-shield text-violet-400"></i> Manage Access
-                </h3>
-                <button onclick="closeManageAccessModal()" class="text-slate-400 hover:text-white text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-300 mb-1">Search person (naam diye khujun)</label>
-                <input type="text" id="accessSearchInput" oninput="handleAccessSearch(this.value)" onfocus="handleAccessSearch(this.value)" placeholder="Type a name..." class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-violet-500">
-                <div id="accessSearchResults" class="mt-2 space-y-1"></div>
-            </div>
-
-            <div id="accessSelectedPersonBlock" class="hidden bg-[#0b1329] border border-slate-700 rounded-lg p-3 mb-4">
-                <p class="text-xs text-slate-400 mb-2">Assigning access for: <span id="accessSelectedPersonName" class="text-white font-bold"></span></p>
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Hubs</p>
-                <div id="accessHubCheckboxes" class="space-y-1.5 mb-3"></div>
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Menu Options <span class="normal-case font-medium text-slate-600">(only checked options will be visible)</span></p>
-                <div id="accessOptionCheckboxes" class="space-y-1.5 mb-3"></div>
-                <button onclick="saveAccessForSelectedPerson()" class="w-full px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-lg transition">Save Access</button>
-            </div>
-
-            <div>
-                <p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Currently Assigned</p>
-                <div id="accessCurrentList" class="space-y-2 text-xs text-slate-300">Loading...</div>
-            </div>
-        </div>
-    </div>
-
     <script>
         let hubList = [
             { 
@@ -1402,206 +1451,16 @@
         let currentActiveAttendanceHubId = null;
         let currentAttendanceRows = [];
 
-        /* =================== CLOUD SYNC & ACCESS CONTROL =================== */
+        /* =================== STORAGE: LOCAL CACHE + SHARED CLOUD SYNC ===================
+           - Every change is saved instantly in this browser (localStorage) so a refresh never loses it.
+           - When the page runs as a published Artifact, the same data is also saved to the shared
+             database, so every viewer sees the same hubs, reports, tasks and notices (live updates).
+        ======================================================================================= */
         let cloudDb = null;
         let cloudUserCap = null;
-        let myAccess = { isOwner: false, hubs: [], options: [], myId: null };
-        let permMap = {};
-        let accessSelectedPersonId = null;
-        let accessSelectedPersonName = '';
-
-        // Assignable menu/feature options. The owner picks which of these each
-        // Gmail-logged-in user is allowed to see & open in Manage Access.
-        // A user only gets what is checked for them here — NOT every option by default.
-        const OPTION_DEFS = [
-            { key: 'hubOverview',    label: 'Cluster Hubs Overview' },
-            { key: 'matrix',         label: 'All-Hub Comparison Matrix' },
-            { key: 'leaderboard',    label: 'Performance Leaderboard' },
-            { key: 'clusterSummary', label: 'All Hub Summary' },
-            { key: 'taskTabs',       label: 'Daily Task Sheets' },
-            { key: 'exportData',     label: 'Export Data (JSON)' }
-        ];
-
-        // These Gmail addresses always get full Owner access, no matter what
-        // the cloud "isOwner" check says. Add/remove emails here as needed.
-        const OWNER_EMAILS = ['ali.hossain@pathao.com'];
-
-        /* ---------------------------------------------------------------------
-           FIREBASE CLOUD ADAPTER
-           ---------------------------------------------------------------------
-           GitHub Pages only serves static files — there is no backend there for
-           Gmail login / shared database. So this dashboard uses Firebase
-           (a free Google service) for both:
-             - Google (Gmail) Sign-In  → replaces the old window.claude "user" capability
-             - Firestore database      → replaces the old window.claude "db" capability
-
-           SETUP (one-time, ~5 minutes) — do this before it will work:
-             1. Go to https://console.firebase.google.com → "Add project" → give it
-                any name → finish the wizard (Google Analytics can be skipped).
-             2. In the project: Build → Authentication → Get started → enable the
-                "Google" sign-in provider → Save.
-             3. Build → Firestore Database → Create database → start in
-                "Production mode" → pick a location → Enable.
-             4. Project settings (gear icon) → General → scroll to "Your apps" →
-                click the </> (Web) icon → register the app (any nickname, no
-                need for Firebase Hosting) → copy the `firebaseConfig` object it
-                shows you and paste its values into FIREBASE_CONFIG below.
-             5. Firestore Database → Rules tab → paste the rules given in the
-                chat reply that shipped this file, then Publish.
-             6. Authentication → Settings → Authorized domains → add your GitHub
-                Pages domain (e.g. yourusername.github.io) so sign-in works there.
-        --------------------------------------------------------------------- */
-        const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBlWhgURrYxuVyxq7FCUDQQ5R4v7FKMyjA",
-            authDomain: "narsingdi-cluster-ops-center.firebaseapp.com",
-            projectId: "narsingdi-cluster-ops-center",
-            storageBucket: "narsingdi-cluster-ops-center.firebasestorage.app",
-            messagingSenderId: "1077916964528",
-            appId: "1:1077916964528:web:90f6cd52313828ded90d75",
-            measurementId: "G-7Q4FYC6R71"
-        };
-
-        let fbSdk = null;      // holds the imported Firestore/Auth functions
-        let fbApp = null;
-        let fbAuth = null;
-        let fbFirestore = null;
-        let fbUser = null;     // the signed-in Firebase user object
-
-        async function loadFirebaseSdk() {
-            if (fbSdk) return fbSdk;
-            const [appMod, authMod, fsMod] = await Promise.all([
-                import('https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js'),
-                import('https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js'),
-                import('https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js')
-            ]);
-            fbSdk = { ...appMod, ...authMod, ...fsMod };
-            return fbSdk;
-        }
-
-        // Waits for Google sign-in, shows the login screen if needed. Resolves
-        // once fbUser is set. Safe to call once at startup.
-        function ensureFirebaseSignedIn() {
-            return new Promise(async (resolve) => {
-                try {
-                    const sdk = await loadFirebaseSdk();
-                    fbApp = sdk.initializeApp(FIREBASE_CONFIG);
-                    fbAuth = sdk.getAuth(fbApp);
-                    fbFirestore = sdk.getFirestore(fbApp);
-
-                    let resolved = false;
-                    sdk.onAuthStateChanged(fbAuth, async (user) => {
-                        fbUser = user;
-                        if (user) {
-                            document.getElementById('firebaseLoginScreen')?.classList.add('hidden');
-                            try {
-                                await sdk.setDoc(sdk.doc(fbFirestore, 'directoryUsers', user.uid), {
-                                    name: user.displayName || '',
-                                    email: (user.email || '').toLowerCase(),
-                                    avatarUrl: user.photoURL || ''
-                                }, { merge: true });
-                            } catch (e) {}
-                            if (!resolved) { resolved = true; resolve(); }
-                        } else {
-                            document.getElementById('firebaseLoginScreen')?.classList.remove('hidden');
-                        }
-                    });
-                } catch (e) {
-                    console.error('Firebase init failed', e);
-                    const errEl = document.getElementById('firebaseLoginError');
-                    if (errEl) {
-                        errEl.textContent = 'Firebase configure kora hoyni ba config bhul ache. FIREBASE_CONFIG check korun.';
-                        errEl.classList.remove('hidden');
-                    }
-                    document.getElementById('firebaseLoginScreen')?.classList.remove('hidden');
-                    // Do not resolve — nothing loads without a valid Firebase project.
-                }
-            });
-        }
-
-        async function handleFirebaseSignInClick() {
-            const errEl = document.getElementById('firebaseLoginError');
-            if (errEl) errEl.classList.add('hidden');
-            try {
-                const sdk = await loadFirebaseSdk();
-                const provider = new sdk.GoogleAuthProvider();
-                await sdk.signInWithPopup(fbAuth, provider);
-            } catch (e) {
-                if (errEl) {
-                    errEl.textContent = 'Sign-in failed: ' + (e.message || e.code || 'try again');
-                    errEl.classList.remove('hidden');
-                }
-            }
-        }
-
-        async function handleFirebaseSignOutClick() {
-            try {
-                const sdk = await loadFirebaseSdk();
-                await sdk.signOut(fbAuth);
-                location.reload();
-            } catch (e) {}
-        }
-
-        // ---- cloudDb-compatible wrapper over Firestore ----
-        function makeCloudDb() {
-            const sdk = fbSdk;
-            function wrapDocRef(path) {
-                const ref = sdk.doc(fbFirestore, path);
-                return {
-                    get: async () => {
-                        const snap = await sdk.getDoc(ref);
-                        return { exists: snap.exists(), data: () => snap.data() };
-                    },
-                    set: async (data) => sdk.setDoc(ref, data),
-                    delete: async () => sdk.deleteDoc(ref),
-                    onSnapshot: (cb) => sdk.onSnapshot(ref, snap => cb({ exists: snap.exists(), data: () => snap.data() }))
-                };
-            }
-            return {
-                doc: (path) => wrapDocRef(path),
-                collection: (path) => ({
-                    doc: (id) => wrapDocRef(`${path}/${id}`)
-                })
-            };
-        }
-
-        // ---- cloudUserCap-compatible wrapper over Firebase Auth + a
-        //      'directoryUsers' Firestore collection (built up as people sign in) ----
-        function makeCloudUserCap() {
-            const sdk = fbSdk;
-            return {
-                isOwner: async () => !!(fbUser && fbUser.email && OWNER_EMAILS.includes(fbUser.email.toLowerCase())),
-                id: async () => fbUser ? fbUser.uid : null,
-                email: async () => fbUser ? (fbUser.email || null) : null,
-                me: async () => ({ email: fbUser ? (fbUser.email || null) : null }),
-                profiles: async (ids) => {
-                    const list = Array.isArray(ids) ? ids : [ids];
-                    const out = {};
-                    await Promise.all(list.map(async (id) => {
-                        try {
-                            const snap = await sdk.getDoc(sdk.doc(fbFirestore, 'directoryUsers', id));
-                            const d = snap.exists() ? snap.data() : {};
-                            out[id] = { name: d.name || '', avatarUrl: d.avatarUrl || '' };
-                        } catch (e) { out[id] = { name: '', avatarUrl: '' }; }
-                    }));
-                    return out;
-                },
-                search: async (query) => {
-                    try {
-                        const snaps = await sdk.getDocs(sdk.collection(fbFirestore, 'directoryUsers'));
-                        const q = (query || '').toLowerCase().trim();
-                        const all = [];
-                        snaps.forEach(d => {
-                            const v = d.data();
-                            all.push({ id: d.id, name: v.name || '', avatarUrl: v.avatarUrl || '', email: v.email || '' });
-                        });
-                        const filtered = q
-                            ? all.filter(p => p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
-                            : all;
-                        return filtered.slice(0, 8);
-                    } catch (e) { return []; }
-                }
-            };
-        }
+        let myAccess = { isOwner: true };
+        const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
+        const pendingWrites = { hubList: 0, reports: {}, attendance: {} };
 
         function debounce(fn, wait) {
             let t;
@@ -1611,24 +1470,65 @@
             };
         }
 
-        const cloudSyncHubList = debounce(async function () {
-            if (!cloudDb) return;
-            try { await cloudDb.doc('config/hubList').set({ hubList }); } catch (e) {}
+        let lastCloudErrorToast = 0;
+        function cloudFail(e) {
+            console.error('Cloud save failed', e);
+            if (Date.now() - lastCloudErrorToast > 8000) {
+                lastCloudErrorToast = Date.now();
+                showToast('Could not save to shared database (saved on this device only)');
+            }
+        }
+
+        /* ---- local cache ---- */
+        function saveLocalState() {
+            try {
+                localStorage.setItem(LS_STATE_KEY, JSON.stringify({
+                    hubList, hubReportsData, hubReportHistory, attendanceReportsData
+                }));
+            } catch (e) {}
+        }
+
+        function loadLocalState() {
+            try {
+                const raw = localStorage.getItem(LS_STATE_KEY);
+                if (!raw) return false;
+                const st = JSON.parse(raw);
+                if (Array.isArray(st.hubList)) hubList = st.hubList;
+                if (st.hubReportsData) hubReportsData = st.hubReportsData;
+                if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
+                if (st.attendanceReportsData) attendanceReportsData = st.attendanceReportsData;
+                return true;
+            } catch (e) { return false; }
+        }
+
+        /* ---- cloud writers (debounced) ---- */
+        const cloudWriteHubList = debounce(async function () {
+            try { await cloudDb.doc('config/hubList').set({ hubList }); } catch (e) { cloudFail(e); }
+            finally { pendingWrites.hubList = Math.max(0, pendingWrites.hubList - 1); }
         }, 600);
+
+        function cloudSyncHubList() {
+            saveLocalState();
+            if (!cloudDb) return;
+            pendingWrites.hubList++;
+            cloudWriteHubList();
+        }
 
         const cloudSyncTaskData = debounce(async function () {
             if (!cloudDb) return;
-            try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets }); } catch (e) {}
+            try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets }); } catch (e) { cloudFail(e); }
         }, 600);
 
         const cloudSyncNotices = debounce(async function () {
             if (!cloudDb) return;
-            try { await cloudDb.doc('config/notices').set({ clusterNotices }); } catch (e) {}
+            try { await cloudDb.doc('config/notices').set({ clusterNotices }); } catch (e) { cloudFail(e); }
         }, 600);
 
         const hubReportDebouncers = {};
         function cloudSyncHubReport(hubId) {
-            if (!cloudDb || !hubId) return;
+            if (!hubId) return;
+            saveLocalState();
+            if (!cloudDb) return;
             if (!hubReportDebouncers[hubId]) {
                 hubReportDebouncers[hubId] = debounce(async function () {
                     try {
@@ -1636,103 +1536,87 @@
                             fields: hubReportsData[hubId] || {},
                             history: hubReportHistory[hubId] || {}
                         });
-                    } catch (e) {}
+                    } catch (e) { cloudFail(e); }
+                    finally { pendingWrites.reports[hubId] = Math.max(0, (pendingWrites.reports[hubId] || 1) - 1); }
                 }, 600);
             }
+            pendingWrites.reports[hubId] = (pendingWrites.reports[hubId] || 0) + 1;
             hubReportDebouncers[hubId]();
         }
 
         const attendanceDebouncers = {};
         function cloudSyncAttendance(hubId) {
-            if (!cloudDb || !hubId) return;
+            if (!hubId) return;
+            saveLocalState();
+            if (!cloudDb) return;
             if (!attendanceDebouncers[hubId]) {
                 attendanceDebouncers[hubId] = debounce(async function () {
-                    try { await cloudDb.collection('attendanceReports').doc(hubId).set(attendanceReportsData[hubId] || {}); } catch (e) {}
+                    try { await cloudDb.collection('attendanceReports').doc(hubId).set(attendanceReportsData[hubId] || {}); } catch (e) { cloudFail(e); }
+                    finally { pendingWrites.attendance[hubId] = Math.max(0, (pendingWrites.attendance[hubId] || 1) - 1); }
                 }, 600);
             }
+            pendingWrites.attendance[hubId] = (pendingWrites.attendance[hubId] || 0) + 1;
             attendanceDebouncers[hubId]();
         }
 
-        function getVisibleHubs() {
-            if (myAccess.isOwner) return hubList;
-            return hubList.filter(h => myAccess.hubs.includes(h.id));
-        }
-
-        function hasHubAccess(hubId) {
-            return myAccess.isOwner || myAccess.hubs.includes(hubId);
-        }
-
-        function hasOptionAccess(optionKey) {
-            return myAccess.isOwner || myAccess.options.includes(optionKey);
-        }
+        /* ---- everyone sees every hub (no per-person access rules) ---- */
+        function getVisibleHubs() { return hubList; }
+        function hasHubAccess() { return true; }
 
         function applyOwnerOnlyUI() {
             document.querySelectorAll('[data-owner-only]').forEach(el => {
                 el.style.display = myAccess.isOwner ? '' : 'none';
             });
-            document.querySelectorAll('[data-option]').forEach(el => {
-                el.style.display = hasOptionAccess(el.getAttribute('data-option')) ? '' : 'none';
-            });
-            renderTaskTabs();
         }
 
-        function showNoAccessScreen() { document.getElementById('noAccessScreen')?.classList.remove('hidden'); }
-        function hideNoAccessScreen() { document.getElementById('noAccessScreen')?.classList.add('hidden'); }
-
-        async function resolveMyAccess() {
-            if (myAccess.isOwner) {
-                myAccess.hubs = hubList.map(h => h.id);
-                myAccess.options = OPTION_DEFS.map(o => o.key);
-                hideNoAccessScreen();
-                return;
-            }
-            const entry = myAccess.myId ? permMap[myAccess.myId] : null;
-            myAccess.hubs = (entry && Array.isArray(entry.hubs)) ? entry.hubs : [];
-            myAccess.options = (entry && Array.isArray(entry.options)) ? entry.options : [];
-            if (myAccess.hubs.length === 0) showNoAccessScreen();
-            else hideNoAccessScreen();
-        }
-
-        async function refreshAfterAccessChange() {
-            await resolveMyAccess();
-            applyOwnerOnlyUI();
+        function rerenderAll() {
             renderDashboard();
             renderConsolidatedMatrix();
             renderLeaderboard();
         }
 
+        function isEditingInside(containerId) {
+            const c = document.getElementById(containerId);
+            const ae = document.activeElement;
+            return !!(c && ae && c.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
+        }
+
         async function initCloudSync() {
-            cloudUserCap = makeCloudUserCap();
-            cloudDb = makeCloudDb();
+            // 1) always start from this device's saved copy, so a refresh never resets anything
+            loadLocalState();
+            loadTabsAndSheets();
+            loadNoticesFromStorage();
+
+            try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
+            try { cloudDb = await window.claude?.use?.('db'); } catch (e) { cloudDb = null; }
 
             if (!cloudDb) {
-                // Fallback: no cloud available in this context, behave as a local-only single-user page
+                // Plain file / no shared database: single-device mode (still persistent via localStorage)
                 myAccess.isOwner = true;
-                myAccess.hubs = hubList.map(h => h.id);
-                myAccess.options = OPTION_DEFS.map(o => o.key);
-                loadNoticesFromStorage();
-                loadTabsAndSheets();
                 return;
             }
 
-            myAccess.isOwner = cloudUserCap ? !!(await cloudUserCap.isOwner()) : false;
-            myAccess.myId = cloudUserCap ? await cloudUserCap.id() : null;
+            try { myAccess.isOwner = cloudUserCap ? !!(await cloudUserCap.isOwner()) : false; } catch (e) { myAccess.isOwner = false; }
 
+            // 2) hub list (shared)
             try {
                 const hubDoc = await cloudDb.doc('config/hubList').get();
-                if (hubDoc.exists && Array.isArray(hubDoc.data().hubList) && hubDoc.data().hubList.length) {
+                if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
                     hubList = hubDoc.data().hubList;
                 } else if (myAccess.isOwner) {
-                    await cloudDb.doc('config/hubList').set({ hubList });
+                    await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
                 }
             } catch (e) {}
             cloudDb.doc('config/hubList').onSnapshot(snap => {
+                if (pendingWrites.hubList > 0) return;                       // ignore echoes while our own write is in flight
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
                     hubList = snap.data().hubList;
-                    resolveMyAccess().then(() => { renderDashboard(); renderConsolidatedMatrix(); renderLeaderboard(); });
+                    saveLocalState();
+                    rerenderAll();
                 }
-            });
+            }, () => {});
 
+            // 3) tasks / tabs (shared)
             try {
                 const taskDoc = await cloudDb.doc('config/taskData').get();
                 if (taskDoc.exists) {
@@ -1748,12 +1632,15 @@
                     if (snap.data().taskSheets) taskSheets = snap.data().taskSheets;
                     renderTaskTabs();
                 }
-            });
+            }, () => {});
 
+            // 4) notices (shared)
             try {
                 const noticeDoc = await cloudDb.doc('config/notices').get();
                 if (noticeDoc.exists && Array.isArray(noticeDoc.data().clusterNotices)) {
                     clusterNotices = noticeDoc.data().clusterNotices;
+                } else if (myAccess.isOwner) {
+                    await cloudDb.doc('config/notices').set({ clusterNotices });
                 }
             } catch (e) {}
             cloudDb.doc('config/notices').onSnapshot(snap => {
@@ -1761,127 +1648,47 @@
                     clusterNotices = snap.data().clusterNotices;
                     renderClusterNotices();
                 }
-            });
+            }, () => {});
 
-            try {
-                const permDoc = await cloudDb.doc('access/permissions').get();
-                permMap = (permDoc.exists && permDoc.data().map) ? permDoc.data().map : {};
-            } catch (e) { permMap = {}; }
-            cloudDb.doc('access/permissions').onSnapshot(snap => {
-                permMap = (snap.exists && snap.data().map) ? snap.data().map : {};
-                refreshAfterAccessChange();
-                if (!document.getElementById('manageAccessModal').classList.contains('hidden')) renderAccessCurrentList();
-            });
-
-            await resolveMyAccess();
-
-            // Load every hub's report + attendance data owner/permitted users may need
-            for (const hub of getVisibleHubs()) {
-                try {
-                    const rdoc = await cloudDb.collection('hubReports').doc(hub.id).get();
-                    if (rdoc.exists) {
-                        hubReportsData[hub.id] = rdoc.data().fields || {};
-                        hubReportHistory[hub.id] = rdoc.data().history || {};
+            // 5) every hub's morning/closing report + history (shared, live)
+            cloudDb.collection('hubReports').onSnapshot(snap => {
+                let touchedActive = false;
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (pendingWrites.reports[id] > 0) return;
+                    if (ch.type === 'removed') {
+                        delete hubReportsData[id]; delete hubReportHistory[id];
+                    } else {
+                        const d = ch.doc.data() || {};
+                        hubReportsData[id] = d.fields || {};
+                        hubReportHistory[id] = d.history || {};
+                        if (id === currentActiveHubId) touchedActive = true;
                     }
-                } catch (e) {}
-                try {
-                    const adoc = await cloudDb.collection('attendanceReports').doc(hub.id).get();
-                    if (adoc.exists) attendanceReportsData[hub.id] = adoc.data();
-                } catch (e) {}
-            }
+                });
+                saveLocalState();
+                if (touchedActive && !document.getElementById('hubReportView').classList.contains('hidden') && !isEditingInside('hubReportView')) {
+                    loadHubReportData(currentActiveHubId);
+                }
+                rerenderAll();
+            }, () => {});
+
+            // 6) every hub's D.A. attendance (shared, live)
+            cloudDb.collection('attendanceReports').onSnapshot(snap => {
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (pendingWrites.attendance[id] > 0) return;
+                    if (ch.type === 'removed') delete attendanceReportsData[id];
+                    else {
+                        attendanceReportsData[id] = ch.doc.data() || {};
+                        if (id === currentActiveAttendanceHubId && !isEditingInside('attendanceReportView')) {
+                            try { loadAttendanceData(id); } catch (e) {}
+                        }
+                    }
+                });
+                saveLocalState();
+            }, () => {});
 
             applyOwnerOnlyUI();
-        }
-
-        /* ---- Manage Access modal ---- */
-        function openManageAccessModal() {
-            document.getElementById('manageAccessModal').classList.remove('hidden');
-            document.getElementById('accessSearchInput').value = '';
-            document.getElementById('accessSearchResults').innerHTML = '';
-            document.getElementById('accessSelectedPersonBlock').classList.add('hidden');
-            renderAccessCurrentList();
-        }
-        function closeManageAccessModal() {
-            document.getElementById('manageAccessModal').classList.add('hidden');
-        }
-
-        async function handleAccessSearch(query) {
-            if (!cloudUserCap) return;
-            const results = await cloudUserCap.search(query || '');
-            const box = document.getElementById('accessSearchResults');
-            box.innerHTML = results.map(p => `
-                <button type="button" onclick="selectAccessPerson('${p.id}')" class="w-full text-left px-3 py-2 bg-[#0b1329] hover:bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 flex items-center gap-2">
-                    <img src="${p.avatarUrl}" class="w-6 h-6 rounded-full" /> <span></span>
-                </button>
-            `).join('');
-            // set name via textContent to avoid injecting untrusted text as HTML
-            box.querySelectorAll('button').forEach((btn, i) => {
-                btn.querySelector('span').textContent = results[i].name || 'Someone';
-            });
-        }
-
-        function selectAccessPerson(personId) {
-            accessSelectedPersonId = personId;
-            cloudUserCap.profiles([personId]).then(ps => {
-                accessSelectedPersonName = (ps[personId] && ps[personId].name) || 'Someone';
-                document.getElementById('accessSelectedPersonName').textContent = accessSelectedPersonName;
-                document.getElementById('accessSelectedPersonBlock').classList.remove('hidden');
-                const existingHubs = permMap[personId] && Array.isArray(permMap[personId].hubs) ? permMap[personId].hubs : [];
-                document.getElementById('accessHubCheckboxes').innerHTML = hubList.map(h => `
-                    <label class="flex items-center gap-2 text-xs text-slate-300">
-                        <input type="checkbox" value="${h.id}" ${existingHubs.includes(h.id) ? 'checked' : ''} class="access-hub-checkbox">
-                        <span>${h.name} (${h.id})</span>
-                    </label>
-                `).join('');
-                const existingOptions = permMap[personId] && Array.isArray(permMap[personId].options) ? permMap[personId].options : [];
-                document.getElementById('accessOptionCheckboxes').innerHTML = OPTION_DEFS.map(o => `
-                    <label class="flex items-center gap-2 text-xs text-slate-300">
-                        <input type="checkbox" value="${o.key}" ${existingOptions.includes(o.key) ? 'checked' : ''} class="access-option-checkbox">
-                        <span>${o.label}</span>
-                    </label>
-                `).join('');
-            });
-        }
-
-        async function saveAccessForSelectedPerson() {
-            if (!accessSelectedPersonId || !cloudDb) return;
-            const checkedHubs = Array.from(document.querySelectorAll('.access-hub-checkbox:checked')).map(c => c.value);
-            const checkedOptions = Array.from(document.querySelectorAll('.access-option-checkbox:checked')).map(c => c.value);
-            permMap[accessSelectedPersonId] = { hubs: checkedHubs, options: checkedOptions };
-            try {
-                await cloudDb.doc('access/permissions').set({ map: permMap });
-                showToast(`Access updated for ${accessSelectedPersonName}`);
-                renderAccessCurrentList();
-            } catch (e) { showToast('Could not save access — try again'); }
-        }
-
-        async function removeAccessForPerson(personId) {
-            delete permMap[personId];
-            try {
-                await cloudDb.doc('access/permissions').set({ map: permMap });
-                renderAccessCurrentList();
-            } catch (e) {}
-        }
-
-        async function renderAccessCurrentList() {
-            const box = document.getElementById('accessCurrentList');
-            if (!box) return;
-            const ids = Object.keys(permMap);
-            if (ids.length === 0) { box.innerHTML = '<p class="text-slate-500">Kauke ekhono access dewa hoyni.</p>'; return; }
-            const profiles = cloudUserCap ? await cloudUserCap.profiles(ids) : {};
-            box.innerHTML = ids.map(id => {
-                const hubs = (permMap[id].hubs || []).join(', ') || 'None';
-                const optionKeys = permMap[id].options || [];
-                const options = optionKeys.length
-                    ? optionKeys.map(k => (OPTION_DEFS.find(o => o.key === k) || {}).label || k).join(', ')
-                    : 'None';
-                const name = (profiles[id] && profiles[id].name) || 'Someone';
-                return `<div class="flex items-center justify-between bg-[#0b1329] border border-slate-700 rounded-lg px-3 py-2">
-                    <div><span class="font-bold text-white block name-slot"></span><span class="text-slate-500 block">Hubs: ${hubs}</span><span class="text-slate-500 block">Options: ${options}</span></div>
-                    <button onclick="removeAccessForPerson('${id}')" class="text-rose-400 hover:text-rose-300 text-xs"><i class="fa-solid fa-trash-can"></i></button>
-                </div>`;
-            }).join('');
-            box.querySelectorAll('.name-slot').forEach((el, i) => { el.textContent = (profiles[ids[i]] && profiles[ids[i]].name) || 'Someone'; });
         }
 
         function toggleSidebar() {
@@ -1904,6 +1711,28 @@
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
             }
+        }
+
+
+        function exportClusterSummaryImage() {
+            const modalContent = document.querySelector('#clusterSummaryModal > div');
+            if (!modalContent || typeof html2canvas === 'undefined') {
+                showToast('Image export is not available right now');
+                return;
+            }
+            showToast('Preparing image...');
+            html2canvas(modalContent, {
+                backgroundColor: '#131d36',
+                scale: 2,
+                useCORS: true,
+                ignoreElements: (node) => node.hasAttribute && node.hasAttribute('data-html2canvas-ignore')
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Cluster_Summary_${getTodayISO()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('Image saved!');
+            }).catch(() => showToast('Could not save image'));
         }
 
         function generateReport(hubId, hubName) {
@@ -2334,7 +2163,6 @@
 
         /* ---- ALL-HUB CLUSTER SUMMARY MODAL ---- */
         function openClusterSummaryModal() {
-            if (!hasOptionAccess('clusterSummary')) { showToast('Ei option ta apnar jonno enabled na.'); return; }
             currentClusterSummaryPeriod = 'daily';
             document.getElementById('clusterSummaryCustomRange').classList.add('hidden');
             document.getElementById('clusterSummaryModal').classList.remove('hidden');
@@ -2403,6 +2231,8 @@
                     ? `Based on ${reportCount} saved report${reportCount > 1 ? 's' : ''} across all hubs in this period`
                     : `No saved reports found across the cluster in this period yet`;
             }
+
+            renderClusterSummaryChart();
         }
 
         /* ===================== DYNAMIC TASK TABS ===================== */
@@ -2445,12 +2275,6 @@
             const sideContainer = document.getElementById('sideTaskTabsContainer');
             if (!topContainer || !sideContainer) return;
 
-            if (!hasOptionAccess('taskTabs')) {
-                topContainer.innerHTML = '';
-                sideContainer.innerHTML = '';
-                return;
-            }
-
             topContainer.innerHTML = taskTabs.map(t => {
                 const isActive = currentGenericTabType === t.type;
                 const cls = isActive
@@ -2476,12 +2300,6 @@
         }
 
         function switchDashboardTab(tab) {
-            const optionKey = (tab === 'matrix' || tab === 'leaderboard') ? tab
-                : (tab !== 'overview' ? 'taskTabs' : null);
-            if (optionKey && !hasOptionAccess(optionKey)) {
-                showToast('Ei option ta apnar jonno enabled na.');
-                return;
-            }
             const overviewView = document.getElementById('viewOverview');
             const matrixView = document.getElementById('viewMatrix');
             const leaderboardView = document.getElementById('viewLeaderboard');
@@ -2585,10 +2403,10 @@
                         <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold py-2 px-3 rounded-lg text-center transition flex items-center justify-center gap-2 shadow">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Open Sheet
                         </a>
-                        <button onclick="openEditSheetModal('${type}', '${item.id}')" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition">
+                        <button data-hide-key="sheetActions" onclick="openEditSheetModal('${type}', '${item.id}')" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <button onclick="removeSheet('${type}', '${item.id}')" class="p-2 bg-rose-950/60 hover:bg-rose-900 text-rose-400 rounded-lg text-xs font-bold border border-rose-800/40 transition">
+                        <button data-hide-key="sheetActions" onclick="removeSheet('${type}', '${item.id}')" class="p-2 bg-rose-950/60 hover:bg-rose-900 text-rose-400 rounded-lg text-xs font-bold border border-rose-800/40 transition">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
@@ -2858,9 +2676,81 @@
                     </div>
                 `;
             }).join('');
+
+            renderLeaderboardChart();
         }
 
         let hubComparisonChartInstance = null;
+        let leaderboardChartInstance = null;
+        let clusterSummaryChartInstance = null;
+
+        function renderLeaderboardChart() {
+            const canvas = document.getElementById('leaderboardChart');
+            if (!canvas || typeof Chart === 'undefined') return;
+            const sorted = [...getVisibleHubs()].sort((a, b) => (parseFloat(b.deliveryRate) || 0) - (parseFloat(a.deliveryRate) || 0));
+            const labels = sorted.map(h => h.name);
+            const rates = sorted.map(h => parseFloat(h.deliveryRate) || 0);
+            const barColors = rates.map(r => r >= 90 ? '#10b981' : r >= 70 ? '#38bdf8' : r >= 50 ? '#f59e0b' : '#ef4444');
+
+            if (leaderboardChartInstance) leaderboardChartInstance.destroy();
+            leaderboardChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Delivery Rate %',
+                        data: rates,
+                        backgroundColor: barColors,
+                        borderRadius: 5,
+                        maxBarThickness: 42
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10, weight: 700 } }, grid: { display: false } },
+                        y: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8', callback: v => v + '%' }, grid: { color: 'rgba(148,163,184,0.1)' } }
+                    }
+                }
+            });
+        }
+
+        function renderClusterSummaryChart() {
+            const canvas = document.getElementById('clusterSummaryChart');
+            if (!canvas || typeof Chart === 'undefined') return;
+            const range = resolveSummaryRange(currentClusterSummaryPeriod, 'clusterSummaryCustomFrom', 'clusterSummaryCustomTo');
+            if (!range) {
+                if (clusterSummaryChartInstance) { clusterSummaryChartInstance.destroy(); clusterSummaryChartInstance = null; }
+                return;
+            }
+            const hubs = getVisibleHubs();
+            const labels = hubs.map(h => h.name);
+            const volumes = hubs.map(h => computeSummaryStats(h.id, range.startISO, range.endISO).totals.totalVolume);
+            const delivered = hubs.map(h => computeSummaryStats(h.id, range.startISO, range.endISO).totals.delivered);
+
+            if (clusterSummaryChartInstance) clusterSummaryChartInstance.destroy();
+            clusterSummaryChartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Volume', data: volumes, backgroundColor: '#334155', borderRadius: 4, maxBarThickness: 26 },
+                        { label: 'Delivered', data: delivered, backgroundColor: '#10b981', borderRadius: 4, maxBarThickness: 26 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10, weight: 700 } } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10, weight: 700 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } }
+                    }
+                }
+            });
+        }
 
         function updateLastUpdatedTime() {
             const el = document.getElementById('lastUpdatedTime');
@@ -3097,7 +2987,7 @@
                                 <p class="text-[10px] text-slate-400 font-semibold mt-1"><i class="fa-regular fa-clock"></i> ${timeAgo}</p>
                             </div>
                         </div>
-                        <button onclick="removeClusterNotice('${n.id}')" class="text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-white/10 rounded-lg transition self-end md:self-auto flex-shrink-0">
+                        <button data-hide-key="noticeActions" onclick="removeClusterNotice('${n.id}')" class="text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-white/10 rounded-lg transition self-end md:self-auto flex-shrink-0">
                             Dismiss
                         </button>
                     </div>
@@ -3133,11 +3023,16 @@
         function removeHubDirect(hubId) {
             hubList = hubList.filter(h => h.id !== hubId);
             delete hubReportsData[hubId];
+            delete hubReportHistory[hubId];
+            delete attendanceReportsData[hubId];
             filterHubs();
             renderConsolidatedMatrix();
             renderLeaderboard();
             cloudSyncHubList();
-            if (cloudDb) { try { cloudDb.collection('hubReports').doc(hubId).delete(); } catch (e) {} }
+            if (cloudDb) {
+                try { cloudDb.collection('hubReports').doc(hubId).delete(); } catch (e) {}
+                try { cloudDb.collection('attendanceReports').doc(hubId).delete(); } catch (e) {}
+            }
             showToast(`Hub ${hubId} removed successfully!`);
         }
 
@@ -3176,7 +3071,6 @@
         }
 
         function openHubOverviewModal() {
-            if (!hasOptionAccess('hubOverview')) { showToast('Ei option ta apnar jonno enabled na.'); return; }
             renderDashboard();
             document.getElementById('hubOverviewTableModal').classList.remove('hidden');
         }
@@ -3185,11 +3079,11 @@
         }
 
         function exportDashboardData() {
-            if (!hasOptionAccess('exportData')) { showToast('Ei option ta apnar jonno enabled na.'); return; }
             const exportPayload = {
                 hubs: hubList,
                 reports: hubReportsData,
                 reportHistory: hubReportHistory,
+                attendance: attendanceReportsData,
                 notices: clusterNotices,
                 sheets: taskSheets,
                 taskTabs: taskTabs
@@ -3220,6 +3114,7 @@
                         hubList = imported.hubs;
                         hubReportsData = imported.reports || {};
                         hubReportHistory = imported.reportHistory || {};
+                        attendanceReportsData = imported.attendance || {};
                         if (imported.notices) { clusterNotices = imported.notices; saveNoticesToStorage(); renderClusterNotices(); }
                         if (imported.sheets) taskSheets = imported.sheets;
                         if (imported.taskTabs) taskTabs = imported.taskTabs;
@@ -3230,6 +3125,7 @@
                         renderLeaderboard();
                         cloudSyncHubList();
                         hubList.forEach(h => cloudSyncHubReport(h.id));
+                        saveLocalState();
                         showToast("Cluster Data Imported Successfully!");
                     } else if (Array.isArray(imported)) {
                         hubList = imported;
@@ -3506,8 +3402,291 @@
             showToast('Previous state restored!');
         }
 
+        /* =================== SHOW / HIDE SECTIONS ===================
+           Tick what you want to hide, then switch "Hidden mode" ON/OFF with one tap.
+           Saved per device in localStorage. Elements are tagged with data-hide-key="..." */
+        const UI_HIDE_LS = 'narsingdi_ui_hide_v1';
+        const UI_HIDE_ITEMS = [
+            { group: 'controls', key: 'tabsManage',    icon: 'fa-sliders',        label: 'Add / Edit / Remove Task Tabs buttons' },
+            { group: 'controls', key: 'hubAdd',        icon: 'fa-plus',           label: 'Add New Hub' },
+            { group: 'controls', key: 'hubRemove',     icon: 'fa-trash-can',      label: 'Remove Hub' },
+            { group: 'controls', key: 'dataImport',    icon: 'fa-upload',         label: 'Import Data' },
+            { group: 'controls', key: 'noticeActions', icon: 'fa-bullhorn',       label: 'Dismiss Notice buttons' },
+            { group: 'controls', key: 'sheetActions',  icon: 'fa-pen-to-square',  label: 'Add / Edit / Delete Sheet buttons' },
+            { group: 'sections', key: 'kpiCards',      icon: 'fa-chart-simple',   label: 'Top 4 KPI cards (Dispatch, Delivery, DA, Hold)' },
+            { group: 'sections', key: 'hubCards',      icon: 'fa-cubes',          label: 'Hub Management Cards' },
+            { group: 'sections', key: 'taskTabs',      icon: 'fa-star',           label: 'Daily Task Sheet tabs' },
+            { group: 'sections', key: 'navAnalytics',  icon: 'fa-table-list',     label: 'Analytics menu (Overview, Matrix, Leaderboard)' },
+            { group: 'sections', key: 'hubSummary',    icon: 'fa-chart-pie',      label: 'All Hub Summary (menu)' },
+            { group: 'sections', key: 'dataExport',    icon: 'fa-download',       label: 'Export Data (menu)' }
+        ];
+        const UI_HIDE_GROUPS = [
+            ['controls', 'Edit / Add / Remove buttons'],
+            ['sections', 'Sections & data']
+        ];
+        let uiHide = { active: false, keys: UI_HIDE_ITEMS.filter(i => i.group === 'controls').map(i => i.key) };
+
+        (function initUiHide() {
+            try {
+                const st = JSON.parse(localStorage.getItem(UI_HIDE_LS) || 'null');
+                if (st && Array.isArray(st.keys)) uiHide = { active: !!st.active, keys: st.keys };
+            } catch (e) {}
+            const css = UI_HIDE_ITEMS.map(i => `body.hide-${i.key} [data-hide-key~="${i.key}"] { display: none !important; }`).join('\n');
+            const tag = document.createElement('style');
+            tag.id = 'uiHideStyle';
+            tag.textContent = css;
+            document.head.appendChild(tag);
+            applyUiHide();
+        })();
+
+        function saveUiHide() {
+            try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
+        }
+
+        function applyUiHide() {
+            UI_HIDE_ITEMS.forEach(i => document.body.classList.toggle('hide-' + i.key, uiHide.active && uiHide.keys.includes(i.key)));
+            const on = uiHide.active;
+            const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+            set('topHideModeIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash' : 'fa-eye'));
+            set('topHideModeLabel', el => el.textContent = on ? 'Hidden' : 'Hide');
+            set('topBtnHideMode', el => {
+                el.classList.toggle('bg-amber-600', on); el.classList.toggle('text-white', on); el.classList.toggle('border-amber-500', on);
+                el.classList.toggle('bg-slate-800', !on); el.classList.toggle('text-slate-300', !on); el.classList.toggle('border-slate-700', !on);
+            });
+            set('sideHideModeIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash' : 'fa-eye'));
+            set('sideHideModePill', el => {
+                el.textContent = on ? 'ON' : 'OFF';
+                el.className = 'px-2 py-0.5 rounded-full text-[9px] font-black ' + (on ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
+            });
+            set('visMasterIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash text-amber-400' : 'fa-eye'));
+            set('visMasterText', el => el.textContent = on ? 'Hidden mode is ON (ticked items are hidden)' : 'Hidden mode is OFF (everything visible)');
+            set('visMasterPill', el => {
+                el.textContent = on ? 'ON' : 'OFF';
+                el.className = 'px-2 py-0.5 rounded-full text-[10px] font-black ' + (on ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
+            });
+        }
+
+        /* PIN: hiding is one tap, but un-hiding / opening the hide settings needs the PIN */
+        const UI_HIDE_PIN = 'Pathao';
+        let uiPinOk = false;          // true only while the settings window is open after a correct PIN
+        let pinCallback = null;
+
+        function requirePin(cb) {
+            pinCallback = cb;
+            const inp = document.getElementById('pinInput');
+            inp.value = '';
+            document.getElementById('pinError').classList.add('hidden');
+            document.getElementById('pinModal').classList.remove('hidden');
+            setTimeout(() => inp.focus(), 50);
+        }
+        function closePinModal() {
+            document.getElementById('pinModal').classList.add('hidden');
+            pinCallback = null;
+        }
+        function submitPin() {
+            const val = document.getElementById('pinInput').value.trim();
+            if (val.toLowerCase() === UI_HIDE_PIN.toLowerCase()) {
+                const cb = pinCallback;
+                closePinModal();
+                if (cb) cb();
+            } else {
+                document.getElementById('pinError').classList.remove('hidden');
+                document.getElementById('pinInput').value = '';
+                document.getElementById('pinInput').focus();
+            }
+        }
+
+        function doToggleHideMode() {
+            uiHide.active = !uiHide.active;
+            saveUiHide();
+            applyUiHide();
+            showToast(uiHide.active ? 'Selected sections are now hidden' : 'Everything is visible again');
+        }
+        function toggleHideMode() {
+            if (uiHide.active && !uiPinOk) { requirePin(doToggleHideMode); return; }   // un-hide needs PIN
+            doToggleHideMode();
+        }
+
+        function toggleHideKey(key, hide) {
+            const has = uiHide.keys.includes(key);
+            if (hide && !has) uiHide.keys.push(key);
+            if (!hide && has) uiHide.keys = uiHide.keys.filter(k => k !== key);
+            if (hide) uiHide.active = true;      // ticking something hides it right away
+            saveUiHide();
+            applyUiHide();
+        }
+
+        function setHidePreset(kind) {
+            if (kind === 'controls') { uiHide.keys = UI_HIDE_ITEMS.filter(i => i.group === 'controls').map(i => i.key); uiHide.active = true; }
+            else if (kind === 'all') { uiHide.keys = UI_HIDE_ITEMS.map(i => i.key); uiHide.active = true; }
+            else { uiHide.keys = []; uiHide.active = false; }
+            saveUiHide();
+            applyUiHide();
+            renderVisibilityList();
+        }
+
+        function renderVisibilityList() {
+            const box = document.getElementById('visibilityList');
+            if (!box) return;
+            box.innerHTML = UI_HIDE_GROUPS.map(([g, title]) => `
+                <div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${title}</p>
+                    <div class="space-y-1.5">
+                        ${UI_HIDE_ITEMS.filter(i => i.group === g).map(i => `
+                            <label class="flex items-center gap-3 bg-[#0b1329] border border-slate-800 hover:border-slate-600 rounded-xl px-3 py-2.5 cursor-pointer transition">
+                                <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 text-xs flex-shrink-0"><i class="fa-solid ${i.icon}"></i></span>
+                                <span class="flex-1 text-xs font-bold text-white">${i.label}</span>
+                                <span class="text-[10px] font-bold text-slate-500">Hide</span>
+                                <input type="checkbox" class="w-4 h-4 accent-amber-500" ${uiHide.keys.includes(i.key) ? 'checked' : ''} onchange="toggleHideKey('${i.key}', this.checked)">
+                            </label>`).join('')}
+                    </div>
+                </div>`).join('');
+        }
+
+        function showVisibilityModal() {
+            uiPinOk = true;
+            renderVisibilityList();
+            applyUiHide();
+            document.getElementById('visibilityModal').classList.remove('hidden');
+        }
+        function openVisibilityModal() {
+            if (uiHide.active && !uiPinOk) { requirePin(showVisibilityModal); return; }
+            showVisibilityModal();
+        }
+        function closeVisibilityModal() {
+            uiPinOk = false;
+            document.getElementById('visibilityModal').classList.add('hidden');
+        }
+
+        /* =================== GOOGLE LOGIN + LIVE PRESENCE (Firebase) ===================
+           Fill in FIREBASE_CONFIG from Firebase console > Project settings > Your apps > Web app.
+           ALLOWED_EMAILS: only these Gmail accounts may enter. Empty list = any Google account. */
+        const FIREBASE_CONFIG = {
+            apiKey: 'PASTE_API_KEY',
+            authDomain: 'PASTE_PROJECT_ID.firebaseapp.com',
+            databaseURL: 'https://PASTE_PROJECT_ID-default-rtdb.firebaseio.com',
+            projectId: 'PASTE_PROJECT_ID',
+            appId: 'PASTE_APP_ID'
+        };
+        const ALLOWED_EMAILS = [
+            // 'yourname@gmail.com',
+        ];
+
+        function initAuthGate() {
+            const gate = document.getElementById('loginGate');
+            if (typeof firebase === 'undefined' || String(FIREBASE_CONFIG.apiKey).startsWith('PASTE')) {
+                console.warn('Firebase is not configured: login and presence are off.');
+                gate.classList.add('hidden');
+                return;
+            }
+            firebase.initializeApp(FIREBASE_CONFIG);
+            const auth = firebase.auth(), rtdb = firebase.database();
+            const msg = document.getElementById('loginMsg');
+            const allowed = ALLOWED_EMAILS.map(e => e.trim().toLowerCase());
+            let stopPresence = null;
+
+            document.getElementById('btnGoogleLogin').onclick = () => {
+                msg.textContent = '';
+                auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+                    .catch(e => { msg.textContent = 'Login failed (' + (e.code || 'error') + ')'; });
+            };
+            document.getElementById('btnSignOut').onclick = () => auth.signOut();
+
+            auth.onAuthStateChanged(user => {
+                if (stopPresence) { stopPresence(); stopPresence = null; }
+                if (!user) {
+                    document.getElementById('presenceBar').classList.add('hidden');
+                    gate.classList.remove('hidden');
+                    return;
+                }
+                const email = (user.email || '').toLowerCase();
+                if (allowed.length && !allowed.includes(email)) {
+                    msg.textContent = email + ' er ei dashboard e access nei.';
+                    auth.signOut();
+                    return;
+                }
+                msg.textContent = '';
+                gate.classList.add('hidden');
+                stopPresence = startPresence(user, rtdb);
+            });
+        }
+
+        function startPresence(user, rtdb) {
+            const bar = document.getElementById('presenceBar');
+            const me = rtdb.ref('presence/' + user.uid);
+            const TS = firebase.database.ServerValue.TIMESTAMP;
+            const info = { name: user.displayName || user.email || 'Someone', photo: user.photoURL || '' };
+            const ONLINE_MS = 90 * 1000, RECENT_MS = 5 * 60 * 1000;
+            let offset = 0, all = {};
+            const now = () => Date.now() + offset;
+            const beat = () => me.set({ ...info, state: 'online', last: TS }).catch(() => {});
+
+            const fill = (elId, list, online) => {
+                const box = document.getElementById(elId);
+                box.textContent = '';
+                if (!list.length) {
+                    const none = document.createElement('span');
+                    none.className = 'text-[10px] text-slate-600 font-semibold';
+                    none.textContent = '-';
+                    box.appendChild(none);
+                    return;
+                }
+                list.forEach(([id, v]) => {
+                    const ring = 'w-8 h-8 rounded-full border-2 flex-shrink-0 ' + (online ? 'border-emerald-400' : 'border-slate-600 opacity-60');
+                    const who = (v.name || 'Someone') + (id === user.uid ? ' (you)' : '');
+                    const when = online ? 'Online now' : Math.max(1, Math.round((now() - v.last) / 60000)) + ' min ago';
+                    let el;
+                    if (v.photo) {
+                        el = document.createElement('img');
+                        el.src = v.photo;
+                        el.referrerPolicy = 'no-referrer';
+                        el.className = ring + ' object-cover';
+                    } else {
+                        el = document.createElement('div');
+                        el.className = ring + ' bg-sky-700 text-white text-[11px] font-black flex items-center justify-center';
+                        el.textContent = (v.name || '?').trim().charAt(0).toUpperCase();
+                    }
+                    el.title = who + ' - ' + when;
+                    box.appendChild(el);
+                });
+            };
+
+            const render = () => {
+                const t = now();
+                const entries = Object.entries(all).filter(([, v]) => v && typeof v.last === 'number');
+                const online = entries.filter(([, v]) => v.state === 'online' && t - v.last < ONLINE_MS);
+                const onlineIds = online.map(([id]) => id);
+                const recent = entries
+                    .filter(([id, v]) => !onlineIds.includes(id) && t - v.last <= RECENT_MS)
+                    .sort((a, b) => b[1].last - a[1].last);
+                fill('presenceOnline', online, true);
+                fill('presenceRecent', recent, false);
+            };
+
+            const connRef = rtdb.ref('.info/connected');
+            const offRef = rtdb.ref('.info/serverTimeOffset');
+            const listRef = rtdb.ref('presence');
+            const onConn = connRef.on('value', snap => {
+                if (snap.val() === true) {
+                    me.onDisconnect().set({ ...info, state: 'offline', last: TS }).then(beat).catch(() => {});
+                }
+            });
+            const onOff = offRef.on('value', snap => { offset = snap.val() || 0; });
+            const onList = listRef.on('value', snap => { all = snap.val() || {}; render(); }, () => {});
+            const t1 = setInterval(beat, 30000);
+            const t2 = setInterval(render, 15000);
+            bar.classList.remove('hidden');
+
+            return () => {
+                clearInterval(t1); clearInterval(t2);
+                connRef.off('value', onConn); offRef.off('value', onOff); listRef.off('value', onList);
+                me.onDisconnect().cancel();
+                me.set({ ...info, state: 'offline', last: TS }).catch(() => {});
+            };
+        }
+
         window.onload = async function() {
-            await ensureFirebaseSignedIn();
+            initAuthGate();
             await initCloudSync();
             applyOwnerOnlyUI();
             renderTaskTabs();
