@@ -8,8 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -118,19 +116,6 @@
     </style>
 </head>
 <body class="min-h-screen antialiased flex flex-col">
-    <!-- GOOGLE LOGIN GATE (hidden automatically if Firebase is not configured) -->
-    <div id="loginGate" class="fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-4">
-        <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-sm p-7 text-center shadow-2xl">
-            <div class="w-12 h-12 mx-auto rounded-xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 text-xl mb-3"><i class="fa-solid fa-compass"></i></div>
-            <h2 class="text-base font-black text-white">Narsingdi Cluster Dashboard</h2>
-            <p class="text-[11px] text-slate-400 font-semibold mt-1 mb-5">Gmail diye login korun</p>
-            <button id="btnGoogleLogin" type="button" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-lg transition">
-                <i class="fa-brands fa-google text-rose-500"></i> Sign in with Google
-            </button>
-            <p id="loginMsg" class="text-[11px] text-rose-400 font-bold mt-3 min-h-[1rem]"></p>
-        </div>
-    </div>
-
 
     <div class="toast-notify" id="toastNotify">
         <span id="toastMsg">Action completed successfully</span>
@@ -415,23 +400,6 @@
                     </div>
                 </form>
             </div>
-        </div>
-
-        <!-- LIVE PRESENCE: who is online now + who was active in the last 5 minutes -->
-        <div id="presenceBar" class="hidden flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#131d36] border border-slate-800 rounded-xl px-3 py-2">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-[10px] font-black text-slate-300 uppercase tracking-wider">Online now</span>
-                <div id="presenceOnline" class="flex items-center gap-1.5"></div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Active in last 5 min</span>
-                <div id="presenceRecent" class="flex items-center gap-1.5"></div>
-            </div>
-            <button id="btnSignOut" type="button" class="ml-auto text-[10px] font-bold text-slate-400 hover:text-white flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-right-from-bracket"></i> Sign out
-            </button>
         </div>
 
         <!-- NAVIGATION MENU TRIGGER & TASK TABS BAR -->
@@ -1582,22 +1550,61 @@
             return !!(c && ae && c.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
         }
 
+        /* =================== FIREBASE (SHARED DATABASE) ===================
+           1. Create a Firebase project + Firestore database (see README steps)
+           2. Paste your web-app config below
+        =================================================================== */
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAhV_HigmlMaluZhJTaMfifhgZaZ5FMIBo",
+            authDomain: "nsd-cluster-ops-dashboar-923cc.firebaseapp.com",
+            projectId: "nsd-cluster-ops-dashboar-923cc",
+            storageBucket: "nsd-cluster-ops-dashboar-923cc.firebasestorage.app",
+            messagingSenderId: "997703960764",
+            appId: "1:997703960764:web:a36b22050d1621497ba8b9",
+            measurementId: "G-MEHKLRF8XV"
+        };
+
+        function createFirebaseDb() {
+            try {
+                if (typeof firebase === 'undefined' || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith('PASTE')) return null;
+                if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+                const fdb = firebase.firestore();
+                // Data is stored as one JSON string per document (avoids Firestore's nested-array / undefined limits)
+                const pack = d => ({ __json: JSON.stringify(d), updatedAt: Date.now() });
+                const unpack = d => (d && typeof d.__json === 'string') ? JSON.parse(d.__json) : d;
+                const wrapSnap = s => ({ id: s.id, exists: s.exists, data: () => s.exists ? unpack(s.data()) : undefined });
+                const wrapDoc = ref => ({
+                    get: async () => wrapSnap(await ref.get()),
+                    set: d => ref.set(pack(d)),
+                    delete: () => ref.delete(),
+                    onSnapshot: (ok, err) => ref.onSnapshot(s => ok(wrapSnap(s)), err)
+                });
+                const wrapCol = ref => ({
+                    doc: id => wrapDoc(ref.doc(id)),
+                    isEmpty: async () => (await ref.limit(1).get()).empty,
+                    onSnapshot: (ok, err) => ref.onSnapshot(qs => ok({
+                        docChanges: () => qs.docChanges().map(c => ({ type: c.type, doc: wrapSnap(c.doc) }))
+                    }), err)
+                });
+                return { __firebase: true, doc: p => wrapDoc(fdb.doc(p)), collection: n => wrapCol(fdb.collection(n)) };
+            } catch (e) {
+                console.error('Firebase init failed', e);
+                return null;
+            }
+        }
+
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState();
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
-            let usingFirebase = false;
-            if (firebaseConfigured()) {
-                // GitHub / own hosting: shared data lives in Firebase Firestore (after Google login)
-                const fbUser = await authReady;
-                cloudDb = firebase.firestore();
-                usingFirebase = true;
-                const em = (fbUser.email || '').toLowerCase();
-                const owners = OWNER_EMAILS.map(e => e.trim().toLowerCase());
-                myAccess.isOwner = owners.length ? owners.includes(em) : true;
+            // Shared database: Firebase Firestore (works on GitHub Pages, all devices see the same data)
+            cloudDb = createFirebaseDb();
+            if (cloudDb) {
+                cloudUserCap = null;
             } else {
+                // fallback: Claude artifact runtime (only exists when published inside Claude)
                 try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
                 try { cloudDb = await window.claude?.use?.('db'); } catch (e) { cloudDb = null; }
             }
@@ -1608,7 +1615,7 @@
                 return;
             }
 
-            if (!usingFirebase) { try { myAccess.isOwner = cloudUserCap ? !!(await cloudUserCap.isOwner()) : false; } catch (e) { myAccess.isOwner = false; } }
+            if (cloudUserCap) { try { myAccess.isOwner = !!(await cloudUserCap.isOwner()); } catch (e) { myAccess.isOwner = false; } } else { myAccess.isOwner = true; }
 
             // 2) hub list (shared)
             try {
@@ -1661,6 +1668,22 @@
                     renderClusterNotices();
                 }
             }, () => {});
+
+            // 4b) first run only: upload this device's existing reports so nothing is lost
+            try {
+                if (myAccess.isOwner && cloudDb.__firebase) {
+                    if (await cloudDb.collection('hubReports').isEmpty()) {
+                        for (const id of Object.keys(hubReportsData)) {
+                            await cloudDb.collection('hubReports').doc(id).set({ fields: hubReportsData[id] || {}, history: hubReportHistory[id] || {} });
+                        }
+                    }
+                    if (await cloudDb.collection('attendanceReports').isEmpty()) {
+                        for (const id of Object.keys(attendanceReportsData)) {
+                            await cloudDb.collection('attendanceReports').doc(id).set(attendanceReportsData[id] || {});
+                        }
+                    }
+                }
+            } catch (e) { console.warn('Initial upload skipped', e); }
 
             // 5) every hub's morning/closing report + history (shared, live)
             cloudDb.collection('hubReports').onSnapshot(snap => {
@@ -3570,148 +3593,7 @@
             document.getElementById('visibilityModal').classList.add('hidden');
         }
 
-        /* =================== GOOGLE LOGIN + LIVE PRESENCE (Firebase) ===================
-           Fill in FIREBASE_CONFIG from Firebase console > Project settings > Your apps > Web app.
-           ALLOWED_EMAILS: only these Gmail accounts may enter. Empty list = any Google account. */
-        const FIREBASE_CONFIG = {
-            apiKey: 'PASTE_API_KEY',
-            authDomain: 'PASTE_PROJECT_ID.firebaseapp.com',
-            databaseURL: 'https://PASTE_PROJECT_ID-default-rtdb.firebaseio.com',
-            projectId: 'PASTE_PROJECT_ID',
-            appId: 'PASTE_APP_ID'
-        };
-        const ALLOWED_EMAILS = [
-            // 'yourname@gmail.com',
-        ];
-        // OWNER_EMAILS: only these can add/remove hubs, tabs, notices, import. Empty list = every allowed user.
-        const OWNER_EMAILS = [
-            // 'yourname@gmail.com',
-        ];
-        function firebaseConfigured() {
-            return typeof firebase !== 'undefined' && !String(FIREBASE_CONFIG.apiKey).startsWith('PASTE');
-        }
-        let authReadyResolve;
-        const authReady = new Promise(r => { authReadyResolve = r; });
-        let signedInOnce = false;
-
-        function initAuthGate() {
-            const gate = document.getElementById('loginGate');
-            if (typeof firebase === 'undefined' || String(FIREBASE_CONFIG.apiKey).startsWith('PASTE')) {
-                console.warn('Firebase is not configured: login and presence are off.');
-                gate.classList.add('hidden');
-                return;
-            }
-            firebase.initializeApp(FIREBASE_CONFIG);
-            const auth = firebase.auth(), rtdb = firebase.database();
-            const msg = document.getElementById('loginMsg');
-            const allowed = ALLOWED_EMAILS.map(e => e.trim().toLowerCase());
-            let stopPresence = null;
-
-            document.getElementById('btnGoogleLogin').onclick = () => {
-                msg.textContent = '';
-                auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-                    .catch(e => { msg.textContent = 'Login failed (' + (e.code || 'error') + ')'; });
-            };
-            document.getElementById('btnSignOut').onclick = () => auth.signOut();
-
-            auth.onAuthStateChanged(user => {
-                if (stopPresence) { stopPresence(); stopPresence = null; }
-                if (!user) {
-                    if (signedInOnce) { location.reload(); return; }
-                    document.getElementById('presenceBar').classList.add('hidden');
-                    gate.classList.remove('hidden');
-                    return;
-                }
-                const email = (user.email || '').toLowerCase();
-                if (allowed.length && !allowed.includes(email)) {
-                    msg.textContent = email + ' er ei dashboard e access nei.';
-                    auth.signOut();
-                    return;
-                }
-                msg.textContent = '';
-                gate.classList.add('hidden');
-                signedInOnce = true;
-                authReadyResolve(user);
-                stopPresence = startPresence(user, rtdb);
-            });
-        }
-
-        function startPresence(user, rtdb) {
-            const bar = document.getElementById('presenceBar');
-            const me = rtdb.ref('presence/' + user.uid);
-            const TS = firebase.database.ServerValue.TIMESTAMP;
-            const info = { name: user.displayName || user.email || 'Someone', photo: user.photoURL || '' };
-            const ONLINE_MS = 90 * 1000, RECENT_MS = 5 * 60 * 1000;
-            let offset = 0, all = {};
-            const now = () => Date.now() + offset;
-            const beat = () => me.set({ ...info, state: 'online', last: TS }).catch(() => {});
-
-            const fill = (elId, list, online) => {
-                const box = document.getElementById(elId);
-                box.textContent = '';
-                if (!list.length) {
-                    const none = document.createElement('span');
-                    none.className = 'text-[10px] text-slate-600 font-semibold';
-                    none.textContent = '-';
-                    box.appendChild(none);
-                    return;
-                }
-                list.forEach(([id, v]) => {
-                    const ring = 'w-8 h-8 rounded-full border-2 flex-shrink-0 ' + (online ? 'border-emerald-400' : 'border-slate-600 opacity-60');
-                    const who = (v.name || 'Someone') + (id === user.uid ? ' (you)' : '');
-                    const when = online ? 'Online now' : Math.max(1, Math.round((now() - v.last) / 60000)) + ' min ago';
-                    let el;
-                    if (v.photo) {
-                        el = document.createElement('img');
-                        el.src = v.photo;
-                        el.referrerPolicy = 'no-referrer';
-                        el.className = ring + ' object-cover';
-                    } else {
-                        el = document.createElement('div');
-                        el.className = ring + ' bg-sky-700 text-white text-[11px] font-black flex items-center justify-center';
-                        el.textContent = (v.name || '?').trim().charAt(0).toUpperCase();
-                    }
-                    el.title = who + ' - ' + when;
-                    box.appendChild(el);
-                });
-            };
-
-            const render = () => {
-                const t = now();
-                const entries = Object.entries(all).filter(([, v]) => v && typeof v.last === 'number');
-                const online = entries.filter(([, v]) => v.state === 'online' && t - v.last < ONLINE_MS);
-                const onlineIds = online.map(([id]) => id);
-                const recent = entries
-                    .filter(([id, v]) => !onlineIds.includes(id) && t - v.last <= RECENT_MS)
-                    .sort((a, b) => b[1].last - a[1].last);
-                fill('presenceOnline', online, true);
-                fill('presenceRecent', recent, false);
-            };
-
-            const connRef = rtdb.ref('.info/connected');
-            const offRef = rtdb.ref('.info/serverTimeOffset');
-            const listRef = rtdb.ref('presence');
-            const onConn = connRef.on('value', snap => {
-                if (snap.val() === true) {
-                    me.onDisconnect().set({ ...info, state: 'offline', last: TS }).then(beat).catch(() => {});
-                }
-            });
-            const onOff = offRef.on('value', snap => { offset = snap.val() || 0; });
-            const onList = listRef.on('value', snap => { all = snap.val() || {}; render(); }, () => {});
-            const t1 = setInterval(beat, 30000);
-            const t2 = setInterval(render, 15000);
-            bar.classList.remove('hidden');
-
-            return () => {
-                clearInterval(t1); clearInterval(t2);
-                connRef.off('value', onConn); offRef.off('value', onOff); listRef.off('value', onList);
-                me.onDisconnect().cancel();
-                me.set({ ...info, state: 'offline', last: TS }).catch(() => {});
-            };
-        }
-
         window.onload = async function() {
-            initAuthGate();
             await initCloudSync();
             applyOwnerOnlyUI();
             renderTaskTabs();
