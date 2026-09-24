@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -1587,8 +1588,19 @@
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
-            try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
-            try { cloudDb = await window.claude?.use?.('db'); } catch (e) { cloudDb = null; }
+            let usingFirebase = false;
+            if (firebaseConfigured()) {
+                // GitHub / own hosting: shared data lives in Firebase Firestore (after Google login)
+                const fbUser = await authReady;
+                cloudDb = firebase.firestore();
+                usingFirebase = true;
+                const em = (fbUser.email || '').toLowerCase();
+                const owners = OWNER_EMAILS.map(e => e.trim().toLowerCase());
+                myAccess.isOwner = owners.length ? owners.includes(em) : true;
+            } else {
+                try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
+                try { cloudDb = await window.claude?.use?.('db'); } catch (e) { cloudDb = null; }
+            }
 
             if (!cloudDb) {
                 // Plain file / no shared database: single-device mode (still persistent via localStorage)
@@ -1596,7 +1608,7 @@
                 return;
             }
 
-            try { myAccess.isOwner = cloudUserCap ? !!(await cloudUserCap.isOwner()) : false; } catch (e) { myAccess.isOwner = false; }
+            if (!usingFirebase) { try { myAccess.isOwner = cloudUserCap ? !!(await cloudUserCap.isOwner()) : false; } catch (e) { myAccess.isOwner = false; } }
 
             // 2) hub list (shared)
             try {
@@ -3571,6 +3583,16 @@
         const ALLOWED_EMAILS = [
             // 'yourname@gmail.com',
         ];
+        // OWNER_EMAILS: only these can add/remove hubs, tabs, notices, import. Empty list = every allowed user.
+        const OWNER_EMAILS = [
+            // 'yourname@gmail.com',
+        ];
+        function firebaseConfigured() {
+            return typeof firebase !== 'undefined' && !String(FIREBASE_CONFIG.apiKey).startsWith('PASTE');
+        }
+        let authReadyResolve;
+        const authReady = new Promise(r => { authReadyResolve = r; });
+        let signedInOnce = false;
 
         function initAuthGate() {
             const gate = document.getElementById('loginGate');
@@ -3595,6 +3617,7 @@
             auth.onAuthStateChanged(user => {
                 if (stopPresence) { stopPresence(); stopPresence = null; }
                 if (!user) {
+                    if (signedInOnce) { location.reload(); return; }
                     document.getElementById('presenceBar').classList.add('hidden');
                     gate.classList.remove('hidden');
                     return;
@@ -3607,6 +3630,8 @@
                 }
                 msg.textContent = '';
                 gate.classList.add('hidden');
+                signedInOnce = true;
+                authReadyResolve(user);
                 stopPresence = startPresence(user, rtdb);
             });
         }
