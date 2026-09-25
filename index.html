@@ -1448,6 +1448,7 @@
         // Optional: put the owner Google account email here to make ownership explicit.
         // If left empty, the first Google account that signs in claims ownership once.
         const OWNER_EMAILS = [];
+        let dashboardOwnerUid = null;
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {} };
 
@@ -1515,8 +1516,8 @@
 
         const hubReportDebouncers = {};
         const cloudSyncUiHide = debounce(async function () {
-            if (!cloudDb) return;
-            try { await cloudDb.doc('config/uiHide').set({ uiHide }); } catch (e) { cloudFail(e); }
+            if (!cloudDb || !dashboardOwnerUid) return;
+            try { await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() }); } catch (e) { cloudFail(e); }
         }, 400);
 
         function cloudSyncHubReport(hubId) {
@@ -1635,10 +1636,14 @@
                 const snap = await ref.get();
                 const data = snap.exists ? (snap.data() || {}) : {};
                 if (data.ownerEmail) {
-                    myAccess.isOwner = String(data.ownerEmail).toLowerCase() === email;
+                    dashboardOwnerUid = data.ownerUid || null;
+                    myAccess.isOwner = data.ownerUid
+                        ? String(data.ownerUid) === String(currentUser.uid)
+                        : String(data.ownerEmail).toLowerCase() === email;
                 } else {
                     // First signed-in Google account becomes the dashboard owner.
-                    await ref.set({ ownerEmail: currentUser.email, ownerName: currentUser.displayName || '', createdAt: Date.now() });
+                    await ref.set({ ownerEmail: currentUser.email, ownerUid: currentUser.uid, ownerName: currentUser.displayName || '', createdAt: Date.now() });
+                    dashboardOwnerUid = currentUser.uid;
                     myAccess.isOwner = true;
                 }
             } catch (e) {
@@ -1769,15 +1774,19 @@
                 })(),
                 (async () => {
                     try {
-                        const hideDoc = await cloudDb.doc('config/uiHide').get();
+                        const ownerSnap = await cloudDb.doc('config/ownerAccess').get();
+                        const ownerData = ownerSnap.exists ? (ownerSnap.data() || {}) : {};
+                        dashboardOwnerUid = ownerData.ownerUid || (myAccess.isOwner ? currentUser?.uid : null);
+                        if (!dashboardOwnerUid) return;
+                        const hideDoc = await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).get();
                         if (hideDoc.exists && hideDoc.data().uiHide && Array.isArray(hideDoc.data().uiHide.keys)) {
                             uiHide = hideDoc.data().uiHide;
                             try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
-                            applyUiHide();
-                            renderVisibilityList();
                         } else if (myAccess.isOwner) {
-                            await cloudDb.doc('config/uiHide').set({ uiHide });
+                            await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() });
                         }
+                        applyUiHide();
+                        renderVisibilityList();
                     } catch (e) { cloudFail(e); }
                 })()
             ]);
@@ -1867,14 +1876,16 @@
                 saveLocalState();
             }, () => {});
 
-            cloudDb.doc('config/uiHide').onSnapshot(snap => {
-                if (snap.exists && snap.data().uiHide && Array.isArray(snap.data().uiHide.keys)) {
-                    uiHide = snap.data().uiHide;
-                    try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
-                    applyUiHide();
-                    renderVisibilityList();
-                }
-            }, () => {});
+            if (dashboardOwnerUid) {
+                cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
+                    if (snap.exists && snap.data().uiHide && Array.isArray(snap.data().uiHide.keys)) {
+                        uiHide = snap.data().uiHide;
+                        try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
+                        applyUiHide();
+                        renderVisibilityList();
+                    }
+                }, () => {});
+            }
 
             applyOwnerOnlyUI();
         }
@@ -3593,7 +3604,7 @@
         /* =================== SHOW / HIDE SECTIONS ===================
            Tick what you want to hide, then switch "Hidden mode" ON/OFF with one tap.
            Saved per device in localStorage. Elements are tagged with data-hide-key="..." */
-        const UI_HIDE_LS = 'narsingdi_ui_hide_v1';
+        const UI_HIDE_LS = 'narsingdi_ui_hide_v2';
         const UI_HIDE_ITEMS = [
             { group: 'controls', key: 'tabsManage',    icon: 'fa-sliders',        label: 'Add / Edit / Remove Task Tabs buttons' },
             { group: 'controls', key: 'hubAdd',        icon: 'fa-plus',           label: 'Add New Hub' },
@@ -3655,35 +3666,12 @@
             });
         }
 
-        /* PIN: hiding is one tap, but un-hiding / opening the hide settings needs the PIN */
-        const UI_HIDE_PIN = 'Pathao';
-        let uiPinOk = false;          // true only while the settings window is open after a correct PIN
-        let pinCallback = null;
+        /* Owner account controls visibility directly. No PIN is required. */
+        let uiPinOk = false;
 
-        function requirePin(cb) {
-            pinCallback = cb;
-            const inp = document.getElementById('pinInput');
-            inp.value = '';
-            document.getElementById('pinError').classList.add('hidden');
-            document.getElementById('pinModal').classList.remove('hidden');
-            setTimeout(() => inp.focus(), 50);
-        }
-        function closePinModal() {
-            document.getElementById('pinModal').classList.add('hidden');
-            pinCallback = null;
-        }
-        function submitPin() {
-            const val = document.getElementById('pinInput').value.trim();
-            if (val.toLowerCase() === UI_HIDE_PIN.toLowerCase()) {
-                const cb = pinCallback;
-                closePinModal();
-                if (cb) cb();
-            } else {
-                document.getElementById('pinError').classList.remove('hidden');
-                document.getElementById('pinInput').value = '';
-                document.getElementById('pinInput').focus();
-            }
-        }
+        function requirePin() { return false; }
+        function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
+        function submitPin() { closePinModal(); }
 
         function doToggleHideMode() {
             uiHide.active = !uiHide.active;
@@ -3693,11 +3681,11 @@
         }
         function toggleHideMode() {
             if (!myAccess.isOwner) { showToast('Only the owner can change Hidden mode'); return; }
-            if (uiHide.active && !uiPinOk) { requirePin(doToggleHideMode); return; }   // un-hide needs PIN
             doToggleHideMode();
         }
 
         function toggleHideKey(key, hide) {
+            if (!myAccess.isOwner) { showToast('Only the owner can change visibility settings'); renderVisibilityList(); return; }
             const has = uiHide.keys.includes(key);
             if (hide && !has) uiHide.keys.push(key);
             if (!hide && has) uiHide.keys = uiHide.keys.filter(k => k !== key);
@@ -3742,7 +3730,6 @@
         }
         function openVisibilityModal() {
             if (!myAccess.isOwner) { showToast('Only the owner can change visibility settings'); return; }
-            if (uiHide.active && !uiPinOk) { requirePin(showVisibilityModal); return; }
             showVisibilityModal();
         }
         function closeVisibilityModal() {
