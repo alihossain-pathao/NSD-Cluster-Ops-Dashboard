@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -219,7 +220,7 @@
                         <span class="truncate flex-1 text-left">Hide Selected Sections</span>
                         <span id="sideHideModePill" class="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-800 text-slate-400">OFF</span>
                     </button>
-                    <button onclick="openVisibilityModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                    <button data-owner-only onclick="openVisibilityModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
                         <span class="w-8 h-8 rounded-lg bg-violet-950/60 border border-violet-800/40 flex items-center justify-center flex-shrink-0 text-violet-400 text-sm">
                             <i class="fa-solid fa-list-check"></i>
                         </span>
@@ -267,6 +268,14 @@
                         Narsingdi Cluster Operations Center
                     </h1>
                     <p class="text-xs text-slate-400 mt-1 font-semibold">Real-time Dispatch Tracking, Delivery Performance & Hub Management</p>
+                    <div class="mt-2 flex items-center gap-2">
+                        <img id="profileAvatar" class="w-7 h-7 rounded-full border border-slate-700" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Profile">
+                        <div class="min-w-0">
+                            <div id="profileName" class="text-[10px] font-extrabold text-white truncate">Not signed in</div>
+                            <div id="profileEmail" class="text-[9px] text-slate-500 truncate max-w-[260px]">Sign in to show your Google profile</div>
+                            <div id="profileRole" class="text-[9px] font-black text-slate-400">VIEWER</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -408,10 +417,16 @@
                 <button onclick="toggleSidebar()" class="px-4 py-2 text-xs font-bold rounded-lg transition bg-sky-600 text-white shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-bars"></i> Navigation Menu
                 </button>
-                <button onclick="toggleHideMode()" id="topBtnHideMode" title="Hide / show the sections you selected" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
+                <button id="googleLoginBtn" onclick="googleSignIn()" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-white text-slate-900 hover:bg-slate-200 flex items-center gap-2 border border-slate-600">
+                    <i class="fa-brands fa-google"></i> Google Login
+                </button>
+                <button id="googleLogoutBtn" onclick="googleSignOut()" class="hidden px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+                <button data-owner-only onclick="toggleHideMode()" id="topBtnHideMode" title="Hide / show the sections you selected" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
                     <i class="fa-solid fa-eye" id="topHideModeIcon"></i> <span id="topHideModeLabel">Hide</span>
                 </button>
-                <button onclick="openVisibilityModal()" title="Choose what to hide" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
+                <button data-owner-only onclick="openVisibilityModal()" title="Choose what to hide" class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700">
                     <i class="fa-solid fa-list-check"></i>
                 </button>
             </div>
@@ -631,7 +646,7 @@
             <div id="visibilityList" class="space-y-4"></div>
 
             <p class="text-[10px] text-slate-500 font-semibold mt-4 leading-relaxed">
-                <i class="fa-solid fa-circle-info"></i> Ticked items get hidden when Hidden mode is ON. This only changes what is shown on this device/browser. It is not a password lock and does not delete any data.
+                <i class="fa-solid fa-circle-info"></i> Ticked items get hidden when Hidden mode is ON. Only the owner account can change these settings. Other signed-in users will see the shared Hidden/Visible state. This does not delete any data.
             </p>
         </div>
     </div>
@@ -1426,8 +1441,13 @@
              database, so every viewer sees the same hubs, reports, tasks and notices (live updates).
         ======================================================================================= */
         let cloudDb = null;
+        let cloudAuth = null;
         let cloudUserCap = null;
-        let myAccess = { isOwner: true };
+        let currentUser = null;
+        let myAccess = { isOwner: false };
+        // Optional: put the owner Google account email here to make ownership explicit.
+        // If left empty, the first Google account that signs in claims ownership once.
+        const OWNER_EMAILS = [];
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {} };
 
@@ -1595,11 +1615,92 @@
                         docChanges: () => qs.docChanges().map(c => ({ type: c.type, doc: wrapSnap(c.doc) }))
                     }), err)
                 });
+                cloudAuth = firebase.auth();
                 return { __firebase: true, doc: p => wrapDoc(fdb.doc(p)), collection: n => wrapCol(fdb.collection(n)) };
             } catch (e) {
                 console.error('Firebase init failed', e);
                 return null;
             }
+        }
+
+        async function refreshGoogleOwnerStatus() {
+            if (!cloudAuth || !currentUser || !cloudDb) { myAccess.isOwner = false; return; }
+            const email = (currentUser.email || '').toLowerCase();
+            if (OWNER_EMAILS.map(x => String(x).toLowerCase()).includes(email)) {
+                myAccess.isOwner = true;
+                return;
+            }
+            try {
+                const ref = cloudDb.doc('config/ownerAccess');
+                const snap = await ref.get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                if (data.ownerEmail) {
+                    myAccess.isOwner = String(data.ownerEmail).toLowerCase() === email;
+                } else {
+                    // First signed-in Google account becomes the dashboard owner.
+                    await ref.set({ ownerEmail: currentUser.email, ownerName: currentUser.displayName || '', createdAt: Date.now() });
+                    myAccess.isOwner = true;
+                }
+            } catch (e) {
+                console.warn('Owner status check failed', e);
+                myAccess.isOwner = false;
+            }
+        }
+
+        function updateProfileUI() {
+            const name = document.getElementById('profileName');
+            const email = document.getElementById('profileEmail');
+            const avatar = document.getElementById('profileAvatar');
+            const role = document.getElementById('profileRole');
+            const loginBtn = document.getElementById('googleLoginBtn');
+            const logoutBtn = document.getElementById('googleLogoutBtn');
+            if (!name) return;
+            if (currentUser) {
+                name.textContent = currentUser.displayName || 'Google User';
+                email.textContent = currentUser.email || '';
+                avatar.src = currentUser.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                role.textContent = myAccess.isOwner ? 'OWNER • Can hide/unhide' : 'VIEWER • Hide controls locked';
+                role.className = myAccess.isOwner ? 'text-[9px] font-black text-emerald-400' : 'text-[9px] font-black text-slate-400';
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                name.textContent = 'Not signed in';
+                email.textContent = 'Sign in to show your Google profile';
+                avatar.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                role.textContent = 'VIEWER';
+                role.className = 'text-[9px] font-black text-slate-400';
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+            applyOwnerOnlyUI();
+        }
+
+        async function googleSignIn() {
+            if (!cloudAuth) { showToast('Firebase Auth is not available'); return; }
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await cloudAuth.signInWithPopup(provider);
+            } catch (e) {
+                console.error(e);
+                showToast('Google sign-in failed');
+            }
+        }
+
+        async function googleSignOut() {
+            try { await cloudAuth?.signOut(); } catch (e) { console.error(e); }
+        }
+
+        function setupGoogleAuth() {
+            if (!cloudAuth) return;
+            cloudAuth.onAuthStateChanged(async user => {
+                currentUser = user || null;
+                if (currentUser) await refreshGoogleOwnerStatus();
+                else myAccess.isOwner = false;
+                updateProfileUI();
+                renderVisibilityList();
+                applyUiHide();
+                renderTaskTabs();
+            });
         }
 
         async function initCloudSync() {
@@ -1612,6 +1713,7 @@
             cloudDb = createFirebaseDb();
             if (cloudDb) {
                 cloudUserCap = null;
+                setupGoogleAuth();
             } else {
                 // fallback: Claude artifact runtime (only exists when published inside Claude)
                 try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
@@ -1619,12 +1721,18 @@
             }
 
             if (!cloudDb) {
-                // Plain file / no shared database: single-device mode (still persistent via localStorage)
-                myAccess.isOwner = true;
+                // Plain file / no shared database: no owner controls until Google sign-in is available.
+                myAccess.isOwner = false;
+                updateProfileUI();
                 return;
             }
 
-            if (cloudUserCap) { try { myAccess.isOwner = !!(await cloudUserCap.isOwner()); } catch (e) { myAccess.isOwner = false; } } else { myAccess.isOwner = true; }
+            if (cloudUserCap) {
+                try { myAccess.isOwner = !!(await cloudUserCap.isOwner()); } catch (e) { myAccess.isOwner = false; }
+            } else {
+                await refreshGoogleOwnerStatus();
+            }
+            updateProfileUI();
 
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
             await Promise.all([
@@ -3584,6 +3692,7 @@
             showToast(uiHide.active ? 'Selected sections are now hidden' : 'Everything is visible again');
         }
         function toggleHideMode() {
+            if (!myAccess.isOwner) { showToast('Only the owner can change Hidden mode'); return; }
             if (uiHide.active && !uiPinOk) { requirePin(doToggleHideMode); return; }   // un-hide needs PIN
             doToggleHideMode();
         }
@@ -3598,6 +3707,7 @@
         }
 
         function setHidePreset(kind) {
+            if (!myAccess.isOwner) { showToast('Only the owner can change Hidden mode'); return; }
             if (kind === 'controls') { uiHide.keys = UI_HIDE_ITEMS.filter(i => i.group === 'controls').map(i => i.key); uiHide.active = true; }
             else if (kind === 'all') { uiHide.keys = UI_HIDE_ITEMS.map(i => i.key); uiHide.active = true; }
             else { uiHide.keys = []; uiHide.active = false; }
@@ -3631,6 +3741,7 @@
             document.getElementById('visibilityModal').classList.remove('hidden');
         }
         function openVisibilityModal() {
+            if (!myAccess.isOwner) { showToast('Only the owner can change visibility settings'); return; }
             if (uiHide.active && !uiPinOk) { requirePin(showVisibilityModal); return; }
             showVisibilityModal();
         }
@@ -3645,7 +3756,7 @@
             loadLocalState();
             loadTabsAndSheets();
             loadNoticesFromStorage();
-            applyOwnerOnlyUI();
+            updateProfileUI();
             renderTaskTabs();
             renderDashboard();
             renderConsolidatedMatrix();
