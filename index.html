@@ -1494,6 +1494,11 @@
         }, 600);
 
         const hubReportDebouncers = {};
+        const cloudSyncUiHide = debounce(async function () {
+            if (!cloudDb) return;
+            try { await cloudDb.doc('config/uiHide').set({ uiHide }); } catch (e) { cloudFail(e); }
+        }, 400);
+
         function cloudSyncHubReport(hubId) {
             if (!hubId) return;
             saveLocalState();
@@ -1653,6 +1658,19 @@
                             await cloudDb.doc('config/notices').set({ clusterNotices });
                         }
                     } catch (e) {}
+                })(),
+                (async () => {
+                    try {
+                        const hideDoc = await cloudDb.doc('config/uiHide').get();
+                        if (hideDoc.exists && hideDoc.data().uiHide && Array.isArray(hideDoc.data().uiHide.keys)) {
+                            uiHide = hideDoc.data().uiHide;
+                            try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
+                            applyUiHide();
+                            renderVisibilityList();
+                        } else if (myAccess.isOwner) {
+                            await cloudDb.doc('config/uiHide').set({ uiHide });
+                        }
+                    } catch (e) { cloudFail(e); }
                 })()
             ]);
 
@@ -1739,6 +1757,15 @@
                     }
                 });
                 saveLocalState();
+            }, () => {});
+
+            cloudDb.doc('config/uiHide').onSnapshot(snap => {
+                if (snap.exists && snap.data().uiHide && Array.isArray(snap.data().uiHide.keys)) {
+                    uiHide = snap.data().uiHide;
+                    try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
+                    applyUiHide();
+                    renderVisibilityList();
+                }
             }, () => {});
 
             applyOwnerOnlyUI();
@@ -3494,6 +3521,7 @@
 
         function saveUiHide() {
             try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
+            if (cloudDb) cloudSyncUiHide();
         }
 
         function applyUiHide() {
