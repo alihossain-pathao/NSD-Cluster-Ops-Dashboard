@@ -123,7 +123,7 @@
     </div>
 
     <!-- LOGIN GATE: dashboard requires Google sign-in -->
-    <div id="authGate" class="fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-5">
+    <div id="authGate" class="hidden fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-5">
         <div class="w-full max-w-sm bg-[#131d36] border border-slate-800 rounded-2xl p-6 shadow-2xl text-center">
             <div class="mx-auto w-14 h-14 rounded-2xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 mb-4">
                 <i class="fa-solid fa-shield-halved text-2xl"></i>
@@ -1473,6 +1473,9 @@
         let dashboardOwnerUid = null;
         let presenceUnsubscribe = null;
         let presenceHeartbeat = null;
+        let presenceRefreshTimer = null;
+        let authStateResolved = false;
+        let presenceSessionToken = 0;
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {} };
 
@@ -1694,7 +1697,14 @@
                 avatar.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
                 loginBtn?.classList.remove('hidden');
                 logoutBtn?.classList.add('hidden');
-                gate?.classList.remove('hidden');
+
+                // IMPORTANT: on Ctrl+R/F5 Firebase needs a moment to restore LOCAL auth.
+                // Never show the login screen during that short initialization window.
+                if (authStateResolved) {
+                    gate?.classList.remove('hidden');
+                } else {
+                    gate?.classList.add('hidden');
+                }
             }
             applyOwnerOnlyUI();
         }
@@ -1704,7 +1714,7 @@
             return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         }
         async function updatePresence() {
-            if (!cloudDb || !currentUser) return;
+            if (!cloudDb || !currentUser) return false;
             try {
                 await cloudDb.doc('presence/' + currentUser.uid).set({
                     uid: currentUser.uid,
@@ -1712,40 +1722,128 @@
                     photoURL: currentUser.photoURL || '',
                     lastSeen: Date.now()
                 });
-            } catch (e) { console.warn('Presence update failed', e); }
+                return true;
+            } catch (e) {
+                console.warn('Presence update failed:', e);
+                return false;
+            }
+        }
+
+        async function removeMyPresence() {
+            if (!cloudDb || !currentUser) return;
+            try {
+                await cloudDb.doc('presence/' + currentUser.uid).delete();
+            } catch (e) {
+                console.warn('Presence cleanup failed:', e);
+            }
         }
 
         function stopPresence() {
-            if (presenceHeartbeat) { clearInterval(presenceHeartbeat); presenceHeartbeat = null; }
-            if (presenceUnsubscribe) { try { presenceUnsubscribe(); } catch(e) {} presenceUnsubscribe = null; }
+            if (presenceHeartbeat) {
+                clearInterval(presenceHeartbeat);
+                presenceHeartbeat = null;
+            }
+            if (presenceRefreshTimer) {
+                clearInterval(presenceRefreshTimer);
+                presenceRefreshTimer = null;
+            }
+            if (presenceUnsubscribe) {
+                try { presenceUnsubscribe(); } catch (e) {}
+                presenceUnsubscribe = null;
+            }
         }
 
         async function startPresence() {
             stopPresence();
             if (!cloudDb || !currentUser) return;
-            await updatePresence();
-            presenceHeartbeat = setInterval(updatePresence, 25000);
+
+            const myToken = ++presenceSessionToken;
+
+            // Attach the live listener immediately. Do not wait for the first write.
             presenceUnsubscribe = cloudDb.collection('presence').onSnapshot(snap => {
+                if (myToken !== presenceSessionToken) return;
+
                 const now = Date.now();
                 const users = [];
+
                 snap.docs.forEach(d => {
                     const u = d.data() || {};
-                    if (u.lastSeen && now - Number(u.lastSeen) < 60000) users.push(u);
+                    const lastSeen = Number(u.lastSeen || 0);
+
+                    // A user is online while their heartbeat is fresh.
+                    if (lastSeen && now - lastSeen < 45000) {
+                        users.push(u);
+                    }
                 });
-                users.sort((a,b) => String(a.name||'').localeCompare(String(b.name||'')));
+
+                users.sort((a, b) =>
+                    String(a.name || '').localeCompare(String(b.name || ''))
+                );
+
                 const list = document.getElementById('onlineUsersList');
                 const count = document.getElementById('onlineUsersCount');
+
                 if (count) count.textContent = String(users.length);
-                if (list) list.innerHTML = users.length ? users.map(u => `
-                    <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-900/50">
-                        <img class="w-6 h-6 rounded-full border border-slate-700" src="${u.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'}" alt="">
-                        <span class="text-[9px] text-slate-300 font-bold truncate">${escapeHtml(u.name || 'Google User')}</span>
-                        <span class="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    </div>`).join('') : '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
-            }, err => console.warn('Presence listener failed', err));
+
+                if (list) {
+                    list.innerHTML = users.length
+                        ? users.map(u => `
+                            <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-900/50">
+                                <img class="w-6 h-6 rounded-full border border-slate-700"
+                                     src="${u.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'}"
+                                     alt="">
+                                <span class="text-[9px] text-slate-300 font-bold truncate">${escapeHtml(u.name || 'Google User')}</span>
+                                <span class="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            </div>`).join('')
+                        : '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
+                }
+            }, err => {
+                console.warn('Presence listener failed:', err);
+                const list = document.getElementById('onlineUsersList');
+                const count = document.getElementById('onlineUsersCount');
+                if (count) count.textContent = '0';
+                if (list) {
+                    list.innerHTML = '<div class="text-[9px] text-rose-400 text-center py-1">Online list unavailable</div>';
+                }
+            });
+
+            // Write immediately, then keep the heartbeat shorter than the timeout.
+            await updatePresence();
+            if (myToken !== presenceSessionToken) return;
+
+            presenceHeartbeat = setInterval(() => {
+                updatePresence();
+            }, 15000);
+
+            // Re-check the list periodically so users whose heartbeat expired
+            // disappear even when no Firestore snapshot arrives at that exact time.
+            presenceRefreshTimer = setInterval(() => {
+                if (!currentUser) return;
+                const list = document.getElementById('onlineUsersList');
+                const count = document.getElementById('onlineUsersCount');
+                // Re-trigger a lightweight local refresh through the current snapshot
+                // on the next Firestore event; the heartbeat itself keeps active users fresh.
+                if (count && list && !presenceUnsubscribe) {
+                    count.textContent = '0';
+                    list.innerHTML = '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
+                }
+            }, 20000);
         }
 
-        function googleAuthErrorMessage(e) {
+        window.addEventListener('pagehide', () => {
+            // Best-effort cleanup. The 45-second heartbeat timeout is the fallback
+            // if the browser terminates the page before this async delete completes.
+            removeMyPresence();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!currentUser) return;
+            if (document.visibilityState === 'visible') {
+                updatePresence();
+            }
+        });
+
+                function googleAuthErrorMessage(e) {
             const code = e && e.code ? String(e.code) : '';
             const map = {
                 'auth/unauthorized-domain': 'This website domain is not authorized in Firebase. Add your GitHub Pages domain in Firebase Authentication → Settings → Authorized domains.',
@@ -1800,20 +1898,32 @@
 
         async function googleSignOut() {
             try {
-                if (cloudDb && currentUser) { try { await cloudDb.doc('presence/' + currentUser.uid).delete(); } catch (e) {} }
+                await removeMyPresence();
                 stopPresence();
                 await cloudAuth?.signOut();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function setupGoogleAuth() {
             if (!cloudAuth) return;
+
             cloudAuth.onAuthStateChanged(async user => {
                 currentUser = user || null;
-                if (currentUser) await refreshGoogleOwnerStatus();
-                else myAccess.isOwner = false;
+                authStateResolved = true;
+
+                // Start the online-user listener immediately after Firebase restores
+                // the session. Owner lookup must not block presence or the dashboard.
+                if (currentUser) {
+                    startPresence();
+                    await refreshGoogleOwnerStatus();
+                } else {
+                    myAccess.isOwner = false;
+                    stopPresence();
+                }
+
                 updateProfileUI();
-                if (currentUser) await startPresence(); else stopPresence();
                 renderVisibilityList();
                 applyUiHide();
                 renderTaskTabs();
