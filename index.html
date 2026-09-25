@@ -1581,6 +1581,10 @@
                 });
                 const wrapCol = ref => ({
                     doc: id => wrapDoc(ref.doc(id)),
+                    get: async () => {
+                        const qs = await ref.get();
+                        return { docs: qs.docs.map(d => wrapSnap(d)), empty: qs.empty };
+                    },
                     isEmpty: async () => (await ref.limit(1).get()).empty,
                     onSnapshot: (ok, err) => ref.onSnapshot(qs => ok({
                         docChanges: () => qs.docChanges().map(c => ({ type: c.type, doc: wrapSnap(c.doc) }))
@@ -1715,6 +1719,13 @@
             }, () => {});
 
             // 6) every hub's D.A. attendance (shared, live)
+            try {
+                const attendanceSnap = await cloudDb.collection('attendanceReports').get();
+                attendanceSnap.docs.forEach(d => {
+                    attendanceReportsData[d.id] = d.data() || {};
+                });
+                saveLocalState();
+            } catch (e) { cloudFail(e); }
             cloudDb.collection('attendanceReports').onSnapshot(snap => {
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
