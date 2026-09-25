@@ -1680,14 +1680,56 @@
             applyOwnerOnlyUI();
         }
 
+        function googleAuthErrorMessage(e) {
+            const code = e && e.code ? String(e.code) : '';
+            const map = {
+                'auth/unauthorized-domain': 'This website domain is not authorized in Firebase. Add your GitHub Pages domain in Firebase Authentication → Settings → Authorized domains.',
+                'auth/popup-blocked': 'Google sign-in popup was blocked. Allow popups for this site and try again.',
+                'auth/popup-closed-by-user': 'Google sign-in was cancelled. Please try again.',
+                'auth/cancelled-popup-request': 'A Google sign-in window is already open. Please complete it first.',
+                'auth/network-request-failed': 'Network error. Check your internet connection and try again.',
+                'auth/operation-not-allowed': 'Google sign-in is not enabled in Firebase Authentication → Sign-in method.',
+                'auth/invalid-api-key': 'Firebase API key is invalid. Check the Firebase web app configuration.',
+                'auth/app-not-authorized': 'This Firebase app is not authorized for this domain.'
+            };
+            return map[code] || ('Google sign-in failed' + (code ? ' (' + code + ')' : '') + '. Check the browser console for details.');
+        }
+
         async function googleSignIn() {
             if (!cloudAuth) { showToast('Firebase Auth is not available'); return; }
             try {
                 const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                await cloudAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
                 await cloudAuth.signInWithPopup(provider);
             } catch (e) {
-                console.error(e);
-                showToast('Google sign-in failed');
+                console.error('Google sign-in error:', e);
+
+                // Popup blockers commonly cause auth/popup-blocked. Use redirect as a safe fallback.
+                if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+                    try {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        provider.setCustomParameters({ prompt: 'select_account' });
+                        await cloudAuth.signInWithRedirect(provider);
+                        return;
+                    } catch (redirectError) {
+                        console.error('Google redirect sign-in error:', redirectError);
+                        showToast(googleAuthErrorMessage(redirectError));
+                        return;
+                    }
+                }
+
+                showToast(googleAuthErrorMessage(e));
+            }
+        }
+
+        async function handleGoogleRedirectResult() {
+            if (!cloudAuth) return;
+            try {
+                await cloudAuth.getRedirectResult();
+            } catch (e) {
+                console.error('Google redirect result error:', e);
+                showToast(googleAuthErrorMessage(e));
             }
         }
 
@@ -1719,6 +1761,8 @@
             if (cloudDb) {
                 cloudUserCap = null;
                 setupGoogleAuth();
+                // Complete a previous redirect-based Google sign-in when returning to the dashboard.
+                await handleGoogleRedirectResult();
             } else {
                 // fallback: Claude artifact runtime (only exists when published inside Claude)
                 try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
