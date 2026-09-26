@@ -2471,6 +2471,54 @@
             calculateAttendanceFormulas();
         }
 
+        // Paste multiple DA records at once.
+        // Expected clipboard format:
+        // S 36169<TAB>Md Kabir Hossan
+        // S 37279<TAB>Shahadat Hossain
+        // ...
+        // An optional third TAB-separated column is treated as Remarks.
+        function handleAttendanceBulkPaste(event) {
+            const target = event.target;
+            if (!target || !target.matches('#attendanceRowsBody input')) return;
+
+            const text = (event.clipboardData || window.clipboardData)?.getData('text') || '';
+            if (!text.trim() || !/[\\r\\n\\t]/.test(text)) return;
+
+            const lines = text.replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n')
+                .split('\\n')
+                .map(line => line.trimEnd())
+                .filter(line => line.trim());
+
+            if (!lines.length) return;
+
+            event.preventDefault();
+
+            const startRow = Array.from(document.querySelectorAll('#attendanceRowsBody tr.att-da-row'))
+                .findIndex(tr => tr.contains(target));
+            const start = startRow >= 0 ? startRow : 0;
+
+            lines.forEach((line, offset) => {
+                const cells = line.split('\\t').map(v => v.trim());
+                const rowIndex = start + offset;
+
+                while (currentAttendanceRows.length <= rowIndex) {
+                    currentAttendanceRows.push({ id: '', name: '', remarks: '' });
+                }
+
+                // If tabs exist: ID, Name, Remarks.
+                // If a pasted line has no tabs, keep it as a single ID value.
+                currentAttendanceRows[rowIndex] = {
+                    id: cells[0] || '',
+                    name: cells[1] || '',
+                    remarks: cells.slice(2).join('\\t') || ''
+                };
+            });
+
+            renderAttendanceRows();
+            saveCurrentAttendanceData();
+            showToast(`${lines.length} DA record${lines.length === 1 ? '' : 's'} pasted`);
+        }
+
         function renderAttendanceRows() {
             const body = document.getElementById('attendanceRowsBody');
             if (!body) return;
@@ -2547,6 +2595,12 @@
         }
 
         function initAttendanceReportListeners() {
+            const attendanceBody = document.getElementById('attendanceRowsBody');
+            if (attendanceBody && !attendanceBody.dataset.bulkPasteReady) {
+                attendanceBody.addEventListener('paste', handleAttendanceBulkPaste);
+                attendanceBody.dataset.bulkPasteReady = '1';
+            }
+
             ['att_totalDA', 'att_weekend', 'att_absent', 'att_onTraining'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
