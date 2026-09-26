@@ -1876,19 +1876,29 @@
         let clusterNotices = [];
         let noticeWriteInFlight = 0;
         let cloudDismissedNoticeIds = [];
+        let cloudUserResponses = {};
+        let cloudUserDismissedNoticeIds = [];
         const DISMISSED_NOTICES_LS = 'narsingdi_dismissed_notice_ids';
         function getDismissedNoticeIds(){ try { return JSON.parse(localStorage.getItem(DISMISSED_NOTICES_LS) || '[]'); } catch(e){ return []; } }
         function saveDismissedNoticeIds(ids){ try { localStorage.setItem(DISMISSED_NOTICES_LS, JSON.stringify([...new Set(ids)])); } catch(e) {} }
         function filterDismissedNotices(list){
-            // Per-user visibility: never remove a notice from the shared list.
-            const ids = new Set([...(getDismissedNoticeIds() || []), ...(Array.isArray(cloudDismissedNoticeIds) ? cloudDismissedNoticeIds : [])]);
+            // Notice visibility is per-user. Shared notice data is NEVER deleted here.
+            const legacyOwnerIds = getDismissedNoticeIds() || [];
+            const ownerIds = new Set([...(Array.isArray(cloudDismissedNoticeIds) ? cloudDismissedNoticeIds : []), ...legacyOwnerIds]);
+            const userIds = new Set(Array.isArray(cloudUserDismissedNoticeIds) ? cloudUserDismissedNoticeIds : []);
             const userKey = getNoticeResponseKey();
             return (Array.isArray(list) ? list : []).filter(n => {
-                if (myAccess.isOwner && ids.has(n.id)) return false;
-                // Once this user responds, hide the notice only for this user.
-                return !(n && n.responses && userKey && n.responses[userKey]);
+                if (!n) return false;
+                if (myAccess.isOwner && ownerIds.has(n.id)) return false;
+                if (userIds.has(n.id)) return false;
+                // Backward compatibility for old shared response records.
+                if (n.responses && userKey && n.responses[userKey]) return false;
+                // New per-user response state.
+                if (cloudUserResponses && cloudUserResponses[n.id]) return false;
+                return true;
             });
         }
+
         let attendanceReportsData = {};
         let currentActiveAttendanceHubId = null;
         let currentAttendanceRows = [];
@@ -2120,6 +2130,8 @@
             const email = (currentUser.email || '').toLowerCase();
             if (OWNER_EMAILS.map(x => String(x).toLowerCase()).includes(email)) {
                 myAccess.isOwner = true;
+                dashboardOwnerUid = currentUser.uid;
+                renderClusterNotices();
                 return;
             }
             try {
@@ -2385,6 +2397,7 @@
                 if (currentUser) {
                     startPresence();
                     await refreshGoogleOwnerStatus();
+                    await loadNoticePersonalState();
                 } else {
                     myAccess.isOwner = false;
                     stopPresence();
@@ -2428,6 +2441,7 @@
             } else {
                 await refreshGoogleOwnerStatus();
             }
+            await loadNoticePersonalState();
             updateProfileUI();
 
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
@@ -4408,48 +4422,90 @@
             return currentUser?.uid || currentUser?.email || 'local_user';
         }
 
+        async function loadNoticePersonalState() {
+            cloudUserResponses = {};
+            cloudUserDismissedNoticeIds = [];
+            if (!cloudDb || !currentUser?.uid) {
+                renderClusterNotices();
+                return;
+            }
+            try {
+                const respSnap = await cloudDb.doc('noticeResponses/' + currentUser.uid).get();
+                const respData = respSnap.exists ? (respSnap.data() || {}) : {};
+                cloudUserResponses = (respData.responses && typeof respData.responses === 'object') ? respData.responses : {};
+            } catch (e) { console.warn('Notice response state load failed', e); }
+            try {
+                const disSnap = await cloudDb.doc('noticeDismissals/' + currentUser.uid).get();
+                const disData = disSnap.exists ? (disSnap.data() || {}) : {};
+                cloudUserDismissedNoticeIds = Array.isArray(disData.dismissedIds) ? disData.dismissedIds : [];
+            } catch (e) { console.warn('Notice dismissal state load failed', e); }
+            renderClusterNotices();
+        }
+
         function renderNoticeResponseButtons(n) {
             const key = getNoticeResponseKey();
-            const current = (n.responses && n.responses[key]) || '';
+            const current = (cloudUserResponses && cloudUserResponses[n.id]) || (n.responses && n.responses[key]) || '';
             const options = [
                 ['Noted','bg-sky-600/30 text-sky-200 border-sky-500/40'],
                 ['Aligned','bg-emerald-600/30 text-emerald-200 border-emerald-500/40'],
                 ['Working','bg-amber-600/30 text-amber-200 border-amber-500/40'],
                 ['Working in progress','bg-violet-600/30 text-violet-200 border-violet-500/40']
             ];
-            return options.map(([label, cls]) => `<button onclick="respondToNotice('${n.id}', ${JSON.stringify(label)})" class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition ${current === label ? cls + ' ring-1 ring-white/40' : 'bg-black/20 text-slate-300 border-white/10 hover:bg-white/10'}">${label}</button>`).join('');
+            return options.map(([label, cls]) => `<button type="button" onclick="respondToNotice(${JSON.stringify(n.id)}, ${JSON.stringify(label)})" class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition ${current === label ? cls + ' ring-1 ring-white/40' : 'bg-black/20 text-slate-300 border-white/10 hover:bg-white/10'}">${label}</button>`).join('');
         }
 
         async function respondToNotice(id, response) {
             const notice = clusterNotices.find(n => n.id === id);
             if (!notice) return;
-            const key = getNoticeResponseKey();
-            if (!key) return;
-            notice.responses = notice.responses || {};
-            notice.responses[key] = response;
-            try { localStorage.setItem('narsingdi_cluster_notices', JSON.stringify(clusterNotices)); } catch(e) {}
+            if (!currentUser?.uid) {
+                showToast('Please sign in before responding to a notice');
+                return;
+            }
+            cloudUserResponses = cloudUserResponses || {};
+            cloudUserResponses[id] = response;
+            // Hide immediately for THIS user only.
             renderClusterNotices();
-            await writeNoticesNow();
-            showToast(`${response} — notice marked for you`);
+            try {
+                if (cloudDb) {
+                    await cloudDb.doc('noticeResponses/' + currentUser.uid).set({
+                        responses: cloudUserResponses,
+                        updatedAt: Date.now()
+                    });
+                }
+                try { localStorage.setItem('narsingdi_notice_responses_' + currentUser.uid, JSON.stringify(cloudUserResponses)); } catch(e) {}
+                showToast(`${response} — notice marked for you`);
+            } catch (e) {
+                console.error('Notice response save failed', e);
+                showToast('Notice response could not be saved');
+            }
         }
 
         async function removeClusterNotice(id) {
             if (!myAccess.isOwner) { showToast('Only the owner can dismiss notices'); return; }
-            const dismissed = getDismissedNoticeIds();
-            dismissed.push(id);
-            saveDismissedNoticeIds(dismissed);
+            if (!currentUser?.uid) { showToast('Owner sign-in is required to dismiss notices'); return; }
+            cloudUserDismissedNoticeIds = [...new Set([...(cloudUserDismissedNoticeIds || []), id])];
+            // Keep legacy state for this browser, but cloud state is the source of truth.
+            saveDismissedNoticeIds(cloudUserDismissedNoticeIds);
             cloudDismissedNoticeIds = [...new Set([...(cloudDismissedNoticeIds || []), id])];
-            try { localStorage.setItem('narsingdi_cluster_notices', JSON.stringify(clusterNotices)); } catch(e) {}
             renderClusterNotices();
-            // Persist only the owner's dismissal state. Keep the notice itself in the
-            // shared cloud list so other users continue to see it.
-            await writeNoticesNow();
+            try {
+                if (cloudDb) {
+                    await cloudDb.doc('noticeDismissals/' + currentUser.uid).set({
+                        dismissedIds: cloudUserDismissedNoticeIds,
+                        updatedAt: Date.now()
+                    });
+                }
+                showToast('Notice dismissed for you');
+            } catch (e) {
+                console.error('Notice dismissal save failed', e);
+                showToast('Notice dismissal could not be saved');
+            }
         }
 
         function updateNoNoticesMessage() {
             const noNoticesMsg = document.getElementById('noNoticesMsg');
             if (!noNoticesMsg) return;
-            noNoticesMsg.classList.toggle('hidden', clusterNotices.length > 0);
+            noNoticesMsg.classList.toggle('hidden', filterDismissedNotices(clusterNotices).length > 0);
         }
 
         function renderClusterNotices() {
