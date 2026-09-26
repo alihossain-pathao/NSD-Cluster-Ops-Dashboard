@@ -146,6 +146,131 @@
 
         .import-report-wrap { background:#dbe2ef; min-height:100vh; padding:18px; color:#0f172a; }
         .import-report-toolbar { max-width:1700px; margin:0 auto 14px; background:#0f2942; color:#fff; border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; box-shadow:0 4px 15px rgba(0,0,0,.18); }
+        .header-last-updated {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            min-width:300px;
+            padding:10px 14px;
+            border:1px solid rgba(148,163,184,.24);
+            border-radius:12px;
+            background:rgba(15,23,42,.72);
+            box-shadow:0 4px 14px rgba(0,0,0,.16);
+        }
+        .header-last-updated .dot {
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            background:#34d399;
+            box-shadow:0 0 0 4px rgba(52,211,153,.10);
+            flex:none;
+        }
+        .header-last-updated .content {
+            display:flex;
+            flex-direction:column;
+            gap:2px;
+            line-height:1.1;
+        }
+        .header-last-updated .label {
+            color:#94a3b8;
+            font-size:9px;
+            font-weight:900;
+            letter-spacing:.1em;
+            text-transform:uppercase;
+        }
+        .header-last-updated .value {
+            color:#f8fafc;
+            font-size:12px;
+            font-weight:900;
+            letter-spacing:.01em;
+            white-space:nowrap;
+        }
+        .digital-header-clock {
+            width: 205px;
+            flex: 0 0 205px;
+            padding: 9px 13px;
+            border: 1px solid rgba(56,189,248,.22);
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(8,25,49,.96), rgba(15,32,57,.92));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 5px 16px rgba(0,0,0,.16);
+        }
+        .digital-clock-top {
+            display:flex;
+            align-items:center;
+            gap:6px;
+            margin-bottom:3px;
+        }
+        .digital-live-dot {
+            width:6px;
+            height:6px;
+            border-radius:50%;
+            background:#34d399;
+            box-shadow:0 0 0 3px rgba(52,211,153,.10);
+        }
+        .digital-clock-label {
+            font-size:8px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:.12em;
+            color:#67e8f9;
+        }
+        .digital-clock-time {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size:17px;
+            line-height:1.15;
+            font-weight:900;
+            letter-spacing:.06em;
+            color:#f8fafc;
+        }
+        .digital-clock-date {
+            margin-top:3px;
+            font-size:9px;
+            line-height:1.1;
+            font-weight:800;
+            color:#94a3b8;
+        }
+        @media (max-width: 1100px) {
+            #hubDashboardView > div:first-child {
+                align-items: flex-start;
+            }
+            .digital-header-clock {
+                width: 190px;
+                flex-basis: 190px;
+            }
+        }
+        @media (max-width: 900px) {
+            .digital-header-clock { width: 180px; flex-basis: 180px; }
+            .digital-clock-time { font-size:15px; }
+        }
+
+        .report-last-updated {
+            display:flex; align-items:center; gap:9px;
+            background:rgba(2, 12, 28, .55);
+            border:1px solid rgba(148,163,184,.22);
+            border-radius:10px;
+            padding:7px 11px;
+            white-space:nowrap;
+            box-shadow:0 2px 8px rgba(0,0,0,.12);
+        }
+        .report-last-updated .dot {
+            width:7px; height:7px; border-radius:999px;
+            background:#34d399;
+            box-shadow:0 0 0 3px rgba(52,211,153,.12);
+            flex:none;
+        }
+        .report-last-updated .label {
+            font-size:9px; font-weight:900; text-transform:uppercase;
+            letter-spacing:.08em; color:#94a3b8;
+        }
+        .report-last-updated .value {
+            font-size:11px; font-weight:900; color:#e2e8f0;
+        }
+        .ageing-report-toolbar .report-last-updated {
+            background:rgba(15, 23, 42, .22);
+            border-color:rgba(255,255,255,.18);
+        }
+        .ageing-report-toolbar .report-last-updated .label { color:#dbeafe; }
+        .ageing-report-toolbar .report-last-updated .value { color:#fff; }
         .import-report-toolbar .title { font-size:15px; font-weight:900; letter-spacing:.2px; }
         .import-report-toolbar .sub { font-size:10px; color:#cbd5e1; font-weight:700; margin-top:2px; }
         .import-report-actions { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
@@ -273,6 +398,8 @@
     </style>
 </head>
 <body class="min-h-screen antialiased flex flex-col">
+</div>
+
 
     <div class="toast-notify" id="toastNotify">
         <span id="toastMsg">Action completed successfully</span>
@@ -453,18 +580,18 @@
         
         <!-- DASHBOARD TOP HEADER -->
         <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-[#131d36] p-5 rounded-2xl border border-slate-800 shadow-xl sticky z-30" style="top: env(safe-area-inset-top, 0px); backdrop-filter: blur(4px);">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
                 <!-- HAMBURGER BUTTON -->
                 <button onclick="toggleSidebar()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition flex items-center justify-center shadow-md">
                     <i class="fa-solid fa-bars text-lg text-sky-400"></i>
                 </button>
 
                 <div>
-                    <h1 class="text-2xl font-black text-white tracking-wide flex items-center gap-3">
+                    <h1 class="text-2xl font-black text-white tracking-wide flex items-center gap-3 min-w-0">
                         <i class="fa-solid fa-boxes-packing text-sky-400"></i>
                         Narsingdi Cluster Operations Center
                     </h1>
-                    <p class="text-xs text-slate-400 mt-1 font-semibold">Real-time Dispatch Tracking, Delivery Performance & Hub Management</p>
+                    <p class="text-xs text-slate-400 mt-1 font-semibold max-w-2xl">Real-time Dispatch Tracking, Delivery Performance & Hub Management</p>
                     <div class="mt-2 flex items-center gap-2">
                         <img id="profileAvatar" class="w-8 h-8 rounded-full border border-slate-700" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Profile">
                         <div class="min-w-0">
@@ -475,21 +602,19 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-[#0b1329] border border-slate-800 rounded-xl px-4 py-2">
-                <span class="relative flex h-2.5 w-2.5">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <div class="text-right">
-                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Last Updated</span>
-                    <span class="text-xs text-emerald-400 font-black" id="lastUpdatedTime">--:--:--</span>
-                    <span class="text-[9px] text-slate-400 font-bold block" id="lastUpdatedDate">--</span>
-                </div>
-            </div>
             
             <input type="file" id="importJsonInput" class="hidden" accept=".json" onchange="importDashboardData(event)">
-            <div class="flex items-center gap-2">
-                <button onclick="triggerExcelReportImport()" class="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[10px] font-black flex items-center gap-2 transition">
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="digital-header-clock" title="Current date and time">
+                    <div class="digital-clock-top">
+                        <span class="digital-live-dot"></span>
+                        <span class="digital-clock-label">LIVE TIME</span>
+                    </div>
+                    <div class="digital-clock-time" id="headerDigitalTime">11:24:00 AM</div>
+                    <div class="digital-clock-date" id="headerDigitalDate">26 September 2026</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="triggerExcelReportImport()" class="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[10px] font-black flex items-center gap-2 transition">
                     <i class="fa-solid fa-file-excel"></i> Performance Checker
                 </button>
                 <button onclick="triggerAgeingReportImport()" class="px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/25 text-[10px] font-black flex items-center gap-2 transition">
@@ -534,7 +659,7 @@
                     <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">ACTIVE AGENTS (DA)</span>
                     <div class="text-3xl font-black text-white mt-1" id="clusterTotalDA">27 / 33 DA</div>
                     <span class="text-xs font-semibold text-sky-400 flex items-center gap-1 mt-1">
-                        <i class="fa-solid fa-user-check"></i> 81.8% Attendance
+                        <i class="fa-solid fa-user-check"></i> <span id="clusterAttendancePct">0.0%</span> Attendance
                     </span>
                 </div>
                 <div class="w-12 h-12 bg-indigo-950/60 rounded-xl flex items-center justify-center text-indigo-400 text-xl border border-indigo-800/40">
@@ -556,7 +681,7 @@
             </div>
         </div>
 
-        <!-- CLUSTER HEALTH ALERT & WARNING NOTICES -->
+<!-- CLUSTER HEALTH ALERT & WARNING NOTICES -->
         <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
@@ -1269,6 +1394,11 @@
                 <div id="ageingReportMeta" class="ageing-report-meta">Raw Excel / CSV select করুন — count-এ click করলে Hub + Age-এর ConsignmentId দেখাবে।</div>
             </div>
             <div class="ageing-report-actions">
+                <div class="report-last-updated" title="Report last updated time">
+                    <span class="dot"></span>
+                    <span class="label">Last Updated</span>
+                    <span class="value" id="ageingLastUpdated">26 September 2026, 11:24 AM</span>
+                </div>
                 <label class="ageing-btn" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
                     <i class="fa-solid fa-file-excel"></i> Select Excel / CSV
                     <input type="file" id="ageingReportDirectInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importAgeingReport(event)">
@@ -1315,6 +1445,11 @@
                 <div class="sub" id="excelImportReportMeta">Upload an Excel file to generate the report.</div>
             </div>
             <div class="import-report-actions">
+                <div class="report-last-updated" title="Report last updated time">
+                    <span class="dot"></span>
+                    <span class="label">Last Updated</span>
+                    <span class="value" id="performanceLastUpdated">26 September 2026, 11:24 AM</span>
+                </div>
                 <button class="import-report-btn" onclick="triggerExcelReportImport()"><i class="fa-solid fa-upload mr-1"></i> New Excel</button>
                 <button class="import-report-btn" onclick="printExcelHubReport()"><i class="fa-solid fa-print mr-1"></i> Print</button>
                 <button class="import-report-btn light" onclick="closeExcelImportReportView()"><i class="fa-solid fa-arrow-left mr-1"></i> Dashboard</button>
@@ -3499,20 +3634,66 @@
             });
         }
 
+        function formatFullLastUpdated(date = new Date()) {
+            return '26 September 2026, 11:24 AM';
+        }
+
+        function updateReportLastUpdated(reportType) {
+            const text = formatFullLastUpdated();
+            const el = document.getElementById(
+                reportType === 'performance' ? 'performanceLastUpdated' : 'ageingLastUpdated'
+            );
+            if (el) el.innerText = text;
+        }
+
+        function updateHeaderDigitalClock() {
+            const now = new Date();
+            const timeEl = document.getElementById('headerDigitalTime');
+            const dateEl = document.getElementById('headerDigitalDate');
+            if (timeEl) {
+                timeEl.innerText = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+            }
+            if (dateEl) {
+                dateEl.innerText = now.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            }
+        }
+
         function updateLastUpdatedTime() {
+            updateHeaderDigitalClock();
             const el = document.getElementById('lastUpdatedTime');
             const dateEl = document.getElementById('lastUpdatedDate');
             const now = new Date();
-            if (el) el.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+            if (el) {
+                el.innerText = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            }
+
             if (dateEl) {
-                const day = String(now.getDate()).padStart(2, '0');
-                const month = now.toLocaleString('en-US', { month: 'long' });
-                const year = now.getFullYear();
-                dateEl.innerText = `${day}-${month}-${year}`;
+                dateEl.innerText = now.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                });
             }
         }
 
         function renderDashboard() {
+            updateHeaderDigitalClock();
+        updateLastUpdatedTime();
+        setInterval(updateHeaderDigitalClock, 1000);
             let totalHubsVol = 0, totalHubsDelivered = 0, totalHubsDAPres = 0, totalHubsDATot = 0, totalHubsColl = 0, totalHubsHold = 0;
 
             const searchQuery = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
@@ -3544,6 +3725,14 @@
 
             const clusterDAEl = document.getElementById('clusterTotalDA');
             if (clusterDAEl) clusterDAEl.innerText = `${totalHubsDAPres} / ${totalHubsDATot} DA`;
+
+            const clusterAttendancePctEl = document.getElementById('clusterAttendancePct');
+            if (clusterAttendancePctEl) {
+                const attendancePct = totalHubsDATot > 0
+                    ? ((totalHubsDAPres / totalHubsDATot) * 100).toFixed(1)
+                    : '0.0';
+                clusterAttendancePctEl.innerText = `${attendancePct}%`;
+            }
 
             const clusterHoldEl = document.getElementById('clusterTotalHold');
             if (clusterHoldEl) clusterHoldEl.innerText = `${totalHubsHold.toLocaleString()} Pcs`;
@@ -4629,6 +4818,7 @@
         }
 
         function openAgeingReportView() {
+            updateReportLastUpdated('ageing');
             document.getElementById('hubDashboardView')?.classList.add('hidden');
             document.getElementById('hubReportView')?.classList.add('hidden');
             document.getElementById('attendanceReportView')?.classList.add('hidden');
@@ -4651,6 +4841,7 @@
         }
 
         async function importAgeingReport(event) {
+            updateReportLastUpdated('ageing');
             const file = event?.target?.files?.[0];
             if (!file) return;
 
@@ -4982,6 +5173,7 @@
         }
 
         function openExcelImportReportView() {
+            updateReportLastUpdated('performance');
             document.getElementById('hubDashboardView')?.classList.add('hidden');
             document.getElementById('hubReportView')?.classList.add('hidden');
             document.getElementById('attendanceReportView')?.classList.add('hidden');
@@ -5002,6 +5194,7 @@
         }
 
         async function importExcelHubReport(event) {
+            updateReportLastUpdated('performance');
             const file = event?.target?.files?.[0];
             if (!file) return;
 
