@@ -320,6 +320,8 @@
         .inventory-table .inv-count { background:#fff; font-weight:900; font-size:13px; height:27px; }
         .inventory-table .inv-head { background:#595959; color:#fff; font-weight:900; font-size:11px; height:27px; }
         .inventory-table .inv-cid { text-align:left; }
+        .inventory-table td.inv-date-match { background:#fff2cc !important; }
+        .inventory-table td.inv-date-match input { background:#fff2cc !important; font-weight:900; }
         .inventory-table input,.inventory-table select { width:100%; height:20px; border:0; outline:0; background:transparent; color:#000; font:700 11px Calibri,Arial,sans-serif; text-align:center; padding:0 2px; }
         /* Remove number-field spinner arrows in Inventory Report */
         .inventory-table input[type=number]::-webkit-outer-spin-button,
@@ -2673,16 +2675,35 @@
             const body = document.getElementById('inventoryRowsBody');
             if (!body) return;
             while (currentInventoryRows.length < INVENTORY_ROW_COUNT) currentInventoryRows.push(inventoryBlankRow());
-            body.innerHTML = currentInventoryRows.map((row,i) => `
+
+            const statusKeys = ['assigned','officeHold','areaChange','mismatch'];
+            const statusDates = new Set();
+            currentInventoryRows.forEach(row => {
+                statusKeys.forEach(key => {
+                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean).forEach(v => {
+                        const d = inventoryCidDate(v);
+                        if (d) statusDates.add(d);
+                    });
+                });
+            });
+            const masterDates = new Set(currentInventoryRows.map(row => inventoryCidDate(row.cid)).filter(Boolean));
+
+            body.innerHTML = currentInventoryRows.map((row,i) => {
+                const cidMatch = inventoryCidDate(row.cid) && statusDates.has(inventoryCidDate(row.cid));
+                const statusMatch = statusKeys.some(key => String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).some(v => {
+                    const d = inventoryCidDate(v); return d && masterDates.has(d);
+                }));
+                return `
                 <tr>
-                    <td class="inv-cid"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
-                    <td><input data-inv-row="${i}" data-inv-key="assigned" type="number" min="0" step="1" value="${row.assigned ?? ''}"></td>
-                    <td><input data-inv-row="${i}" data-inv-key="officeHold" type="number" min="0" step="1" value="${row.officeHold ?? ''}"></td>
-                    <td><input data-inv-row="${i}" data-inv-key="areaChange" type="number" min="0" step="1" value="${row.areaChange ?? ''}"></td>
-                    <td><input data-inv-row="${i}" data-inv-key="mismatch" type="number" min="0" step="1" value="${row.mismatch ?? ''}"></td>
+                    <td class="inv-cid${cidMatch ? ' inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
+                    <td class="${statusMatch && inventoryCidDate(row.assigned) && masterDates.has(inventoryCidDate(row.assigned)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
+                    <td class="${statusMatch && inventoryCidDate(row.officeHold) && masterDates.has(inventoryCidDate(row.officeHold)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
+                    <td class="${statusMatch && inventoryCidDate(row.areaChange) && masterDates.has(inventoryCidDate(row.areaChange)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
+                    <td class="${statusMatch && inventoryCidDate(row.mismatch) && masterDates.has(inventoryCidDate(row.mismatch)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml(row.mismatch)}" autocomplete="off"></td>
                     <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
                     <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
-                </tr>`).join('');
+                </tr>`;
+            }).join('');
             body.querySelectorAll('[data-inv-row]').forEach(el => {
                 el.addEventListener('input', handleInventoryCellChange);
                 el.addEventListener('change', handleInventoryCellChange);
@@ -2752,7 +2773,10 @@
             const flatValues = rows.flat().map(v => String(v ?? '').trim()).filter(Boolean);
             const normalizeCid = v => String(v ?? '').replace(/^[|`\s]+|[|`\s]+$/g, '').trim();
             const looksLikeCid = flatValues.length > 0 && flatValues.every(v => /^[A-Z]{2}\d{6}[A-Z0-9]{6}$/i.test(normalizeCid(v)));
-            if (looksLikeCid) startCol = 0;
+            // CID lists stay in the column the user selected. This is important for
+            // Assigned / Office Hold / Area Change / Mismatch, where users paste
+            // separate CID lists. Only the CID column itself starts at column 0.
+            if (looksLikeCid && target.dataset.invKey === 'cid') startCol = 0;
 
             const needed = startRow + rows.length;
             while (currentInventoryRows.length < needed) currentInventoryRows.push(inventoryBlankRow());
@@ -2783,16 +2807,62 @@
         // Using stopImmediatePropagation prevents duplicate processing by multiple handlers.
         document.addEventListener('paste', handleInventoryPaste, true);
 
+        function inventoryCellCount(value) {
+            const v = String(value ?? '').trim();
+            if (!v) return 0;
+            // A numeric value keeps the old 1/0 behavior.
+            if (/^\d+(?:\.\d+)?$/.test(v)) return Number(v) || 0;
+            // Text/CID entries count as one parcel. If several CIDs are separated
+            // by new lines, tabs or commas inside one cell, count each entry.
+            return v.split(/[\n\t,;]+/).map(x => x.trim()).filter(Boolean).length;
+        }
+
+        function inventoryCidDate(value) {
+            const m = String(value ?? '').trim().match(/^[A-Z]{2}(\d{6})[A-Z0-9]{6}$/i);
+            return m ? m[1] : '';
+        }
+
+        // If a CID is pasted into Assigned / Office Hold / Area Change / Mismatch,
+        // keep the row aligned with the master Hermes CID when the 6-digit date
+        // (DDMMYY) matches. This lets the user paste each column independently.
+        function alignInventoryCidsByDate() {
+            const keys = ['assigned','officeHold','areaChange','mismatch'];
+            const masterDates = new Map();
+            currentInventoryRows.forEach((row, idx) => {
+                const d = inventoryCidDate(row.cid);
+                if (d && !masterDates.has(d)) masterDates.set(d, idx);
+            });
+
+            keys.forEach(key => {
+                currentInventoryRows.forEach((row, idx) => {
+                    const raw = String(row[key] ?? '').trim();
+                    if (!raw || /^\d+(?:\.\d+)?$/.test(raw)) return;
+                    const values = raw.split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean);
+                    values.forEach(cid => {
+                        const d = inventoryCidDate(cid);
+                        if (!d || !masterDates.has(d)) return;
+                        const targetRow = masterDates.get(d);
+                        // Preserve the original status-column paste; only align the
+                        // master CID when the matched master row is empty.
+                        if (!String(currentInventoryRows[targetRow].cid || '').trim()) {
+                            currentInventoryRows[targetRow].cid = cid;
+                        }
+                    });
+                });
+            });
+        }
+
         function calculateInventoryReport() {
+            alignInventoryCidsByDate();
             const rows = currentInventoryRows || [];
             const total = rows.filter(r => String(r.cid || '').trim()).length;
-            const sum = key => rows.reduce((n,r) => n + (parseFloat(r[key]) || 0), 0);
+            const sum = key => rows.reduce((n,r) => n + inventoryCellCount(r[key]), 0);
             const assigned=sum('assigned'), officeHold=sum('officeHold'), areaChange=sum('areaChange'), mismatch=sum('mismatch');
-            const solved=rows.reduce((n,r) => n + ((parseFloat(r.mismatch)||0)>0 && r.status==='Solved' ? (parseFloat(r.mismatch)||0) : 0), 0);
-            const pending=Math.max(0,mismatch-solved);
-            const statusCount = rows.filter(r => String(r.cid || '').trim() && String(r.status || '').trim()).length;
+            const solved = rows.filter(r => String(r.status || '').toLowerCase() === 'solved').length;
+            const pending = rows.filter(r => String(r.status || '').toLowerCase() === 'pending').length;
+            const statusCount = rows.filter(r => String(r.status || '').trim()).length;
             const vals={invTotalParcels:total,invAssignedParcels:assigned,invOfficeHoldParcels:officeHold,invAreaChangeParcels:areaChange,invMismatchParcels:mismatch,invMismatchSolved:solved,invMismatchPending:pending,invCountTotal:total,invCountAssigned:assigned,invCountOfficeHold:officeHold,invCountAreaChange:areaChange,invCountMismatch:mismatch,invCountStatus:statusCount,invCountRemarks:rows.filter(r => String(r.remarks || '').trim()).length};
-            Object.entries(vals).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.innerText=Number.isInteger(val)?val:Number(val.toFixed(2));});
+            Object.entries(vals).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.textContent=val; });
         }
 
         function saveCurrentInventoryData() {
