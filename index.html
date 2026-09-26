@@ -2472,51 +2472,76 @@
         }
 
         // Paste multiple DA records at once.
-        // Expected clipboard format:
-        // S 36169<TAB>Md Kabir Hossan
-        // S 37279<TAB>Shahadat Hossain
-        // ...
-        // An optional third TAB-separated column is treated as Remarks.
+        // Supports clipboard rows copied from Excel/Google Sheets/WhatsApp/text:
+        //   S 36169<TAB>Md Kabir Hossan
+        // and also rows where the columns are separated by 2+ spaces.
         function handleAttendanceBulkPaste(event) {
             const target = event.target;
             if (!target || !target.matches('#attendanceRowsBody input')) return;
 
-            const text = (event.clipboardData || window.clipboardData)?.getData('text') || '';
-            if (!text.trim() || !/[\r\n\t]/.test(text)) return;
+            const clipboard = event.clipboardData || window.clipboardData;
+            const text = clipboard ? (clipboard.getData('text/plain') || clipboard.getData('text') || '') : '';
+            if (!text || !text.trim()) return;
 
             const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
                 .split('\n')
-                .map(line => line.trimEnd())
-                .filter(line => line.trim());
+                .map(line => line.trim())
+                .filter(Boolean);
 
-            if (!lines.length) return;
+            // Only take over paste when it looks like a multi-row/tabular paste.
+            const looksTabular = lines.length > 1 || lines.some(line => /\t/.test(line));
+            if (!looksTabular) return;
 
             event.preventDefault();
+            event.stopPropagation();
 
-            const startRow = Array.from(document.querySelectorAll('#attendanceRowsBody tr.att-da-row'))
-                .findIndex(tr => tr.contains(target));
-            const start = startRow >= 0 ? startRow : 0;
-
-            lines.forEach((line, offset) => {
-                const cells = line.split('\t').map(v => v.trim());
-                const rowIndex = start + offset;
-
-                while (currentAttendanceRows.length <= rowIndex) {
-                    currentAttendanceRows.push({ id: '', name: '', remarks: '' });
+            const rows = [];
+            for (const line of lines) {
+                let cells;
+                if (line.includes('\t')) {
+                    cells = line.split('\t').map(v => v.trim());
+                } else {
+                    // Fallback for text copied with multiple spaces instead of tabs.
+                    cells = line.split(/\s{2,}/).map(v => v.trim()).filter(Boolean);
                 }
 
-                // If tabs exist: ID, Name, Remarks.
-                // If a pasted line has no tabs, keep it as a single ID value.
-                currentAttendanceRows[rowIndex] = {
-                    id: cells[0] || '',
-                    name: cells[1] || '',
-                    remarks: cells.slice(2).join('\t') || ''
-                };
+                let id = cells[0] || '';
+                let name = cells[1] || '';
+                let remarks = cells.slice(2).join(' ') || '';
+
+                // If there was no visible column separator, parse "S 36169 Md Kabir Hossan".
+                if (!name) {
+                    const m = line.match(/^(\S+\s+\d+)\s+(.+)$/);
+                    if (m) {
+                        id = m[1].trim();
+                        name = m[2].trim();
+                    }
+                }
+
+                rows.push({ id, name, remarks });
+            }
+
+            const tr = target.closest('tr.att-da-row');
+            const startRow = tr ? Array.from(document.querySelectorAll('#attendanceRowsBody tr.att-da-row')).indexOf(tr) : 0;
+            const start = Math.max(startRow, 0);
+
+            while (currentAttendanceRows.length < start + rows.length) {
+                currentAttendanceRows.push({ id: '', name: '', remarks: '' });
+            }
+
+            rows.forEach((row, offset) => {
+                currentAttendanceRows[start + offset] = row;
             });
 
             renderAttendanceRows();
             saveCurrentAttendanceData();
-            showToast(`${lines.length} DA record${lines.length === 1 ? '' : 's'} pasted`);
+
+            const firstInput = document.querySelector(`#attendanceRowsBody tr:nth-child(${start + 1}) input`);
+            if (firstInput) firstInput.focus();
+
+            if (typeof showToast === 'function') {
+                showToast(`${rows.length} DA record${rows.length === 1 ? '' : 's'} pasted`);
+            }
         }
 
         function renderAttendanceRows() {
@@ -2595,10 +2620,11 @@
         }
 
         function initAttendanceReportListeners() {
-            const attendanceBody = document.getElementById('attendanceRowsBody');
-            if (attendanceBody && !attendanceBody.dataset.bulkPasteReady) {
-                attendanceBody.addEventListener('paste', handleAttendanceBulkPaste);
-                attendanceBody.dataset.bulkPasteReady = '1';
+            if (!document.body.dataset.attendanceBulkPasteReady) {
+                // Capture phase makes this reliable even when another input handler
+                // or re-rendered tbody tries to process the paste first.
+                document.addEventListener('paste', handleAttendanceBulkPaste, true);
+                document.body.dataset.attendanceBulkPasteReady = '1';
             }
 
             ['att_totalDA', 'att_weekend', 'att_absent', 'att_onTraining'].forEach(id => {
