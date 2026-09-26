@@ -2693,19 +2693,27 @@
             while (currentInventoryRows.length < INVENTORY_ROW_COUNT) currentInventoryRows.push(inventoryBlankRow());
 
             const statusKeys = ['assigned','officeHold','areaChange','mismatch'];
-            const masterDates = new Set(currentInventoryRows.map(row => inventoryCidDate(row.cid)).filter(Boolean));
+            // A date is considered a duplicate only when it appears in one of the
+            // secondary columns (Assigned/Hold/Area Change/Mismatch).  Only the
+            // matching CID from Hermes cell(s) are colored; secondary columns stay white.
+            const duplicateDates = new Set();
+            currentInventoryRows.forEach(row => {
+                statusKeys.forEach(key => {
+                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean).forEach(v => {
+                        const d = inventoryCidDate(v);
+                        if (d) duplicateDates.add(d);
+                    });
+                });
+            });
 
             body.innerHTML = currentInventoryRows.map((row,i) => {
                 const cidDate = inventoryCidDate(row.cid);
-                const cidMatch = cidDate && currentInventoryRows.some(r => statusKeys.some(key =>
-                    String(r[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).some(v => inventoryCidDate(v) === cidDate)
-                ));
+                const cidMatch = !!(cidDate && duplicateDates.has(cidDate));
                 const cidClass = cidMatch ? `inv-date-match ${inventoryMatchColorClass(cidDate)}` : '';
-                const cellClass = key => {
-                    const values = String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean);
-                    const matchedDate = values.map(inventoryCidDate).find(d => d && masterDates.has(d));
-                    return matchedDate ? `inv-date-match ${inventoryMatchColorClass(matchedDate)}` : '';
-                };
+                // Keep Assigned / Office Hold / Area Change / Mismatch cells in the
+                // normal white table style. Duplicate highlighting belongs only to
+                // the corresponding CID from Hermes cell(s).
+                const cellClass = () => '';
                 return `
                 <tr>
                     <td class="inv-cid ${cidClass}"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
