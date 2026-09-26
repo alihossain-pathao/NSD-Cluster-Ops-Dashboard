@@ -1541,6 +1541,25 @@
         </div>
     </div>
 
+    <!-- SMART INVENTORY CLEAR CONFIRMATION -->
+    <div id="inventoryClearConfirm" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4" onclick="if(event.target===this) closeInventoryClearConfirm()">
+        <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-400 flex-shrink-0">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="text-sm font-black text-white">Clear Inventory Report?</h3>
+                    <p id="inventoryClearConfirmText" class="text-[11px] leading-relaxed text-slate-400 mt-1">All inventory rows will be cleared.</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button type="button" onclick="closeInventoryClearConfirm()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700">Cancel</button>
+                <button type="button" onclick="confirmClearInventoryReport()" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-black shadow-lg shadow-rose-950/30">Clear Report</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ADD NEW SHEET MODAL -->
     <div id="addSheetModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
@@ -2731,7 +2750,8 @@
             // whole list to the CID column instead of letting <input type=number>
             // reject the text. This also works with Markdown table rows.
             const flatValues = rows.flat().map(v => String(v ?? '').trim()).filter(Boolean);
-            const looksLikeCid = flatValues.length > 0 && flatValues.every(v => /^[A-Z]{2}\d{8}[A-Z0-9]{5,6}$/i.test(v));
+            const normalizeCid = v => String(v ?? '').replace(/^[|`\s]+|[|`\s]+$/g, '').trim();
+            const looksLikeCid = flatValues.length > 0 && flatValues.every(v => /^[A-Z]{2}\d{6}[A-Z0-9]{6}$/i.test(normalizeCid(v)));
             if (looksLikeCid) startCol = 0;
 
             const needed = startRow + rows.length;
@@ -2748,7 +2768,7 @@
                     const key = keys[colIndex];
                     let clean = String(value ?? '').trim();
                     // Remove accidental Markdown/table quoting from CID/text values.
-                    clean = clean.replace(/^\s*`|`\s*$/g, '');
+                    clean = clean.replace(/^\s*`|`\s*$/g, '').replace(/^\s*\|\s*|\s*\|\s*$/g, '').trim();
                     currentInventoryRows[rowIndex][key] = clean;
                 });
             });
@@ -2815,8 +2835,25 @@
         function addInventoryRow() { currentInventoryRows.push(inventoryBlankRow()); renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); }
 
         function resetInventoryReport() {
-            if (!confirm('Clear this Hub inventory report?')) return;
-            currentInventoryRows=inventoryDefaultRows(); renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); showToast('Inventory report cleared for this Hub!');
+            const modal = document.getElementById('inventoryClearConfirm');
+            if (!modal) return;
+            const hubName = document.getElementById('inventoryHubTitle')?.innerText || 'this Hub';
+            const msg = document.getElementById('inventoryClearConfirmText');
+            if (msg) msg.innerHTML = `All inventory rows for <strong>${escapeInventoryHtml(hubName)}</strong> will be cleared. This action cannot be undone.`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeInventoryClearConfirm() {
+            document.getElementById('inventoryClearConfirm')?.classList.add('hidden');
+        }
+
+        function confirmClearInventoryReport() {
+            closeInventoryClearConfirm();
+            currentInventoryRows=inventoryDefaultRows();
+            renderInventoryRows();
+            calculateInventoryReport();
+            saveCurrentInventoryData();
+            showToast('Inventory report cleared for this Hub!');
         }
 
         function printInventoryReport() {
