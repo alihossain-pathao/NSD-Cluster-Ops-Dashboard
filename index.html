@@ -2067,6 +2067,7 @@
                     },
                     isEmpty: async () => (await ref.limit(1).get()).empty,
                     onSnapshot: (ok, err) => ref.onSnapshot(qs => ok({
+                        docs: qs.docs.map(d => wrapSnap(d)),
                         docChanges: () => qs.docChanges().map(c => ({ type: c.type, doc: wrapSnap(c.doc) }))
                     }), err)
                 });
@@ -2247,18 +2248,11 @@
                 updatePresence();
             }, 15000);
 
-            // Re-check the list periodically so users whose heartbeat expired
-            // disappear even when no Firestore snapshot arrives at that exact time.
+            // Do not clear the UI on a timer. Firestore snapshots are the source of truth.
+            // The heartbeat keeps active users fresh; snapshot changes update the list.
             presenceRefreshTimer = setInterval(() => {
                 if (!currentUser) return;
-                const list = document.getElementById('onlineUsersList');
-                const count = document.getElementById('onlineUsersCount');
-                // Re-trigger a lightweight local refresh through the current snapshot
-                // on the next Firestore event; the heartbeat itself keeps active users fresh.
-                if (count && list && !presenceUnsubscribe) {
-                    count.textContent = '0';
-                    list.innerHTML = '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
-                }
+                // Intentionally no DOM reset here.
             }, 20000);
         }
 
