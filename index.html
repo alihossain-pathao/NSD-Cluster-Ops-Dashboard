@@ -321,6 +321,10 @@
         .inventory-table .inv-head { background:#595959; color:#fff; font-weight:900; font-size:11px; height:27px; }
         .inventory-table .inv-cid { text-align:left; }
         .inventory-table input,.inventory-table select { width:100%; height:20px; border:0; outline:0; background:transparent; color:#000; font:700 11px Calibri,Arial,sans-serif; text-align:center; padding:0 2px; }
+        /* Remove number-field spinner arrows in Inventory Report */
+        .inventory-table input[type=number]::-webkit-outer-spin-button,
+        .inventory-table input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+        .inventory-table input[type=number] { -moz-appearance:textfield; appearance:textfield; }
         .inventory-table input:focus,.inventory-table select:focus { background:#e0f2fe; box-shadow:inset 0 0 0 1px #0284c7; }
         .inventory-table select { background:#e9ecef; border-radius:10px; appearance:auto; cursor:pointer; }
         .inventory-summary { width:100%; border-collapse:collapse; font-family:Calibri,Arial,sans-serif; font-size:12px; }
@@ -2663,7 +2667,6 @@
             body.querySelectorAll('[data-inv-row]').forEach(el => {
                 el.addEventListener('input', handleInventoryCellChange);
                 el.addEventListener('change', handleInventoryCellChange);
-                if (el.dataset.invKey === 'cid') el.addEventListener('paste', handleInventoryPaste);
             });
         }
 
@@ -2676,58 +2679,79 @@
             saveCurrentInventoryData();
         }
 
-        // Excel/Google-Sheets style multi-line paste.
-        // Supports plain one-CID-per-line lists, tab-separated rows, and Markdown tables.
-        function handleInventoryPaste(event) {
-            const text = (event.clipboardData || window.clipboardData)?.getData('text') || '';
-            if (!text.trim()) return;
+        // Robust Excel / Google Sheets / Markdown / plain-text paste.
+        // One CID per line goes into separate rows. Multi-column tab/pipe data
+        // goes across the Inventory columns starting from the selected cell.
+        function parseInventoryClipboard(text) {
+            text = String(text || '').replace(/\r\n?/g, '\n').trim();
+            if (!text) return [];
 
-            const startRow = Number(event.target.dataset.invRow);
-            if (!Number.isInteger(startRow)) return;
-
-            const lines = text.replace(/\r/g, '').split('\n')
-                .map(line => line.trim())
-                .filter(Boolean)
-                .filter(line => !/^\|?\s*-{2,}\s*(\|\s*-{2,}\s*)+\|?$/.test(line));
-
+            const lines = text.split('\n').map(x => x.trim()).filter(Boolean);
             const rows = [];
-            for (const raw of lines) {
-                let line = raw;
-                // Remove Markdown table borders and empty cells.
+            for (let line of lines) {
+                // Ignore Markdown separator rows like | --- | --- |
+                if (/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(line)) continue;
+
                 if (line.includes('|')) {
                     line = line.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
                     const cells = line.split('|').map(v => v.trim());
-                    if (cells.length) rows.push(cells);
+                    if (cells.some(v => v !== '')) rows.push(cells);
                 } else if (line.includes('\t')) {
                     rows.push(line.split('\t').map(v => v.trim()));
                 } else {
                     rows.push([line.trim()]);
                 }
             }
+            return rows;
+        }
 
+        function handleInventoryPaste(event) {
+            const target = event.target;
+            if (!target || !target.matches('[data-inv-row]') || !target.closest('#inventoryRowsBody')) return;
+
+            const clipboard = event.clipboardData || window.clipboardData;
+            const text = clipboard ? (clipboard.getData('text/plain') || clipboard.getData('text') || '') : '';
+            if (!text.trim()) return;
+
+            const rows = parseInventoryClipboard(text);
             if (!rows.length) return;
-            event.preventDefault();
 
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            const startRow = Number(target.dataset.invRow);
             const keys = ['cid','assigned','officeHold','areaChange','mismatch','status','remarks'];
+            const startCol = Math.max(0, keys.indexOf(target.dataset.invKey));
+            if (!Number.isInteger(startRow) || startRow < 0) return;
+
             const needed = startRow + rows.length;
             while (currentInventoryRows.length < needed) currentInventoryRows.push(inventoryBlankRow());
 
-            rows.forEach((cells, offset) => {
-                const rowIndex = startRow + offset;
+            rows.forEach((cells, rowOffset) => {
+                const rowIndex = startRow + rowOffset;
                 if (!currentInventoryRows[rowIndex]) currentInventoryRows[rowIndex] = inventoryBlankRow();
-                // A single value means CID only; multiple cells map left-to-right to the report columns.
-                cells.slice(0, keys.length).forEach((value, colIndex) => {
+
+                // If only one value is pasted, always treat it as the selected column.
+                // This is what makes a long CID list fill one row per line.
+                cells.slice(0, keys.length - startCol).forEach((value, colOffset) => {
+                    const colIndex = startCol + colOffset;
                     const key = keys[colIndex];
-                    currentInventoryRows[rowIndex][key] = value;
+                    let clean = String(value ?? '').trim();
+                    // Remove accidental Markdown/table quoting from CID/text values.
+                    clean = clean.replace(/^\s*`|`\s*$/g, '');
+                    currentInventoryRows[rowIndex][key] = clean;
                 });
             });
 
             renderInventoryRows();
             calculateInventoryReport();
             saveCurrentInventoryData();
-            const count = rows.length;
-            showToast(`${count} CID${count === 1 ? '' : 's'} pasted successfully`);
+            showToast(`${rows.length} row${rows.length === 1 ? '' : 's'} pasted successfully`);
         }
+
+        // Capture paste once, before the input's native paste handling.
+        // Using stopImmediatePropagation prevents duplicate processing by multiple handlers.
+        document.addEventListener('paste', handleInventoryPaste, true);
 
         function calculateInventoryReport() {
             const rows = currentInventoryRows || [];
@@ -2789,19 +2813,6 @@
             saveCurrentInventoryData(); document.body.classList.add('print-inventory-report'); window.print(); setTimeout(()=>document.body.classList.remove('print-inventory-report'),700);
         }
 
-        function handleInventoryBulkPaste(event) {
-            const target=event.target; if(!target||!target.closest('#inventoryRowsBody')||!target.matches('[data-inv-row]'))return;
-            const text=(event.clipboardData?.getData('text/plain')||''); if(!text||(!text.includes('\n')&&!text.includes('\t')))return;
-            event.preventDefault();
-            const startRow=Number(target.dataset.invRow), keys=['cid','assigned','officeHold','areaChange','mismatch','status','remarks'], startCol=keys.indexOf(target.dataset.invKey);
-            if(startRow<0||startCol<0)return;
-            text.replace(/\r/g,'').split('\n').filter(Boolean).map(r=>r.split('\t')).forEach((cells,rOff)=>{
-                const r=startRow+rOff; while(currentInventoryRows.length<=r)currentInventoryRows.push(inventoryBlankRow());
-                cells.forEach((value,cOff)=>{const c=startCol+cOff;if(c<keys.length)currentInventoryRows[r][keys[c]]=value.trim();});
-            });
-            renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); showToast('Inventory rows pasted successfully!');
-        }
-        document.addEventListener('paste', handleInventoryBulkPaste, true);
         /* =================== END HUB INVENTORY REPORT =================== */
 
         function formatAttendanceDate(d) {
