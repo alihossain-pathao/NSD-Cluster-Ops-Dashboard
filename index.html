@@ -2679,6 +2679,10 @@
             return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         }
 
+        function normalizeInventoryCid(value) {
+            return String(value ?? '').replace(/[|\s]+/g, '').trim().toUpperCase();
+        }
+
         function inventoryMatchColorClass(date) {
             const d = String(date || '');
             if (!d) return '';
@@ -2693,26 +2697,35 @@
             while (currentInventoryRows.length < INVENTORY_ROW_COUNT) currentInventoryRows.push(inventoryBlankRow());
 
             const statusKeys = ['assigned','officeHold','areaChange','mismatch'];
-            // A date is considered a duplicate only when it appears in one of the
-            // secondary columns (Assigned/Hold/Area Change/Mismatch).  Only the
-            // matching CID from Hermes cell(s) are colored; secondary columns stay white.
-            const duplicateDates = new Set();
+            // Highlight ONLY an exact CID duplicate from CID from Hermes.
+            // Date-only matches are intentionally NOT treated as duplicates.
+            // Secondary columns remain white/no-fill.
+            const duplicateCids = new Set();
             currentInventoryRows.forEach(row => {
+                const masterCid = normalizeInventoryCid(row.cid);
+                if (!masterCid) return;
                 statusKeys.forEach(key => {
-                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean).forEach(v => {
-                        const d = inventoryCidDate(v);
-                        if (d) duplicateDates.add(d);
+                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => normalizeInventoryCid(v)).filter(Boolean).forEach(v => {
+                        if (v === masterCid) duplicateCids.add(masterCid);
                     });
                 });
             });
+            // Also detect a CID from any secondary column against the full Hermes list,
+            // even when it was pasted on a different row.
+            const hermesCids = new Set(currentInventoryRows.map(r => normalizeInventoryCid(r.cid)).filter(Boolean));
+            currentInventoryRows.forEach(row => statusKeys.forEach(key => {
+                String(row[key] ?? '').split(/[\n\t,;]+/).map(v => normalizeInventoryCid(v)).filter(Boolean).forEach(v => {
+                    if (hermesCids.has(v)) duplicateCids.add(v);
+                });
+            }));
 
             body.innerHTML = currentInventoryRows.map((row,i) => {
-                const cidDate = inventoryCidDate(row.cid);
-                const cidMatch = !!(cidDate && duplicateDates.has(cidDate));
-                const cidClass = cidMatch ? `inv-date-match ${inventoryMatchColorClass(cidDate)}` : '';
-                // Keep Assigned / Office Hold / Area Change / Mismatch cells in the
-                // normal white table style. Duplicate highlighting belongs only to
-                // the corresponding CID from Hermes cell(s).
+                const cid = normalizeInventoryCid(row.cid);
+                const cidMatch = !!(cid && duplicateCids.has(cid));
+                // Use the CID itself to keep the same duplicate color wherever that
+                // exact CID appears, while non-matches have NO fill.
+                const cidClass = cidMatch ? `inv-date-match ${inventoryMatchColorClass(cid)}` : '';
+                // Keep Assigned / Office Hold / Area Change / Mismatch cells white.
                 const cellClass = () => '';
                 return `
                 <tr>
