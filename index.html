@@ -1493,12 +1493,13 @@
                         <thead>
                             <tr><th colspan="7" class="inv-hub-title" id="inventoryHubTitle">Narsingdi Hub</th></tr>
                             <tr id="inventoryCountRow">
+                                <th class="inv-count" id="invCountTotal">0</th>
                                 <th class="inv-count" id="invCountAssigned">0</th>
                                 <th class="inv-count" id="invCountOfficeHold">0</th>
                                 <th class="inv-count" id="invCountAreaChange">0</th>
                                 <th class="inv-count" id="invCountMismatch">0</th>
-                                <th class="inv-count" colspan="2"></th>
-                                <th class="inv-count"></th>
+                                <th class="inv-count" id="invCountStatus">0</th>
+                                <th class="inv-count" id="invCountRemarks">0</th>
                             </tr>
                             <tr>
                                 <th class="inv-head">CID from Hermes</th>
@@ -2636,7 +2637,7 @@
         }
 
         /* =================== HUB INVENTORY REPORT =================== */
-        const INVENTORY_ROW_COUNT = 30;
+        const INVENTORY_ROW_COUNT = 35;
         const inventoryBlankRow = () => ({cid:'', assigned:'', officeHold:'', areaChange:'', mismatch:'', status:'', remarks:''});
 
         function inventoryDefaultRows() { return Array.from({length: INVENTORY_ROW_COUNT}, inventoryBlankRow); }
@@ -2659,7 +2660,11 @@
                     <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
                     <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
                 </tr>`).join('');
-            body.querySelectorAll('[data-inv-row]').forEach(el => { el.addEventListener('input', handleInventoryCellChange); el.addEventListener('change', handleInventoryCellChange); });
+            body.querySelectorAll('[data-inv-row]').forEach(el => {
+                el.addEventListener('input', handleInventoryCellChange);
+                el.addEventListener('change', handleInventoryCellChange);
+                if (el.dataset.invKey === 'cid') el.addEventListener('paste', handleInventoryPaste);
+            });
         }
 
         function handleInventoryCellChange(event) {
@@ -2671,6 +2676,59 @@
             saveCurrentInventoryData();
         }
 
+        // Excel/Google-Sheets style multi-line paste.
+        // Supports plain one-CID-per-line lists, tab-separated rows, and Markdown tables.
+        function handleInventoryPaste(event) {
+            const text = (event.clipboardData || window.clipboardData)?.getData('text') || '';
+            if (!text.trim()) return;
+
+            const startRow = Number(event.target.dataset.invRow);
+            if (!Number.isInteger(startRow)) return;
+
+            const lines = text.replace(/\r/g, '').split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .filter(line => !/^\|?\s*-{2,}\s*(\|\s*-{2,}\s*)+\|?$/.test(line));
+
+            const rows = [];
+            for (const raw of lines) {
+                let line = raw;
+                // Remove Markdown table borders and empty cells.
+                if (line.includes('|')) {
+                    line = line.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+                    const cells = line.split('|').map(v => v.trim());
+                    if (cells.length) rows.push(cells);
+                } else if (line.includes('\t')) {
+                    rows.push(line.split('\t').map(v => v.trim()));
+                } else {
+                    rows.push([line.trim()]);
+                }
+            }
+
+            if (!rows.length) return;
+            event.preventDefault();
+
+            const keys = ['cid','assigned','officeHold','areaChange','mismatch','status','remarks'];
+            const needed = startRow + rows.length;
+            while (currentInventoryRows.length < needed) currentInventoryRows.push(inventoryBlankRow());
+
+            rows.forEach((cells, offset) => {
+                const rowIndex = startRow + offset;
+                if (!currentInventoryRows[rowIndex]) currentInventoryRows[rowIndex] = inventoryBlankRow();
+                // A single value means CID only; multiple cells map left-to-right to the report columns.
+                cells.slice(0, keys.length).forEach((value, colIndex) => {
+                    const key = keys[colIndex];
+                    currentInventoryRows[rowIndex][key] = value;
+                });
+            });
+
+            renderInventoryRows();
+            calculateInventoryReport();
+            saveCurrentInventoryData();
+            const count = rows.length;
+            showToast(`${count} CID${count === 1 ? '' : 's'} pasted successfully`);
+        }
+
         function calculateInventoryReport() {
             const rows = currentInventoryRows || [];
             const total = rows.filter(r => String(r.cid || '').trim()).length;
@@ -2678,7 +2736,8 @@
             const assigned=sum('assigned'), officeHold=sum('officeHold'), areaChange=sum('areaChange'), mismatch=sum('mismatch');
             const solved=rows.reduce((n,r) => n + ((parseFloat(r.mismatch)||0)>0 && r.status==='Solved' ? (parseFloat(r.mismatch)||0) : 0), 0);
             const pending=Math.max(0,mismatch-solved);
-            const vals={invTotalParcels:total,invAssignedParcels:assigned,invOfficeHoldParcels:officeHold,invAreaChangeParcels:areaChange,invMismatchParcels:mismatch,invMismatchSolved:solved,invMismatchPending:pending,invCountAssigned:assigned,invCountOfficeHold:officeHold,invCountAreaChange:areaChange,invCountMismatch:mismatch};
+            const statusCount = rows.filter(r => String(r.cid || '').trim() && String(r.status || '').trim()).length;
+            const vals={invTotalParcels:total,invAssignedParcels:assigned,invOfficeHoldParcels:officeHold,invAreaChangeParcels:areaChange,invMismatchParcels:mismatch,invMismatchSolved:solved,invMismatchPending:pending,invCountTotal:total,invCountAssigned:assigned,invCountOfficeHold:officeHold,invCountAreaChange:areaChange,invCountMismatch:mismatch,invCountStatus:statusCount,invCountRemarks:rows.filter(r => String(r.remarks || '').trim()).length};
             Object.entries(vals).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.innerText=Number.isInteger(val)?val:Number(val.toFixed(2));});
         }
 
