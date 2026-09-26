@@ -2352,9 +2352,36 @@
         function openDashboardNotificationModal(){document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');document.getElementById('dashboardNotificationTitle').value='';document.getElementById('dashboardNotificationMessage').value='';document.getElementById('dashboardNotificationModal')?.classList.remove('hidden');}
         function closeDashboardNotificationModal(){document.getElementById('dashboardNotificationModal')?.classList.add('hidden');}
         async function handleSaveDashboardNotification(event){event.preventDefault();if(!myAccess.isOwner||!currentUser?.uid||!cloudDb){showToast('Only the owner can post notifications');return;}const title=document.getElementById('dashboardNotificationTitle').value.trim(),message=document.getElementById('dashboardNotificationMessage').value.trim();if(!title||!message)return;try{const ref=cloudDb.doc('config/dashboardNotifications'),snap=await ref.get(),data=snap.exists?(snap.data()||{}):{},existing=Array.isArray(data.notifications)?data.notifications:[],item={id:'dn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),title,message,createdAt:new Date().toISOString(),createdBy:currentUser.uid},next=[item,...existing].slice(0,100);await ref.set({notifications:next,updatedAt:Date.now()});dashboardNotifications=next;renderDashboardNotificationTab();closeDashboardNotificationModal();showToast('Notification posted for users');}catch(e){console.error('Dashboard notification save failed',e);cloudFail(e);}}
-        async function markDashboardNotificationRead(id){if(!currentUser?.uid||!id)return;const next=[...new Set([...(dashboardNotificationReadIds||[]),id])];dashboardNotificationReadIds=next;renderDashboardNotificationTab();try{if(cloudDb)await cloudDb.doc('notificationReads/'+currentUser.uid).set({readIds:next,updatedAt:Date.now()});}catch(e){console.error('Notification read state save failed',e);showToast('Read status could not be saved');}}
+        async function markDashboardNotificationRead(id){
+            if(!currentUser?.uid||!id)return;
+            // Hide immediately for this user. Never allow a stale Firestore snapshot to undo it.
+            dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]),String(id)])];
+            renderDashboardNotificationTab();
+            try{
+                if(!cloudDb)return;
+                const ref=cloudDb.doc('notificationReads/'+currentUser.uid);
+                const snap=await ref.get();
+                const cloudIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];
+                const merged=[...new Set([...cloudIds,...dashboardNotificationReadIds.map(String)])];
+                dashboardNotificationReadIds=merged;
+                await ref.set({readIds:merged,updatedAt:Date.now()});
+                // Re-render after the cloud write so the item stays hidden.
+                renderDashboardNotificationTab();
+            }catch(e){
+                console.error('Notification read state save failed',e);
+                // Keep it hidden locally even if the cloud write temporarily fails.
+                renderDashboardNotificationTab();
+                showToast('Read status could not be saved');
+            }
+        }
         async function loadDashboardNotificationState(){dashboardNotifications=[];dashboardNotificationReadIds=[];if(!cloudDb||!currentUser?.uid){renderDashboardNotificationTab();return;}try{const [nSnap,rSnap]=await Promise.all([cloudDb.doc('config/dashboardNotifications').get(),cloudDb.doc('notificationReads/'+currentUser.uid).get()]);if(nSnap.exists&&Array.isArray(nSnap.data()?.notifications))dashboardNotifications=nSnap.data().notifications;if(rSnap.exists&&Array.isArray(rSnap.data()?.readIds))dashboardNotificationReadIds=rSnap.data().readIds;}catch(e){console.warn('Dashboard notification state load failed',e);}renderDashboardNotificationTab();}
-        function startDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;if(!cloudDb||!currentUser?.uid)return;dashboardNotificationUnsubscribe=cloudDb.doc('config/dashboardNotifications').onSnapshot(snap=>{dashboardNotifications=snap.exists&&Array.isArray(snap.data()?.notifications)?snap.data().notifications:[];renderDashboardNotificationTab();},()=>{});dashboardNotificationReadUnsubscribe=cloudDb.doc('notificationReads/'+currentUser.uid).onSnapshot(snap=>{dashboardNotificationReadIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];renderDashboardNotificationTab();},()=>{});}
+        function startDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;if(!cloudDb||!currentUser?.uid)return;dashboardNotificationUnsubscribe=cloudDb.doc('config/dashboardNotifications').onSnapshot(snap=>{dashboardNotifications=snap.exists&&Array.isArray(snap.data()?.notifications)?snap.data().notifications:[];renderDashboardNotificationTab();},()=>{});dashboardNotificationReadUnsubscribe=cloudDb.doc('notificationReads/'+currentUser.uid).onSnapshot(snap=>{
+            const cloudIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];
+            // Read state is append-only: merge cloud state with the current user's local state.
+            // This prevents an older/stale snapshot from making an already-read notice reappear.
+            dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]).map(String),...cloudIds.map(String)])];
+            renderDashboardNotificationTab();
+        },()=>{});}
         function stopDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;dashboardNotifications=[];dashboardNotificationReadIds=[];document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');renderDashboardNotificationTab();}
         function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 
