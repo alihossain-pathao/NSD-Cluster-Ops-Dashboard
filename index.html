@@ -1879,7 +1879,8 @@
         function getDismissedNoticeIds(){ try { return JSON.parse(localStorage.getItem(DISMISSED_NOTICES_LS) || '[]'); } catch(e){ return []; } }
         function saveDismissedNoticeIds(ids){ try { localStorage.setItem(DISMISSED_NOTICES_LS, JSON.stringify([...new Set(ids)])); } catch(e) {} }
         function filterDismissedNotices(list){
-            if (!myAccess.isOwner) return list;
+            // Dismissal is a per-device owner action. Keep the dismissed IDs locally
+            // so a refresh/cloud snapshot can never make the same notice reappear.
             const ids = new Set(getDismissedNoticeIds());
             return (Array.isArray(list) ? list : []).filter(n => !ids.has(n.id));
         }
