@@ -2482,10 +2482,10 @@
             if (!target || !target.matches('#attendanceRowsBody input')) return;
 
             const text = (event.clipboardData || window.clipboardData)?.getData('text') || '';
-            if (!text.trim() || !/[\\r\\n\\t]/.test(text)) return;
+            if (!text.trim() || !/[\r\n\t]/.test(text)) return;
 
-            const lines = text.replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n')
-                .split('\\n')
+            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+                .split('\n')
                 .map(line => line.trimEnd())
                 .filter(line => line.trim());
 
@@ -2498,7 +2498,7 @@
             const start = startRow >= 0 ? startRow : 0;
 
             lines.forEach((line, offset) => {
-                const cells = line.split('\\t').map(v => v.trim());
+                const cells = line.split('\t').map(v => v.trim());
                 const rowIndex = start + offset;
 
                 while (currentAttendanceRows.length <= rowIndex) {
@@ -2510,7 +2510,7 @@
                 currentAttendanceRows[rowIndex] = {
                     id: cells[0] || '',
                     name: cells[1] || '',
-                    remarks: cells.slice(2).join('\\t') || ''
+                    remarks: cells.slice(2).join('\t') || ''
                 };
             });
 
