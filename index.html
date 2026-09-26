@@ -145,53 +145,6 @@
         }
 
         .import-report-wrap { background:#dbe2ef; min-height:100vh; padding:18px; color:#0f172a; }
-        .digital-header-clock {
-            min-width:205px;
-            padding:9px 13px;
-            border:1px solid rgba(56,189,248,.22);
-            border-radius:12px;
-            background:linear-gradient(135deg,rgba(8,25,49,.96),rgba(15,32,57,.92));
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 5px 16px rgba(0,0,0,.16);
-        }
-        .digital-clock-top {
-            display:flex;
-            align-items:center;
-            gap:6px;
-            margin-bottom:3px;
-        }
-        .digital-live-dot {
-            width:7px;
-            height:7px;
-            border-radius:50%;
-            background:#34d399;
-            box-shadow:0 0 0 3px rgba(52,211,153,.10);
-        }
-        .digital-clock-label {
-            font-size:9px;
-            line-height:1;
-            font-weight:900;
-            letter-spacing:.1em;
-            color:#67e8f9;
-        }
-        .digital-clock-time {
-            font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-            font-size:17px;
-            line-height:1.15;
-            font-weight:900;
-            letter-spacing:.05em;
-            color:#f8fafc;
-        }
-        .digital-clock-date {
-            margin-top:3px;
-            font-size:9px;
-            line-height:1.1;
-            font-weight:800;
-            color:#94a3b8;
-        }
-        @media (max-width:900px) {
-            .digital-header-clock { min-width:180px; }
-            .digital-clock-time { font-size:15px; }
-        }
         .import-report-toolbar { max-width:1700px; margin:0 auto 14px; background:#0f2942; color:#fff; border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; box-shadow:0 4px 15px rgba(0,0,0,.18); }
         .import-report-toolbar .title { font-size:15px; font-weight:900; letter-spacing:.2px; }
         .import-report-toolbar .sub { font-size:10px; color:#cbd5e1; font-weight:700; margin-top:2px; }
@@ -522,13 +475,16 @@
                 </div>
             </div>
 
-            <div class="digital-header-clock" title="Current date and time">
-                <div class="digital-clock-top">
-                    <span class="digital-live-dot"></span>
-                    <span class="digital-clock-label">LIVE TIME</span>
+            <div class="flex items-center gap-2 bg-[#0b1329] border border-slate-800 rounded-xl px-4 py-2">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <div class="text-right">
+                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Last Updated</span>
+                    <span class="text-xs text-emerald-400 font-black" id="lastUpdatedTime">--:--:--</span>
+                    <span class="text-[9px] text-slate-400 font-bold block" id="lastUpdatedDate">--</span>
                 </div>
-                <div class="digital-clock-time" id="headerDigitalTime">11:24:00 AM</div>
-                <div class="digital-clock-date" id="headerDigitalDate">26 September 2026</div>
             </div>
             
             <input type="file" id="importJsonInput" class="hidden" accept=".json" onchange="importDashboardData(event)">
@@ -563,7 +519,7 @@
             <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-emerald-800/60 transition-all duration-200">
                 <div>
                     <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">AVG DELIVERY RATE</span>
-                    <div class="text-3xl font-black text-emerald-400 mt-1" id="clusterDeliveryRate">0.0%</div>
+                    <div class="text-3xl font-black text-emerald-400 mt-1" id="clusterDeliveryRate">83.2%</div>
                     <span class="text-xs font-semibold text-slate-400 flex items-center gap-1 mt-1">
                         <i class="fa-solid fa-chart-line"></i> Target: >80%
                     </span>
@@ -2843,9 +2799,7 @@
             }, { totalVolume: 0, delivered: 0, totalHold: 0, collection: 0, daPresent: 0, daTotal: 0 });
 
             const reportCount = filtered.length;
-            const avgDeliveryRate = totals.totalVolume === 0
-                ? '0.0'
-                : ((totals.delivered / totals.totalVolume) * 100).toFixed(1);
+            const avgDeliveryRate = totals.totalVolume > 0 ? ((totals.delivered / totals.totalVolume) * 100).toFixed(1) : '0.0';
             const avgDAPresent = reportCount > 0 ? Math.round(totals.daPresent / reportCount) : 0;
             const avgDATotal = reportCount > 0 ? Math.round(totals.daTotal / reportCount) : 0;
 
@@ -3545,29 +3499,6 @@
             });
         }
 
-        function updateHeaderDigitalClock() {
-            const now = new Date();
-            const timeEl = document.getElementById('headerDigitalTime');
-            const dateEl = document.getElementById('headerDigitalDate');
-
-            if (timeEl) {
-                timeEl.innerText = now.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                });
-            }
-
-            if (dateEl) {
-                dateEl.innerText = now.toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric'
-                });
-            }
-        }
-
         function updateLastUpdatedTime() {
             const el = document.getElementById('lastUpdatedTime');
             const dateEl = document.getElementById('lastUpdatedDate');
@@ -3607,11 +3538,7 @@
 
             const clusterRateEl = document.getElementById('clusterDeliveryRate');
             if (clusterRateEl) {
-                // No dispatch volume = no delivery rate to calculate.
-                // Show 0.0% instead of carrying a stale/hard-coded percentage.
-                const avgPct = totalHubsVol === 0
-                    ? '0.0'
-                    : ((totalHubsDelivered / totalHubsVol) * 100).toFixed(1);
+                const avgPct = totalHubsVol > 0 ? ((totalHubsDelivered / totalHubsVol) * 100).toFixed(1) : '0.0';
                 clusterRateEl.innerText = `${avgPct}%`;
             }
 
@@ -3653,9 +3580,7 @@
                 `).join('');
             }
 
-            updateHeaderDigitalClock();
-        updateLastUpdatedTime();
-        setInterval(updateHeaderDigitalClock, 1000);
+            updateLastUpdatedTime();
 
             const grid = document.getElementById('hubCardsGrid');
             if (!grid) return;
