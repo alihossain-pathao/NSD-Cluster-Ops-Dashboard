@@ -2719,10 +2719,20 @@
             event.preventDefault();
             event.stopImmediatePropagation();
 
-            const startRow = Number(target.dataset.invRow);
+            const parsedStartRow = Number(target.dataset.invRow);
+            if (!Number.isInteger(parsedStartRow) || parsedStartRow < 0) return;
+
             const keys = ['cid','assigned','officeHold','areaChange','mismatch','status','remarks'];
-            const startCol = Math.max(0, keys.indexOf(target.dataset.invKey));
-            if (!Number.isInteger(startRow) || startRow < 0) return;
+            let startRow = parsedStartRow;
+            let startCol = Math.max(0, keys.indexOf(target.dataset.invKey));
+
+            // CID lists are often pasted while the user is focused in a numeric
+            // column (Assigned/Hold/etc.). Detect Hermes CID values and route the
+            // whole list to the CID column instead of letting <input type=number>
+            // reject the text. This also works with Markdown table rows.
+            const flatValues = rows.flat().map(v => String(v ?? '').trim()).filter(Boolean);
+            const looksLikeCid = flatValues.length > 0 && flatValues.every(v => /^[A-Z]{2}\d{8}[A-Z0-9]{5,6}$/i.test(v));
+            if (looksLikeCid) startCol = 0;
 
             const needed = startRow + rows.length;
             while (currentInventoryRows.length < needed) currentInventoryRows.push(inventoryBlankRow());
