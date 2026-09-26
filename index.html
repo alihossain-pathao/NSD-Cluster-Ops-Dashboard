@@ -590,6 +590,17 @@
             
             <input type="file" id="importJsonInput" class="hidden" accept=".json" onchange="importDashboardData(event)">
             <div class="flex items-center gap-2">
+                <button id="dashboardNotificationTab" onclick="toggleDashboardNotificationPanel()" class="relative px-3 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-300 hover:bg-violet-500/25 text-[10px] font-black flex items-center gap-2 transition" title="Notifications">
+                    <i class="fa-solid fa-bell"></i><span>Notice</span>
+                    <span id="dashboardNotificationBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-black items-center justify-center border-2 border-[#131d36]">0</span>
+                </button>
+                <div id="dashboardNotificationPanel" class="hidden absolute right-4 md:right-8 top-[78px] w-[min(92vw,380px)] bg-[#131d36] border border-slate-700 rounded-2xl shadow-2xl z-[70] overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
+                        <div class="text-xs font-black text-white flex items-center gap-2"><i class="fa-solid fa-bell text-violet-400"></i> Notifications</div>
+                        <button data-owner-only onclick="openDashboardNotificationModal()" class="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[9px] font-black">+ Post</button>
+                    </div>
+                    <div id="dashboardNotificationList" class="max-h-[360px] overflow-y-auto p-3 space-y-2"></div>
+                </div>
                 <button onclick="triggerExcelReportImport()" class="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[10px] font-black flex items-center gap-2 transition">
                     <i class="fa-solid fa-file-excel"></i> Performance Checker
                 </button>
@@ -654,68 +665,6 @@
                 <div class="w-12 h-12 bg-rose-950/60 rounded-xl flex items-center justify-center text-rose-400 text-xl border border-rose-800/40">
                     <i class="fa-solid fa-box-open"></i>
                 </div>
-            </div>
-        </div>
-
-        <!-- CLUSTER HEALTH ALERT & WARNING NOTICES -->
-        <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
-            <div class="flex items-center justify-between">
-                <h3 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-bullhorn text-amber-400"></i> Cluster Notices
-                </h3>
-                <button onclick="openAddNoticeModal()" data-owner-only class="bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 shadow-md">
-                    <i class="fa-solid fa-plus"></i> Post Notice
-                </button>
-            </div>
-
-            <div id="customNoticesStack" class="space-y-2.5"></div>
-
-            <p id="noNoticesMsg" class="hidden text-center text-[11px] text-slate-500 font-semibold py-1.5">
-                <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No active notices right now.
-            </p>
-        </div>
-
-        <!-- POST NOTICE MODAL -->
-        <div id="addNoticeModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
-                <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-bullhorn text-amber-400"></i> Post a Notice
-                    </h3>
-                    <button onclick="closeAddNoticeModal()" class="text-slate-400 hover:text-white text-lg">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <form id="noticeForm" onsubmit="handleSaveNotice(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-300 mb-1">Notice Title</label>
-                        <input type="text" id="noticeTitleInput" required placeholder="e.g. Vehicle Delay at Hub 2" class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-amber-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-300 mb-1">Message</label>
-                        <textarea id="noticeMessageInput" required rows="3" placeholder="Write the notice details..." class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-amber-500 resize-none"></textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-300 mb-1">Severity</label>
-                        <select id="noticeSeverityInput" class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-amber-500">
-                            <option value="info">Info</option>
-                            <option value="warning" selected>Warning</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-
-                    <div class="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
-                        <button type="button" onclick="closeAddNoticeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition">
-                            Cancel
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition">
-                            Post Notice
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
 
@@ -1920,6 +1869,10 @@
         // If left empty, the first Google account that signs in claims ownership once.
         const OWNER_EMAILS = [];
         let dashboardOwnerUid = null;
+        let dashboardNotifications = [];
+        let dashboardNotificationReadIds = [];
+        let dashboardNotificationUnsubscribe = null;
+        let dashboardNotificationReadUnsubscribe = null;
         let presenceUnsubscribe = null;
         let presenceHeartbeat = null;
         let presenceRefreshTimer = null;
@@ -2385,6 +2338,26 @@
             }
         }
 
+        function getDashboardNotificationUnread() {
+            const read = new Set(Array.isArray(dashboardNotificationReadIds) ? dashboardNotificationReadIds : []);
+            return (Array.isArray(dashboardNotifications) ? dashboardNotifications : []).filter(n => n && !read.has(n.id));
+        }
+        function renderDashboardNotificationTab() {
+            const badge=document.getElementById('dashboardNotificationBadge'), list=document.getElementById('dashboardNotificationList'); if(!badge||!list)return;
+            const unread=getDashboardNotificationUnread(); badge.textContent=String(unread.length); badge.classList.toggle('hidden',!unread.length); badge.classList.toggle('flex',!!unread.length);
+            if(!unread.length){list.innerHTML='<div class="py-8 text-center text-[10px] text-slate-500 font-semibold"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No new notifications</div>';return;}
+            list.innerHTML=unread.map(n=>`<div class="bg-[#0b1329] border border-slate-700 rounded-xl p-3"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><div class="text-[11px] font-black text-white">${escapeHtml(n.title||'Notification')}</div><div class="text-[10px] text-slate-300 mt-1 leading-relaxed whitespace-pre-wrap">${escapeHtml(n.message||'')}</div><div class="text-[8px] text-slate-500 mt-2">${n.createdAt?new Date(n.createdAt).toLocaleString():''}</div></div><button type="button" onclick="markDashboardNotificationRead(${JSON.stringify(n.id)})" class="flex-shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black">Read</button></div></div>`).join('');
+        }
+        function toggleDashboardNotificationPanel(){const p=document.getElementById('dashboardNotificationPanel');if(!p)return;p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderDashboardNotificationTab();}
+        function openDashboardNotificationModal(){document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');document.getElementById('dashboardNotificationTitle').value='';document.getElementById('dashboardNotificationMessage').value='';document.getElementById('dashboardNotificationModal')?.classList.remove('hidden');}
+        function closeDashboardNotificationModal(){document.getElementById('dashboardNotificationModal')?.classList.add('hidden');}
+        async function handleSaveDashboardNotification(event){event.preventDefault();if(!myAccess.isOwner||!currentUser?.uid||!cloudDb){showToast('Only the owner can post notifications');return;}const title=document.getElementById('dashboardNotificationTitle').value.trim(),message=document.getElementById('dashboardNotificationMessage').value.trim();if(!title||!message)return;try{const ref=cloudDb.doc('config/dashboardNotifications'),snap=await ref.get(),data=snap.exists?(snap.data()||{}):{},existing=Array.isArray(data.notifications)?data.notifications:[],item={id:'dn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),title,message,createdAt:new Date().toISOString(),createdBy:currentUser.uid},next=[item,...existing].slice(0,100);await ref.set({notifications:next,updatedAt:Date.now()});dashboardNotifications=next;renderDashboardNotificationTab();closeDashboardNotificationModal();showToast('Notification posted for users');}catch(e){console.error('Dashboard notification save failed',e);cloudFail(e);}}
+        async function markDashboardNotificationRead(id){if(!currentUser?.uid||!id)return;const next=[...new Set([...(dashboardNotificationReadIds||[]),id])];dashboardNotificationReadIds=next;renderDashboardNotificationTab();try{if(cloudDb)await cloudDb.doc('notificationReads/'+currentUser.uid).set({readIds:next,updatedAt:Date.now()});}catch(e){console.error('Notification read state save failed',e);showToast('Read status could not be saved');}}
+        async function loadDashboardNotificationState(){dashboardNotifications=[];dashboardNotificationReadIds=[];if(!cloudDb||!currentUser?.uid){renderDashboardNotificationTab();return;}try{const [nSnap,rSnap]=await Promise.all([cloudDb.doc('config/dashboardNotifications').get(),cloudDb.doc('notificationReads/'+currentUser.uid).get()]);if(nSnap.exists&&Array.isArray(nSnap.data()?.notifications))dashboardNotifications=nSnap.data().notifications;if(rSnap.exists&&Array.isArray(rSnap.data()?.readIds))dashboardNotificationReadIds=rSnap.data().readIds;}catch(e){console.warn('Dashboard notification state load failed',e);}renderDashboardNotificationTab();}
+        function startDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;if(!cloudDb||!currentUser?.uid)return;dashboardNotificationUnsubscribe=cloudDb.doc('config/dashboardNotifications').onSnapshot(snap=>{dashboardNotifications=snap.exists&&Array.isArray(snap.data()?.notifications)?snap.data().notifications:[];renderDashboardNotificationTab();},()=>{});dashboardNotificationReadUnsubscribe=cloudDb.doc('notificationReads/'+currentUser.uid).onSnapshot(snap=>{dashboardNotificationReadIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];renderDashboardNotificationTab();},()=>{});}
+        function stopDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;dashboardNotifications=[];dashboardNotificationReadIds=[];document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');renderDashboardNotificationTab();}
+        function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+
         function setupGoogleAuth() {
             if (!cloudAuth) return;
 
@@ -2398,12 +2371,16 @@
                     startPresence();
                     await refreshGoogleOwnerStatus();
                     await loadNoticePersonalState();
+                    await loadDashboardNotificationState();
+                    startDashboardNotificationListener();
                 } else {
                     myAccess.isOwner = false;
                     stopPresence();
+                    stopDashboardNotificationListener();
                 }
 
                 updateProfileUI();
+                applyOwnerOnlyUI();
                 renderVisibilityList();
                 applyUiHide();
                 renderTaskTabs();
@@ -2442,7 +2419,10 @@
                 await refreshGoogleOwnerStatus();
             }
             await loadNoticePersonalState();
+            await loadDashboardNotificationState();
+            startDashboardNotificationListener();
             updateProfileUI();
+            applyOwnerOnlyUI();
 
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
             await Promise.all([
@@ -5872,5 +5852,18 @@
 
     </script>
 <script>window.addEventListener('load', finishHeaderBoot, {once:true});</script>
+    <div id="dashboardNotificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+                <h3 class="text-base font-black text-white flex items-center gap-2"><i class="fa-solid fa-bell text-violet-400"></i> Post Notification</h3>
+                <button onclick="closeDashboardNotificationModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleSaveDashboardNotification(event)" class="space-y-4">
+                <div><label class="block text-xs font-bold text-slate-300 mb-1">Notification Title</label><input id="dashboardNotificationTitle" required maxlength="120" placeholder="e.g. Important Update" class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-violet-500"></div>
+                <div><label class="block text-xs font-bold text-slate-300 mb-1">Message</label><textarea id="dashboardNotificationMessage" required maxlength="1000" rows="5" placeholder="Write the notification..." class="w-full bg-[#0b1329] text-sm text-slate-200 rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-violet-500 resize-none"></textarea></div>
+                <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeDashboardNotificationModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-black">Post Notification</button></div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
