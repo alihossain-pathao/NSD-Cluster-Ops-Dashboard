@@ -320,8 +320,16 @@
         .inventory-table .inv-count { background:#fff; font-weight:900; font-size:13px; height:27px; }
         .inventory-table .inv-head { background:#595959; color:#fff; font-weight:900; font-size:11px; height:27px; }
         .inventory-table .inv-cid { text-align:left; }
-        .inventory-table td.inv-date-match { background:#fff2cc !important; }
-        .inventory-table td.inv-date-match input { background:#fff2cc !important; font-weight:900; }
+        /* Matching CID dates use the same color everywhere they appear. */
+        .inventory-table td.inv-date-match input { font-weight:900; }
+        .inventory-table td.inv-match-0, .inventory-table td.inv-match-0 input { background:#fff2cc !important; }
+        .inventory-table td.inv-match-1, .inventory-table td.inv-match-1 input { background:#d9ead3 !important; }
+        .inventory-table td.inv-match-2, .inventory-table td.inv-match-2 input { background:#cfe2f3 !important; }
+        .inventory-table td.inv-match-3, .inventory-table td.inv-match-3 input { background:#eadcf8 !important; }
+        .inventory-table td.inv-match-4, .inventory-table td.inv-match-4 input { background:#fce5cd !important; }
+        .inventory-table td.inv-match-5, .inventory-table td.inv-match-5 input { background:#d9d2e9 !important; }
+        .inventory-table td.inv-match-6, .inventory-table td.inv-match-6 input { background:#cfe8e3 !important; }
+        .inventory-table td.inv-match-7, .inventory-table td.inv-match-7 input { background:#f4cccc !important; }
         .inventory-table input,.inventory-table select { width:100%; height:20px; border:0; outline:0; background:transparent; color:#000; font:700 11px Calibri,Arial,sans-serif; text-align:center; padding:0 2px; }
         /* Remove number-field spinner arrows in Inventory Report */
         .inventory-table input[type=number]::-webkit-outer-spin-button,
@@ -1531,15 +1539,15 @@
                         <tr><td class="solved-label">Mismatch Solved</td><td class="solved-value" id="invMismatchSolved">0</td></tr>
                         <tr><td class="pending-label">Mismatch Pending</td><td class="pending-value" id="invMismatchPending">0</td></tr>
                     </table>
+                    <div class="inventory-actions" data-html2canvas-ignore="true">
+                        <button type="button" class="inventory-action-btn primary" onclick="closeInventoryReportView()"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+                        <button type="button" class="inventory-action-btn" onclick="addInventoryRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
+                        <button type="button" class="inventory-action-btn" onclick="resetInventoryReport()"><i class="fa-solid fa-rotate"></i> Refresh Form</button>
+                        <button type="button" class="inventory-action-btn" onclick="printInventoryReport()"><i class="fa-solid fa-print"></i> Print</button>
+                    </div>
+                    <div class="inventory-note" data-html2canvas-ignore="true">Tip: Paste multiple rows directly into the table. Matching CID dates use the same highlight color.</div>
                 </div>
             </div>
-            <div class="inventory-actions" data-html2canvas-ignore="true">
-                <button type="button" class="inventory-action-btn primary" onclick="closeInventoryReportView()"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
-                <button type="button" class="inventory-action-btn" onclick="addInventoryRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
-                <button type="button" class="inventory-action-btn" onclick="resetInventoryReport()"><i class="fa-solid fa-rotate"></i> Refresh Form</button>
-                <button type="button" class="inventory-action-btn" onclick="printInventoryReport()"><i class="fa-solid fa-print"></i> Print</button>
-            </div>
-            <div class="inventory-note" data-html2canvas-ignore="true">Tip: Paste multiple tab-separated rows directly into the table. Numeric columns use 1 for a parcel and 0 for none.</div>
         </div>
     </div>
 
@@ -2671,35 +2679,40 @@
             return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         }
 
+        function inventoryMatchColorClass(date) {
+            const d = String(date || '');
+            if (!d) return '';
+            let hash = 0;
+            for (let i = 0; i < d.length; i++) hash = ((hash << 5) - hash + d.charCodeAt(i)) | 0;
+            return `inv-match-${Math.abs(hash) % 8}`;
+        }
+
         function renderInventoryRows() {
             const body = document.getElementById('inventoryRowsBody');
             if (!body) return;
             while (currentInventoryRows.length < INVENTORY_ROW_COUNT) currentInventoryRows.push(inventoryBlankRow());
 
             const statusKeys = ['assigned','officeHold','areaChange','mismatch'];
-            const statusDates = new Set();
-            currentInventoryRows.forEach(row => {
-                statusKeys.forEach(key => {
-                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean).forEach(v => {
-                        const d = inventoryCidDate(v);
-                        if (d) statusDates.add(d);
-                    });
-                });
-            });
             const masterDates = new Set(currentInventoryRows.map(row => inventoryCidDate(row.cid)).filter(Boolean));
 
             body.innerHTML = currentInventoryRows.map((row,i) => {
-                const cidMatch = inventoryCidDate(row.cid) && statusDates.has(inventoryCidDate(row.cid));
-                const statusMatch = statusKeys.some(key => String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).some(v => {
-                    const d = inventoryCidDate(v); return d && masterDates.has(d);
-                }));
+                const cidDate = inventoryCidDate(row.cid);
+                const cidMatch = cidDate && currentInventoryRows.some(r => statusKeys.some(key =>
+                    String(r[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).some(v => inventoryCidDate(v) === cidDate)
+                ));
+                const cidClass = cidMatch ? `inv-date-match ${inventoryMatchColorClass(cidDate)}` : '';
+                const cellClass = key => {
+                    const values = String(row[key] ?? '').split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean);
+                    const matchedDate = values.map(inventoryCidDate).find(d => d && masterDates.has(d));
+                    return matchedDate ? `inv-date-match ${inventoryMatchColorClass(matchedDate)}` : '';
+                };
                 return `
                 <tr>
-                    <td class="inv-cid${cidMatch ? ' inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
-                    <td class="${statusMatch && inventoryCidDate(row.assigned) && masterDates.has(inventoryCidDate(row.assigned)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
-                    <td class="${statusMatch && inventoryCidDate(row.officeHold) && masterDates.has(inventoryCidDate(row.officeHold)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
-                    <td class="${statusMatch && inventoryCidDate(row.areaChange) && masterDates.has(inventoryCidDate(row.areaChange)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
-                    <td class="${statusMatch && inventoryCidDate(row.mismatch) && masterDates.has(inventoryCidDate(row.mismatch)) ? 'inv-date-match' : ''}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml(row.mismatch)}" autocomplete="off"></td>
+                    <td class="inv-cid ${cidClass}"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
+                    <td class="${cellClass('assigned')}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
+                    <td class="${cellClass('officeHold')}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
+                    <td class="${cellClass('areaChange')}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
+                    <td class="${cellClass('mismatch')}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml(row.mismatch)}" autocomplete="off"></td>
                     <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
                     <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
                 </tr>`;
