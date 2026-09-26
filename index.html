@@ -2957,35 +2957,46 @@
         // so they do NOT make themselves look like duplicates/orange.
         function updateInventoryAutoMismatch() {
             const rows = currentInventoryRows || [];
-            const secondaryKeys = ['assigned','officeHold','areaChange','mismatch'];
+            const operationalKeys = ['assigned','officeHold','areaChange'];
             const found = new Set();
+            const manualMismatch = new Set();
 
-            // Manual values in the four secondary columns count as found.
-            // Auto-generated mismatch values are kept separate.
+            // A Hermes CID is considered matched when it exists in Assigned,
+            // Office Hold, or Area Change. Manual Mismatch/Missing entries are
+            // also remembered so the same CID is not shown twice.
             rows.forEach(row => {
-                secondaryKeys.forEach(key => {
+                operationalKeys.forEach(key => {
                     String(row[key] ?? '')
                         .split(/[\n\t,;]+/)
                         .map(v => normalizeInventoryCid(v))
                         .filter(Boolean)
                         .forEach(v => found.add(v));
                 });
+                String(row.mismatch ?? '')
+                    .split(/[\n\t,;]+/)
+                    .map(v => normalizeInventoryCid(v))
+                    .filter(Boolean)
+                    .forEach(v => manualMismatch.add(v));
             });
 
-            // Build the unmatched Hermes list in exact Hermes order.
+            // Build unmatched Hermes CIDs in the exact same order as
+            // CID from Hermes. These are the only values auto-added to
+            // Mismatch/Missing.
             const unmatched = [];
             rows.forEach(row => {
                 const cid = normalizeInventoryCid(row.cid);
-                if (cid && !found.has(cid)) unmatched.push(row.cid);
+                if (cid && !found.has(cid) && !manualMismatch.has(cid)) {
+                    unmatched.push(row.cid);
+                }
                 row.autoMismatch = '';
             });
 
-            // Place auto-mismatch CIDs consecutively in the Mismatch/Missing
-            // column so there are no visual gaps. Manual entries are preserved.
+            // Put the generated values into the first available Mismatch/Missing
+            // cells, top-to-bottom, so the generated list is always serial with
+            // no blank gaps. Existing manually entered mismatch cells are kept.
             let n = 0;
             for (let i = 0; i < rows.length && n < unmatched.length; i++) {
-                const manual = String(rows[i].mismatch ?? '').trim();
-                if (manual) continue;
+                if (String(rows[i].mismatch ?? '').trim()) continue;
                 rows[i].autoMismatch = unmatched[n++];
             }
         }
@@ -2996,7 +3007,7 @@
             const rows = currentInventoryRows || [];
             const total = rows.filter(r => String(r.cid || '').trim()).length;
             const sum = key => rows.reduce((n,r) => n + inventoryCellCount(r[key]), 0);
-            const assigned=sum('assigned'), officeHold=sum('officeHold'), areaChange=sum('areaChange'), mismatch=sum('mismatch');
+            const assigned=sum('assigned'), officeHold=sum('officeHold'), areaChange=sum('areaChange'), mismatch=rows.reduce((n,r) => n + inventoryCellCount(String(r.mismatch || '')) + inventoryCellCount(String(r.autoMismatch || '')), 0);
             const solved = rows.filter(r => String(r.status || '').toLowerCase() === 'solved').length;
             const pending = rows.filter(r => String(r.status || '').toLowerCase() === 'pending').length;
             const statusCount = rows.filter(r => String(r.status || '').trim()).length;
