@@ -309,6 +309,42 @@
         .att-da-row input#dummy { text-align: center; }
         .att-remove-btn { border: none; background: transparent; color: #dc2626; cursor: pointer; font-size: 12px; width: 100%; }
 
+        /* INVENTORY REPORT - Excel-style layout */
+        .inventory-report-wrap { background:#fff; min-height:100vh; padding:10px 8px 24px; color:#000; font-family:Calibri,Arial,sans-serif; }
+        .inventory-report-shell { max-width:1400px; margin:0 auto; }
+        .inventory-main-grid { display:grid; grid-template-columns:minmax(760px,1fr) 385px; gap:22px; align-items:start; }
+        .inventory-sheet { background:#fff; overflow:auto; }
+        .inventory-table { width:100%; min-width:920px; border-collapse:collapse; table-layout:fixed; font-family:Calibri,Arial,sans-serif; font-size:12px; color:#000; }
+        .inventory-table th,.inventory-table td { border:1px solid #111; height:23px; padding:2px 5px; text-align:center; white-space:nowrap; }
+        .inventory-table .inv-hub-title { background:#c27ba0; color:#fff; font-size:18px; font-weight:900; height:40px; }
+        .inventory-table .inv-count { background:#fff; font-weight:900; font-size:13px; height:27px; }
+        .inventory-table .inv-head { background:#595959; color:#fff; font-weight:900; font-size:11px; height:27px; }
+        .inventory-table .inv-cid { text-align:left; }
+        .inventory-table input,.inventory-table select { width:100%; height:20px; border:0; outline:0; background:transparent; color:#000; font:700 11px Calibri,Arial,sans-serif; text-align:center; padding:0 2px; }
+        .inventory-table input:focus,.inventory-table select:focus { background:#e0f2fe; box-shadow:inset 0 0 0 1px #0284c7; }
+        .inventory-table select { background:#e9ecef; border-radius:10px; appearance:auto; cursor:pointer; }
+        .inventory-summary { width:100%; border-collapse:collapse; font-family:Calibri,Arial,sans-serif; font-size:12px; }
+        .inventory-summary th,.inventory-summary td { border:1px solid #111; padding:4px 6px; height:22px; }
+        .inventory-summary .summary-title { background:#6695dd; color:#fff; font-size:18px; font-weight:900; text-align:center; height:40px; }
+        .inventory-summary td:first-child { text-align:left; font-weight:800; }
+        .inventory-summary td:last-child { text-align:center; font-weight:900; }
+        .inventory-summary .solved-label { background:#c27ba0; color:#fff; text-align:center; font-weight:900; }
+        .inventory-summary .solved-value { background:#93c47d; color:#000; }
+        .inventory-summary .pending-label,.inventory-summary .pending-value { background:#e42f25; color:#fff; font-weight:900; text-align:center; }
+        .inventory-actions { display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin:12px auto 0; padding-top:10px; border-top:1px dashed #cbd5e1; }
+        .inventory-action-btn { border:1px solid #94a3b8; background:#fff; color:#0f172a; border-radius:6px; padding:7px 12px; font:800 11px Arial,sans-serif; cursor:pointer; }
+        .inventory-action-btn.primary { background:#0f2942; color:#fff; border-color:#0369a1; }
+        .inventory-note { font:700 10px Arial,sans-serif; color:#64748b; text-align:center; margin-top:7px; }
+        @media (max-width:1050px) { .inventory-main-grid { grid-template-columns:1fr; } .inventory-summary-wrap { max-width:520px; } }
+        @media print {
+            body.print-inventory-report * { visibility:hidden !important; }
+            body.print-inventory-report #inventoryReportView, body.print-inventory-report #inventoryReportView * { visibility:visible !important; }
+            body.print-inventory-report #inventoryReportView { position:absolute; inset:0; background:#fff !important; padding:0 !important; }
+            body.print-inventory-report .inventory-actions, body.print-inventory-report .inventory-note { display:none !important; }
+            body.print-inventory-report .inventory-main-grid { grid-template-columns:minmax(0,1fr) 385px; gap:18px; }
+            body.print-inventory-report .inventory-table { min-width:0; }
+        }
+
         /* SIDEBAR STYLES */
         #sidebarOverlay { transition: opacity 0.3s ease; }
         #sidebarDrawer { transition: transform 0.3s ease-in-out; }
@@ -1445,6 +1481,61 @@
         </div>
     </div>
 
+    <!-- HUB INVENTORY REPORT VIEW -->
+    <div id="inventoryReportView" class="hidden inventory-report-wrap">
+        <div class="inventory-report-shell" id="inventoryCaptureContainer">
+            <div class="inventory-main-grid">
+                <div class="inventory-sheet">
+                    <table class="inventory-table" id="inventoryReportTable">
+                        <colgroup>
+                            <col style="width:16%;"><col style="width:14%;"><col style="width:14%;"><col style="width:14%;"><col style="width:16%;"><col style="width:10%;"><col style="width:16%;">
+                        </colgroup>
+                        <thead>
+                            <tr><th colspan="7" class="inv-hub-title" id="inventoryHubTitle">Narsingdi Hub</th></tr>
+                            <tr id="inventoryCountRow">
+                                <th class="inv-count" id="invCountAssigned">0</th>
+                                <th class="inv-count" id="invCountOfficeHold">0</th>
+                                <th class="inv-count" id="invCountAreaChange">0</th>
+                                <th class="inv-count" id="invCountMismatch">0</th>
+                                <th class="inv-count" colspan="2"></th>
+                                <th class="inv-count"></th>
+                            </tr>
+                            <tr>
+                                <th class="inv-head">CID from Hermes</th>
+                                <th class="inv-head">Assigned</th>
+                                <th class="inv-head">Office Hold</th>
+                                <th class="inv-head">Area Change</th>
+                                <th class="inv-head">Mismatch/Missing</th>
+                                <th class="inv-head">Status</th>
+                                <th class="inv-head">Remarks If Any</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryRowsBody"></tbody>
+                    </table>
+                </div>
+                <div class="inventory-summary-wrap">
+                    <table class="inventory-summary">
+                        <tr><th colspan="2" class="summary-title" id="inventorySummaryTitle">Narsingdi Hub Inventory Report</th></tr>
+                        <tr><td>Total Parcels in Panel</td><td id="invTotalParcels">0</td></tr>
+                        <tr><td>Assigned Parcels</td><td id="invAssignedParcels">0</td></tr>
+                        <tr><td>Office Hold Parcels</td><td id="invOfficeHoldParcels">0</td></tr>
+                        <tr><td>Area Change Parcels</td><td id="invAreaChangeParcels">0</td></tr>
+                        <tr><td>Mismatch / Missing Parcels</td><td id="invMismatchParcels">0</td></tr>
+                        <tr><td class="solved-label">Mismatch Solved</td><td class="solved-value" id="invMismatchSolved">0</td></tr>
+                        <tr><td class="pending-label">Mismatch Pending</td><td class="pending-value" id="invMismatchPending">0</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="inventory-actions" data-html2canvas-ignore="true">
+                <button type="button" class="inventory-action-btn primary" onclick="closeInventoryReportView()"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+                <button type="button" class="inventory-action-btn" onclick="addInventoryRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
+                <button type="button" class="inventory-action-btn" onclick="resetInventoryReport()"><i class="fa-solid fa-rotate"></i> Refresh Form</button>
+                <button type="button" class="inventory-action-btn" onclick="printInventoryReport()"><i class="fa-solid fa-print"></i> Print</button>
+            </div>
+            <div class="inventory-note" data-html2canvas-ignore="true">Tip: Paste multiple tab-separated rows directly into the table. Numeric columns use 1 for a parcel and 0 for none.</div>
+        </div>
+    </div>
+
     <!-- ADD NEW SHEET MODAL -->
     <div id="addSheetModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
@@ -1751,6 +1842,9 @@
         let attendanceReportsData = {};
         let currentActiveAttendanceHubId = null;
         let currentAttendanceRows = [];
+        let inventoryReportsData = {};
+        let currentActiveInventoryHubId = null;
+        let currentInventoryRows = [];
 
         /* =================== STORAGE: LOCAL CACHE + SHARED CLOUD SYNC ===================
            - Every change is saved instantly in this browser (localStorage) so a refresh never loses it.
@@ -1772,7 +1866,7 @@
         let authStateResolved = false;
         let presenceSessionToken = 0;
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
-        const pendingWrites = { hubList: 0, reports: {}, attendance: {} };
+        const pendingWrites = { hubList: 0, reports: {}, attendance: {}, inventory: {} };
 
         function debounce(fn, wait) {
             let t;
@@ -1795,7 +1889,7 @@
         function saveLocalState() {
             try {
                 localStorage.setItem(LS_STATE_KEY, JSON.stringify({
-                    hubList, hubReportsData, hubReportHistory, attendanceReportsData
+                    hubList, hubReportsData, hubReportHistory, attendanceReportsData, inventoryReportsData
                 }));
             } catch (e) {}
         }
@@ -1809,6 +1903,7 @@
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
                 if (st.attendanceReportsData) attendanceReportsData = st.attendanceReportsData;
+                if (st.inventoryReportsData) inventoryReportsData = st.inventoryReportsData;
                 return true;
             } catch (e) { return false; }
         }
@@ -1874,6 +1969,21 @@
             }
             pendingWrites.attendance[hubId] = (pendingWrites.attendance[hubId] || 0) + 1;
             attendanceDebouncers[hubId]();
+        }
+
+        const inventoryDebouncers = {};
+        function cloudSyncInventory(hubId) {
+            if (!hubId) return;
+            saveLocalState();
+            if (!cloudDb) return;
+            if (!inventoryDebouncers[hubId]) {
+                inventoryDebouncers[hubId] = debounce(async function () {
+                    try { await cloudDb.collection('inventoryReports').doc(hubId).set(inventoryReportsData[hubId] || {}); } catch (e) { cloudFail(e); }
+                    finally { pendingWrites.inventory[hubId] = Math.max(0, (pendingWrites.inventory[hubId] || 1) - 1); }
+                }, 600);
+            }
+            pendingWrites.inventory[hubId] = (pendingWrites.inventory[hubId] || 0) + 1;
+            inventoryDebouncers[hubId]();
         }
 
         /* ---- everyone sees every hub (no per-person access rules) ---- */
@@ -2347,6 +2457,11 @@
                             await cloudDb.collection('attendanceReports').doc(id).set(attendanceReportsData[id] || {});
                         }
                     }
+                    if (await cloudDb.collection('inventoryReports').isEmpty()) {
+                        for (const id of Object.keys(inventoryReportsData)) {
+                            await cloudDb.collection('inventoryReports').doc(id).set(inventoryReportsData[id] || {});
+                        }
+                    }
                 }
             } catch (e) { console.warn('Initial upload skipped', e); }
 
@@ -2389,6 +2504,27 @@
                         attendanceReportsData[id] = ch.doc.data() || {};
                         if (id === currentActiveAttendanceHubId && !isEditingInside('attendanceReportView')) {
                             try { loadAttendanceData(id); } catch (e) {}
+                        }
+                    }
+                });
+                saveLocalState();
+            }, () => {});
+
+            // 7) every hub's inventory report (shared, live)
+            try {
+                const inventorySnap = await cloudDb.collection('inventoryReports').get();
+                inventorySnap.docs.forEach(d => { inventoryReportsData[d.id] = d.data() || {}; });
+                saveLocalState();
+            } catch (e) { cloudFail(e); }
+            cloudDb.collection('inventoryReports').onSnapshot(snap => {
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (pendingWrites.inventory[id] > 0) return;
+                    if (ch.type === 'removed') delete inventoryReportsData[id];
+                    else {
+                        inventoryReportsData[id] = ch.doc.data() || {};
+                        if (id === currentActiveInventoryHubId && !isEditingInside('inventoryReportView')) {
+                            try { loadInventoryData(id); } catch (e) {}
                         }
                     }
                 });
@@ -2463,6 +2599,7 @@
 
             document.getElementById('hubDashboardView').classList.add('hidden');
             document.getElementById('hubReportView').classList.remove('hidden');
+            document.getElementById('inventoryReportView')?.classList.add('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             loadHubReportData(hubId);
@@ -2484,6 +2621,7 @@
 
             document.getElementById('hubDashboardView').classList.add('hidden');
             document.getElementById('attendanceReportView').classList.remove('hidden');
+            document.getElementById('inventoryReportView')?.classList.add('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             loadAttendanceData(hubId);
@@ -2496,6 +2634,116 @@
             document.getElementById('hubDashboardView').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+        /* =================== HUB INVENTORY REPORT =================== */
+        const INVENTORY_ROW_COUNT = 30;
+        const inventoryBlankRow = () => ({cid:'', assigned:'', officeHold:'', areaChange:'', mismatch:'', status:'', remarks:''});
+
+        function inventoryDefaultRows() { return Array.from({length: INVENTORY_ROW_COUNT}, inventoryBlankRow); }
+
+        function escapeInventoryHtml(value) {
+            return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function renderInventoryRows() {
+            const body = document.getElementById('inventoryRowsBody');
+            if (!body) return;
+            while (currentInventoryRows.length < INVENTORY_ROW_COUNT) currentInventoryRows.push(inventoryBlankRow());
+            body.innerHTML = currentInventoryRows.map((row,i) => `
+                <tr>
+                    <td class="inv-cid"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
+                    <td><input data-inv-row="${i}" data-inv-key="assigned" type="number" min="0" step="1" value="${row.assigned ?? ''}"></td>
+                    <td><input data-inv-row="${i}" data-inv-key="officeHold" type="number" min="0" step="1" value="${row.officeHold ?? ''}"></td>
+                    <td><input data-inv-row="${i}" data-inv-key="areaChange" type="number" min="0" step="1" value="${row.areaChange ?? ''}"></td>
+                    <td><input data-inv-row="${i}" data-inv-key="mismatch" type="number" min="0" step="1" value="${row.mismatch ?? ''}"></td>
+                    <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
+                    <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
+                </tr>`).join('');
+            body.querySelectorAll('[data-inv-row]').forEach(el => { el.addEventListener('input', handleInventoryCellChange); el.addEventListener('change', handleInventoryCellChange); });
+        }
+
+        function handleInventoryCellChange(event) {
+            const el = event.target, rowIndex = Number(el.dataset.invRow), key = el.dataset.invKey;
+            if (!Number.isInteger(rowIndex) || !key) return;
+            if (!currentInventoryRows[rowIndex]) currentInventoryRows[rowIndex] = inventoryBlankRow();
+            currentInventoryRows[rowIndex][key] = el.value;
+            calculateInventoryReport();
+            saveCurrentInventoryData();
+        }
+
+        function calculateInventoryReport() {
+            const rows = currentInventoryRows || [];
+            const total = rows.filter(r => String(r.cid || '').trim()).length;
+            const sum = key => rows.reduce((n,r) => n + (parseFloat(r[key]) || 0), 0);
+            const assigned=sum('assigned'), officeHold=sum('officeHold'), areaChange=sum('areaChange'), mismatch=sum('mismatch');
+            const solved=rows.reduce((n,r) => n + ((parseFloat(r.mismatch)||0)>0 && r.status==='Solved' ? (parseFloat(r.mismatch)||0) : 0), 0);
+            const pending=Math.max(0,mismatch-solved);
+            const vals={invTotalParcels:total,invAssignedParcels:assigned,invOfficeHoldParcels:officeHold,invAreaChangeParcels:areaChange,invMismatchParcels:mismatch,invMismatchSolved:solved,invMismatchPending:pending,invCountAssigned:assigned,invCountOfficeHold:officeHold,invCountAreaChange:areaChange,invCountMismatch:mismatch};
+            Object.entries(vals).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.innerText=Number.isInteger(val)?val:Number(val.toFixed(2));});
+        }
+
+        function saveCurrentInventoryData() {
+            if (!currentActiveInventoryHubId) return;
+            inventoryReportsData[currentActiveInventoryHubId] = { rows: currentInventoryRows };
+            cloudSyncInventory(currentActiveInventoryHubId);
+        }
+
+        function loadInventoryData(hubId) {
+            const saved=inventoryReportsData[hubId];
+            currentInventoryRows=saved&&Array.isArray(saved.rows)?saved.rows.map(r=>({...inventoryBlankRow(),...r})):inventoryDefaultRows();
+            renderInventoryRows();
+            calculateInventoryReport();
+        }
+
+        function generateInventoryReport(hubId, hubName) {
+            if (!hasHubAccess(hubId)) { showToast('You do not have access to this hub'); return; }
+            currentActiveInventoryHubId=hubId;
+            document.getElementById('inventoryHubTitle').innerText=hubName||'Hub';
+            document.getElementById('inventorySummaryTitle').innerText=`${hubName||'Hub'} Inventory Report`;
+            document.getElementById('hubDashboardView').classList.add('hidden');
+            document.getElementById('hubReportView').classList.add('hidden');
+            document.getElementById('attendanceReportView').classList.add('hidden');
+            document.getElementById('ageingReportView')?.classList.add('hidden');
+            document.getElementById('excelImportReportView')?.classList.add('hidden');
+            document.getElementById('inventoryReportView').classList.remove('hidden');
+            window.scrollTo({top:0,behavior:'smooth'});
+            loadInventoryData(hubId);
+            showToast(`Loaded Inventory Report for ${hubName}`);
+        }
+
+        function closeInventoryReportView() {
+            saveCurrentInventoryData();
+            document.getElementById('inventoryReportView').classList.add('hidden');
+            document.getElementById('hubDashboardView').classList.remove('hidden');
+            currentActiveInventoryHubId=null;
+            window.scrollTo({top:0,behavior:'smooth'});
+        }
+
+        function addInventoryRow() { currentInventoryRows.push(inventoryBlankRow()); renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); }
+
+        function resetInventoryReport() {
+            if (!confirm('Clear this Hub inventory report?')) return;
+            currentInventoryRows=inventoryDefaultRows(); renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); showToast('Inventory report cleared for this Hub!');
+        }
+
+        function printInventoryReport() {
+            saveCurrentInventoryData(); document.body.classList.add('print-inventory-report'); window.print(); setTimeout(()=>document.body.classList.remove('print-inventory-report'),700);
+        }
+
+        function handleInventoryBulkPaste(event) {
+            const target=event.target; if(!target||!target.closest('#inventoryRowsBody')||!target.matches('[data-inv-row]'))return;
+            const text=(event.clipboardData?.getData('text/plain')||''); if(!text||(!text.includes('\n')&&!text.includes('\t')))return;
+            event.preventDefault();
+            const startRow=Number(target.dataset.invRow), keys=['cid','assigned','officeHold','areaChange','mismatch','status','remarks'], startCol=keys.indexOf(target.dataset.invKey);
+            if(startRow<0||startCol<0)return;
+            text.replace(/\r/g,'').split('\n').filter(Boolean).map(r=>r.split('\t')).forEach((cells,rOff)=>{
+                const r=startRow+rOff; while(currentInventoryRows.length<=r)currentInventoryRows.push(inventoryBlankRow());
+                cells.forEach((value,cOff)=>{const c=startCol+cOff;if(c<keys.length)currentInventoryRows[r][keys[c]]=value.trim();});
+            });
+            renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); showToast('Inventory rows pasted successfully!');
+        }
+        document.addEventListener('paste', handleInventoryBulkPaste, true);
+        /* =================== END HUB INVENTORY REPORT =================== */
 
         function formatAttendanceDate(d) {
             const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3731,6 +3979,9 @@
                                     <i class="fa-solid fa-user-check text-sm"></i> D.A. Attendance Report
                                 </button>`;
                             }
+                            html += `<button onclick="generateInventoryReport('${hub.id}', '${hub.name}')" class="w-full bg-[#c27ba0] hover:bg-[#ad668b] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-boxes-stacked text-sm"></i> Inventory Report
+                            </button>`;
                             return html;
                         })()}
                     </div>
@@ -3859,6 +4110,7 @@
             delete hubReportsData[hubId];
             delete hubReportHistory[hubId];
             delete attendanceReportsData[hubId];
+            delete inventoryReportsData[hubId];
             filterHubs();
             renderConsolidatedMatrix();
             renderLeaderboard();
@@ -3866,6 +4118,7 @@
             if (cloudDb) {
                 try { cloudDb.collection('hubReports').doc(hubId).delete(); } catch (e) {}
                 try { cloudDb.collection('attendanceReports').doc(hubId).delete(); } catch (e) {}
+                try { cloudDb.collection('inventoryReports').doc(hubId).delete(); } catch (e) {}
             }
             showToast(`Hub ${hubId} removed successfully!`);
         }
@@ -3918,6 +4171,7 @@
                 reports: hubReportsData,
                 reportHistory: hubReportHistory,
                 attendance: attendanceReportsData,
+                inventory: inventoryReportsData,
                 notices: clusterNotices,
                 sheets: taskSheets,
                 taskTabs: taskTabs
@@ -3949,6 +4203,7 @@
                         hubReportsData = imported.reports || {};
                         hubReportHistory = imported.reportHistory || {};
                         attendanceReportsData = imported.attendance || {};
+                        inventoryReportsData = imported.inventory || {};
                         if (imported.notices) { clusterNotices = imported.notices; saveNoticesToStorage(); renderClusterNotices(); }
                         if (imported.sheets) taskSheets = imported.sheets;
                         if (imported.taskTabs) taskTabs = imported.taskTabs;
@@ -3958,7 +4213,7 @@
                         renderConsolidatedMatrix();
                         renderLeaderboard();
                         cloudSyncHubList();
-                        hubList.forEach(h => cloudSyncHubReport(h.id));
+                        hubList.forEach(h => { cloudSyncHubReport(h.id); cloudSyncInventory(h.id); });
                         saveLocalState();
                         showToast("Cluster Data Imported Successfully!");
                     } else if (Array.isArray(imported)) {
