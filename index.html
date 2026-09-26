@@ -2671,7 +2671,7 @@
 
         /* =================== HUB INVENTORY REPORT =================== */
         const INVENTORY_ROW_COUNT = 35;
-        const inventoryBlankRow = () => ({cid:'', assigned:'', officeHold:'', areaChange:'', mismatch:'', status:'', remarks:''});
+        const inventoryBlankRow = () => ({cid:'', assigned:'', officeHold:'', areaChange:'', mismatch:'', autoMismatch:'', status:'', remarks:''});
 
         function inventoryDefaultRows() { return Array.from({length: INVENTORY_ROW_COUNT}, inventoryBlankRow); }
 
@@ -2692,7 +2692,7 @@
         }
 
         function inventoryMatchColorHex(cid) {
-            const palette = ['#fff2cc','#d9ead3','#cfe2f3','#eadcf8','#fce5cd','#d9d2e9','#cfe8e3','#f4cccc'];
+            const palette = ['#f6b26b'];
             const d = String(cid || '');
             let hash = 0;
             for (let i = 0; i < d.length; i++) hash = ((hash << 5) - hash + d.charCodeAt(i)) | 0;
@@ -2745,7 +2745,7 @@
                     <td class="${cellClass('assigned')}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
                     <td class="${cellClass('officeHold')}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
                     <td class="${cellClass('areaChange')}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
-                    <td class="${cellClass('mismatch')}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml(row.mismatch)}" autocomplete="off"></td>
+                    <td class="${cellClass('mismatch')}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml([row.mismatch,row.autoMismatch].filter(Boolean).join('\n'))}" autocomplete="off"></td>
                     <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
                     <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
                 </tr>`;
@@ -2756,12 +2756,47 @@
             });
         }
 
+        function updateInventoryDuplicateColors() {
+            const body = document.getElementById('inventoryRowsBody');
+            if (!body) return;
+            const statusKeys = ['assigned','officeHold','areaChange','mismatch'];
+            const hermesCids = new Set(currentInventoryRows.map(r => normalizeInventoryCid(r.cid)).filter(Boolean));
+            const duplicateCids = new Set();
+            currentInventoryRows.forEach(row => {
+                statusKeys.forEach(key => {
+                    String(row[key] ?? '').split(/[\n\t,;]+/).map(v => normalizeInventoryCid(v)).filter(Boolean).forEach(v => {
+                        if (hermesCids.has(v)) duplicateCids.add(v);
+                    });
+                });
+            });
+
+            body.querySelectorAll('tr').forEach((tr, i) => {
+                const row = currentInventoryRows[i];
+                if (!row) return;
+                const cid = normalizeInventoryCid(row.cid);
+                const match = !!(cid && duplicateCids.has(cid));
+                const color = match ? inventoryMatchColorHex(cid) : '#fff';
+                const cell = tr.querySelector('td.inv-cid');
+                const input = tr.querySelector('input[data-inv-key="cid"]');
+                if (cell) {
+                    cell.style.setProperty('background-color', color, 'important');
+                    cell.classList.toggle('inv-date-match', match);
+                }
+                if (input) input.style.setProperty('background-color', color, 'important');
+            });
+        }
+
         function handleInventoryCellChange(event) {
             const el = event.target, rowIndex = Number(el.dataset.invRow), key = el.dataset.invKey;
             if (!Number.isInteger(rowIndex) || !key) return;
             if (!currentInventoryRows[rowIndex]) currentInventoryRows[rowIndex] = inventoryBlankRow();
+            if (key === 'mismatch') currentInventoryRows[rowIndex].autoMismatch = '';
             currentInventoryRows[rowIndex][key] = el.value;
+            // Update duplicate highlighting immediately without re-rendering the table,
+            // so the user keeps the cursor/focus while typing or pasting.
             calculateInventoryReport();
+            updateInventoryDuplicateColors();
+            renderInventoryRows();
             saveCurrentInventoryData();
         }
 
@@ -2843,8 +2878,9 @@
                 });
             });
 
-            renderInventoryRows();
             calculateInventoryReport();
+            renderInventoryRows();
+            updateInventoryDuplicateColors();
             saveCurrentInventoryData();
             showToast(`${rows.length} row${rows.length === 1 ? '' : 's'} pasted successfully`);
         }
@@ -2898,8 +2934,40 @@
             });
         }
 
+
+        // Automatically put every Hermes CID that is NOT found in Assigned,
+        // Office Hold, Area Change, or a manually entered Mismatch/Missing CID
+        // into the Mismatch/Missing column. These auto entries are kept separate
+        // so they do NOT make themselves look like duplicates/orange.
+        function updateInventoryAutoMismatch() {
+            const rows = currentInventoryRows || [];
+            const secondaryKeys = ['assigned','officeHold','areaChange','mismatch'];
+            const found = new Set();
+
+            rows.forEach(row => {
+                secondaryKeys.forEach(key => {
+                    String(row[key] ?? '')
+                        .split(/[\n\t,;]+/)
+                        .map(v => normalizeInventoryCid(v))
+                        .filter(Boolean)
+                        .forEach(v => found.add(v));
+                });
+            });
+
+            rows.forEach(row => {
+                const cid = normalizeInventoryCid(row.cid);
+                if (!cid) {
+                    row.autoMismatch = '';
+                    return;
+                }
+                // If it is already present in a secondary column, it is a duplicate.
+                row.autoMismatch = found.has(cid) ? '' : row.cid;
+            });
+        }
+
         function calculateInventoryReport() {
             alignInventoryCidsByDate();
+            updateInventoryAutoMismatch();
             const rows = currentInventoryRows || [];
             const total = rows.filter(r => String(r.cid || '').trim()).length;
             const sum = key => rows.reduce((n,r) => n + inventoryCellCount(r[key]), 0);
@@ -2920,8 +2988,9 @@
         function loadInventoryData(hubId) {
             const saved=inventoryReportsData[hubId];
             currentInventoryRows=saved&&Array.isArray(saved.rows)?saved.rows.map(r=>({...inventoryBlankRow(),...r})):inventoryDefaultRows();
-            renderInventoryRows();
             calculateInventoryReport();
+            renderInventoryRows();
+            updateInventoryDuplicateColors();
         }
 
         function generateInventoryReport(hubId, hubName) {
@@ -2948,7 +3017,7 @@
             window.scrollTo({top:0,behavior:'smooth'});
         }
 
-        function addInventoryRow() { currentInventoryRows.push(inventoryBlankRow()); renderInventoryRows(); calculateInventoryReport(); saveCurrentInventoryData(); }
+        function addInventoryRow() { currentInventoryRows.push(inventoryBlankRow()); calculateInventoryReport(); renderInventoryRows(); updateInventoryDuplicateColors(); saveCurrentInventoryData(); }
 
         function resetInventoryReport() {
             const modal = document.getElementById('inventoryClearConfirm');
