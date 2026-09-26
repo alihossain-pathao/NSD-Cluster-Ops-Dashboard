@@ -2691,6 +2691,14 @@
             return `inv-match-${Math.abs(hash) % 8}`;
         }
 
+        function inventoryMatchColorHex(cid) {
+            const palette = ['#fff2cc','#d9ead3','#cfe2f3','#eadcf8','#fce5cd','#d9d2e9','#cfe8e3','#f4cccc'];
+            const d = String(cid || '');
+            let hash = 0;
+            for (let i = 0; i < d.length; i++) hash = ((hash << 5) - hash + d.charCodeAt(i)) | 0;
+            return palette[Math.abs(hash) % palette.length];
+        }
+
         function renderInventoryRows() {
             const body = document.getElementById('inventoryRowsBody');
             if (!body) return;
@@ -2722,14 +2730,18 @@
             body.innerHTML = currentInventoryRows.map((row,i) => {
                 const cid = normalizeInventoryCid(row.cid);
                 const cidMatch = !!(cid && duplicateCids.has(cid));
-                // Use the CID itself to keep the same duplicate color wherever that
-                // exact CID appears, while non-matches have NO fill.
+                // IMPORTANT: only the Hermes CID cell gets a duplicate color.
+                // Unmatched Hermes CIDs are forced to white/no-fill, so an older
+                // CSS rule or browser-cached style cannot leave them orange.
                 const cidClass = cidMatch ? `inv-date-match ${inventoryMatchColorClass(cid)}` : '';
+                const cidStyle = cidMatch
+                    ? `background:${inventoryMatchColorHex(cid)} !important;`
+                    : `background:#fff !important;`;
                 // Keep Assigned / Office Hold / Area Change / Mismatch cells white.
                 const cellClass = () => '';
                 return `
                 <tr>
-                    <td class="inv-cid ${cidClass}"><input data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
+                    <td class="inv-cid ${cidClass}" style="${cidStyle}"><input style="background:${cidMatch ? inventoryMatchColorHex(cid) : '#fff'} !important;" data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
                     <td class="${cellClass('assigned')}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
                     <td class="${cellClass('officeHold')}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
                     <td class="${cellClass('areaChange')}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
