@@ -2171,6 +2171,37 @@
             }
         }
 
+        let presenceSnapshotUsers = [];
+
+        function renderPresenceUsers() {
+            const now = Date.now();
+            const users = presenceSnapshotUsers.filter(u => {
+                const lastSeen = Number(u.lastSeen || 0);
+                return lastSeen && (now - lastSeen) < 45000;
+            });
+
+            users.sort((a, b) =>
+                String(a.name || '').localeCompare(String(b.name || ''))
+            );
+
+            const list = document.getElementById('onlineUsersList');
+            const count = document.getElementById('onlineUsersCount');
+            if (count) count.textContent = String(users.length);
+
+            if (list) {
+                list.innerHTML = users.length
+                    ? users.map(u => `
+                        <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-900/50">
+                            <img class="w-6 h-6 rounded-full border border-slate-700"
+                                 src="${u.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'}"
+                                 alt="">
+                            <span class="text-[9px] text-slate-300 font-bold truncate">${escapeHtml(u.name || 'Google User')}</span>
+                            <span class="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        </div>`).join('')
+                    : '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
+            }
+        }
+
         function stopPresence() {
             if (presenceHeartbeat) {
                 clearInterval(presenceHeartbeat);
@@ -2184,6 +2215,7 @@
                 try { presenceUnsubscribe(); } catch (e) {}
                 presenceUnsubscribe = null;
             }
+            presenceSnapshotUsers = [];
         }
 
         async function startPresence() {
@@ -2192,68 +2224,59 @@
 
             const myToken = ++presenceSessionToken;
 
-            // Attach the live listener immediately. Do not wait for the first write.
-            presenceUnsubscribe = cloudDb.collection('presence').onSnapshot(snap => {
+            // Listen directly to the shared Firebase presence collection.
+            // This guarantees every signed-in user's presence document is read,
+            // instead of depending on the dashboard's Firestore wrapper.
+            const presenceRef = (typeof firebase !== 'undefined' && firebase.firestore)
+                ? firebase.firestore().collection('presence')
+                : null;
+
+            const handlePresenceSnapshot = snap => {
                 if (myToken !== presenceSessionToken) return;
 
-                const now = Date.now();
-                const users = [];
-
-                snap.docs.forEach(d => {
+                presenceSnapshotUsers = snap.docs.map(d => {
                     const u = d.data() || {};
-                    const lastSeen = Number(u.lastSeen || 0);
-
-                    // A user is online while their heartbeat is fresh.
-                    if (lastSeen && now - lastSeen < 45000) {
-                        users.push(u);
-                    }
+                    return {
+                        uid: u.uid || d.id,
+                        name: u.name || 'Google User',
+                        photoURL: u.photoURL || '',
+                        lastSeen: Number(u.lastSeen || 0)
+                    };
                 });
 
-                users.sort((a, b) =>
-                    String(a.name || '').localeCompare(String(b.name || ''))
-                );
+                renderPresenceUsers();
+            };
 
-                const list = document.getElementById('onlineUsersList');
-                const count = document.getElementById('onlineUsersCount');
-
-                if (count) count.textContent = String(users.length);
-
-                if (list) {
-                    list.innerHTML = users.length
-                        ? users.map(u => `
-                            <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-900/50">
-                                <img class="w-6 h-6 rounded-full border border-slate-700"
-                                     src="${u.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'}"
-                                     alt="">
-                                <span class="text-[9px] text-slate-300 font-bold truncate">${escapeHtml(u.name || 'Google User')}</span>
-                                <span class="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            </div>`).join('')
-                        : '<div class="text-[9px] text-slate-600 text-center py-1">No one online</div>';
-                }
-            }, err => {
+            const handlePresenceError = err => {
                 console.warn('Presence listener failed:', err);
+                presenceSnapshotUsers = [];
                 const list = document.getElementById('onlineUsersList');
                 const count = document.getElementById('onlineUsersCount');
                 if (count) count.textContent = '0';
                 if (list) {
                     list.innerHTML = '<div class="text-[9px] text-rose-400 text-center py-1">Online list unavailable</div>';
                 }
-            });
+            };
 
-            // Write immediately, then keep the heartbeat shorter than the timeout.
+            presenceUnsubscribe = presenceRef
+                ? presenceRef.onSnapshot(handlePresenceSnapshot, handlePresenceError)
+                : cloudDb.collection('presence').onSnapshot(handlePresenceSnapshot, handlePresenceError);
+
+            // Write this user's presence immediately.
             await updatePresence();
             if (myToken !== presenceSessionToken) return;
 
+            // Refresh own heartbeat every 15 seconds.
             presenceHeartbeat = setInterval(() => {
                 updatePresence();
             }, 15000);
 
-            // Do not clear the UI on a timer. Firestore snapshots are the source of truth.
-            // The heartbeat keeps active users fresh; snapshot changes update the list.
+            // Re-render the cached shared list every 5 seconds so offline users
+            // disappear after 45 seconds even if Firestore sends no new snapshot.
             presenceRefreshTimer = setInterval(() => {
-                if (!currentUser) return;
-                // Intentionally no DOM reset here.
-            }, 20000);
+                if (!currentUser || myToken !== presenceSessionToken) return;
+                renderPresenceUsers();
+            }, 5000);
         }
 
         window.addEventListener('pagehide', () => {
