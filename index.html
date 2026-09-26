@@ -2700,6 +2700,21 @@
             return palette[Math.abs(hash) % palette.length];
         }
 
+        /* All Inventory Report data cells are editable. */
+        const inventoryEditableStyle = document.createElement('style');
+        inventoryEditableStyle.textContent = `
+            #inventoryRowsBody td { padding: 0 !important; }
+            #inventoryRowsBody td input, #inventoryRowsBody td select {
+                width: 100%; min-height: 28px; border: 0; outline: none;
+                background: transparent; text-align: center; font: inherit;
+                color: inherit; padding: 5px 6px; box-sizing: border-box;
+            }
+            #inventoryRowsBody td input:focus, #inventoryRowsBody td select:focus {
+                outline: 2px solid #3b82f6; outline-offset: -2px;
+            }
+        `;
+        document.head.appendChild(inventoryEditableStyle);
+
         function renderInventoryRows() {
             const body = document.getElementById('inventoryRowsBody');
             if (!body) return;
@@ -2742,12 +2757,12 @@
                 const cellClass = () => '';
                 return `
                 <tr>
-                    <td class="inv-cid ${cidClass}" style="${cidStyle}"><input style="background:${cidMatch ? inventoryMatchColorHex(cid) : '#fff'} !important;" data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
+                    <td class="inv-cid ${cidClass}" style="${cidStyle}"><input class="inventory-editable" style="background:${cidMatch ? inventoryMatchColorHex(cid) : '#fff'} !important;" data-inv-row="${i}" data-inv-key="cid" type="text" value="${escapeInventoryHtml(row.cid)}" autocomplete="off"></td>
                     <td class="${cellClass('assigned')}"><input data-inv-row="${i}" data-inv-key="assigned" type="text" inputmode="text" value="${escapeInventoryHtml(row.assigned)}" autocomplete="off"></td>
                     <td class="${cellClass('officeHold')}"><input data-inv-row="${i}" data-inv-key="officeHold" type="text" inputmode="text" value="${escapeInventoryHtml(row.officeHold)}" autocomplete="off"></td>
                     <td class="${cellClass('areaChange')}"><input data-inv-row="${i}" data-inv-key="areaChange" type="text" inputmode="text" value="${escapeInventoryHtml(row.areaChange)}" autocomplete="off"></td>
                     <td class="${cellClass('mismatch')}"><input data-inv-row="${i}" data-inv-key="mismatch" type="text" inputmode="text" value="${escapeInventoryHtml([row.mismatch,row.autoMismatch].filter(Boolean).join('\n'))}" autocomplete="off"></td>
-                    <td><select data-inv-row="${i}" data-inv-key="status"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
+                    <td><select data-inv-row="${i}" data-inv-key="status" class="inventory-editable"><option value=""></option><option value="Pending" ${row.status==='Pending'?'selected':''}>Pending</option><option value="Solved" ${row.status==='Solved'?'selected':''}>Solved</option></select></td>
                     <td><input data-inv-row="${i}" data-inv-key="remarks" type="text" value="${escapeInventoryHtml(row.remarks)}" autocomplete="off"></td>
                 </tr>`;
             }).join('');
@@ -2945,6 +2960,8 @@
             const secondaryKeys = ['assigned','officeHold','areaChange','mismatch'];
             const found = new Set();
 
+            // Manual values in the four secondary columns count as found.
+            // Auto-generated mismatch values are kept separate.
             rows.forEach(row => {
                 secondaryKeys.forEach(key => {
                     String(row[key] ?? '')
@@ -2955,15 +2972,22 @@
                 });
             });
 
+            // Build the unmatched Hermes list in exact Hermes order.
+            const unmatched = [];
             rows.forEach(row => {
                 const cid = normalizeInventoryCid(row.cid);
-                if (!cid) {
-                    row.autoMismatch = '';
-                    return;
-                }
-                // If it is already present in a secondary column, it is a duplicate.
-                row.autoMismatch = found.has(cid) ? '' : row.cid;
+                if (cid && !found.has(cid)) unmatched.push(row.cid);
+                row.autoMismatch = '';
             });
+
+            // Place auto-mismatch CIDs consecutively in the Mismatch/Missing
+            // column so there are no visual gaps. Manual entries are preserved.
+            let n = 0;
+            for (let i = 0; i < rows.length && n < unmatched.length; i++) {
+                const manual = String(rows[i].mismatch ?? '').trim();
+                if (manual) continue;
+                rows[i].autoMismatch = unmatched[n++];
+            }
         }
 
         function calculateInventoryReport() {
