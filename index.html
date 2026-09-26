@@ -1874,6 +1874,15 @@
         let currentSummaryPeriod = 'daily';
         let currentClusterSummaryPeriod = 'daily';
         let clusterNotices = [];
+        let noticeWriteInFlight = 0;
+        const DISMISSED_NOTICES_LS = 'narsingdi_dismissed_notice_ids';
+        function getDismissedNoticeIds(){ try { return JSON.parse(localStorage.getItem(DISMISSED_NOTICES_LS) || '[]'); } catch(e){ return []; } }
+        function saveDismissedNoticeIds(ids){ try { localStorage.setItem(DISMISSED_NOTICES_LS, JSON.stringify([...new Set(ids)])); } catch(e) {} }
+        function filterDismissedNotices(list){
+            if (!myAccess.isOwner) return list;
+            const ids = new Set(getDismissedNoticeIds());
+            return (Array.isArray(list) ? list : []).filter(n => !ids.has(n.id));
+        }
         let attendanceReportsData = {};
         let currentActiveAttendanceHubId = null;
         let currentAttendanceRows = [];
@@ -1963,8 +1972,17 @@
 
         const cloudSyncNotices = debounce(async function () {
             if (!cloudDb) return;
+            noticeWriteInFlight++;
             try { await cloudDb.doc('config/notices').set({ clusterNotices }); } catch (e) { cloudFail(e); }
+            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
         }, 600);
+
+        async function writeNoticesNow() {
+            if (!cloudDb) return;
+            noticeWriteInFlight++;
+            try { await cloudDb.doc('config/notices').set({ clusterNotices }); } catch (e) { cloudFail(e); }
+            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
+        }
 
         const hubReportDebouncers = {};
         const cloudSyncUiHide = debounce(async function () {
@@ -2430,7 +2448,7 @@
                     try {
                         const noticeDoc = await cloudDb.doc('config/notices').get();
                         if (noticeDoc.exists && Array.isArray(noticeDoc.data().clusterNotices)) {
-                            clusterNotices = noticeDoc.data().clusterNotices;
+                            clusterNotices = filterDismissedNotices(noticeDoc.data().clusterNotices);
                         } else if (myAccess.isOwner) {
                             await cloudDb.doc('config/notices').set({ clusterNotices });
                         }
@@ -2473,8 +2491,9 @@
             }, () => {});
 
             cloudDb.doc('config/notices').onSnapshot(snap => {
+                if (noticeWriteInFlight > 0) return;
                 if (snap.exists && Array.isArray(snap.data().clusterNotices)) {
-                    clusterNotices = snap.data().clusterNotices;
+                    clusterNotices = filterDismissedNotices(snap.data().clusterNotices);
                     renderClusterNotices();
                 }
             }, () => {});
@@ -4361,7 +4380,8 @@
                 title,
                 message,
                 severity,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                responses: {}
             });
 
             saveNoticesToStorage();
@@ -4370,10 +4390,41 @@
             showToast('Notice posted for everyone to see!');
         }
 
-        function removeClusterNotice(id) {
-            clusterNotices = clusterNotices.filter(n => n.id !== id);
+        function getNoticeResponseKey() {
+            return currentUser?.uid || currentUser?.email || 'local_user';
+        }
+
+        function renderNoticeResponseButtons(n) {
+            const key = getNoticeResponseKey();
+            const current = (n.responses && n.responses[key]) || '';
+            const options = [
+                ['Noted','bg-sky-600/30 text-sky-200 border-sky-500/40'],
+                ['Aligned','bg-emerald-600/30 text-emerald-200 border-emerald-500/40'],
+                ['Working','bg-amber-600/30 text-amber-200 border-amber-500/40'],
+                ['Working in progress','bg-violet-600/30 text-violet-200 border-violet-500/40']
+            ];
+            return options.map(([label, cls]) => `<button onclick="respondToNotice('${n.id}', ${JSON.stringify(label)})" class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition ${current === label ? cls + ' ring-1 ring-white/40' : 'bg-black/20 text-slate-300 border-white/10 hover:bg-white/10'}">${label}</button>`).join('');
+        }
+
+        function respondToNotice(id, response) {
+            const notice = clusterNotices.find(n => n.id === id);
+            if (!notice) return;
+            notice.responses = notice.responses || {};
+            notice.responses[getNoticeResponseKey()] = response;
             saveNoticesToStorage();
             renderClusterNotices();
+        }
+
+        async function removeClusterNotice(id) {
+            if (!myAccess.isOwner) { showToast('Only the owner can dismiss notices'); return; }
+            const dismissed = getDismissedNoticeIds();
+            dismissed.push(id);
+            saveDismissedNoticeIds(dismissed);
+            clusterNotices = clusterNotices.filter(n => n.id !== id);
+            try { localStorage.setItem('narsingdi_cluster_notices', JSON.stringify(clusterNotices)); } catch(e) {}
+            renderClusterNotices();
+            // Write the dismissal immediately so a refresh cannot restore an old notice.
+            await writeNoticesNow();
         }
 
         function updateNoNoticesMessage() {
@@ -4410,14 +4461,16 @@
                                 <p class="text-[10px] text-slate-400 font-semibold mt-1"><i class="fa-regular fa-clock"></i> ${timeAgo}</p>
                             </div>
                         </div>
-                        <button data-hide-key="noticeActions" onclick="removeClusterNotice('${n.id}')" class="text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-white/10 rounded-lg transition self-end md:self-auto flex-shrink-0">
-                            Dismiss
-                        </button>
+                        <div class="flex flex-wrap items-center justify-end gap-1.5 self-end md:self-auto flex-shrink-0">
+                            ${myAccess.isOwner ? `<button data-owner-only data-hide-key="noticeActions" onclick="removeClusterNotice('${n.id}')" class="text-slate-300 hover:text-white text-xs font-bold px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-white/10 rounded-lg transition">Dismiss</button>` : ''}
+                            ${renderNoticeResponseButtons(n)}
+                        </div>
                     </div>
                 `;
             }).join('');
 
             updateNoNoticesMessage();
+            applyOwnerOnlyUI();
         }
 
         function openRemoveHubModal() {
