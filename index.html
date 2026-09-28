@@ -2600,6 +2600,7 @@
                     attendanceReportsData[d.id] = d.data() || {};
                 });
                 saveLocalState();
+                renderDashboard();
             } catch (e) { cloudFail(e); }
             cloudDb.collection('attendanceReports').onSnapshot(snap => {
                 snap.docChanges().forEach(ch => {
@@ -2614,6 +2615,7 @@
                     }
                 });
                 saveLocalState();
+                renderDashboard();
             }, () => {});
 
             // 7) every hub's inventory report (shared, live)
@@ -2695,10 +2697,16 @@
             }).catch(() => showToast('Could not save image'));
         }
 
+        function formatHubDisplayName(hubName) {
+            const name = String(hubName || 'HUB').trim().replace(/\s+/g, ' ');
+            if (!name) return 'HUB';
+            return /\bHUB\b$/i.test(name) ? name.toUpperCase() : `${name.toUpperCase()} HUB`;
+        }
+
         function generateReport(hubId, hubName) {
             if (!hasHubAccess(hubId)) { showToast('You do not have access to this hub'); return; }
             currentActiveHubId = hubId;
-            const upperName = (hubName || 'HUB').toUpperCase();
+            const upperName = formatHubDisplayName(hubName);
 
             document.getElementById('morningHeaderTitle').innerText = `${upperName} - MORNING DISPATCH REPORT`;
             document.getElementById('closingHeaderTitle').innerText = `${upperName} - CLOSING REPORT`;
@@ -2723,7 +2731,7 @@
         function generateAttendanceReport(hubId, hubName) {
             if (!hasHubAccess(hubId)) { showToast('You do not have access to this hub'); return; }
             currentActiveAttendanceHubId = hubId;
-            document.getElementById('att_hubNameDisplay').innerText = hubName || 'Hub';
+            document.getElementById('att_hubNameDisplay').innerText = formatHubDisplayName(hubName);
 
             document.getElementById('hubDashboardView').classList.add('hidden');
             document.getElementById('attendanceReportView').classList.remove('hidden');
@@ -3103,8 +3111,8 @@
         function generateInventoryReport(hubId, hubName) {
             if (!hasHubAccess(hubId)) { showToast('You do not have access to this hub'); return; }
             currentActiveInventoryHubId=hubId;
-            document.getElementById('inventoryHubTitle').innerText=hubName||'Hub';
-            document.getElementById('inventorySummaryTitle').innerText=`${hubName||'Hub'} Inventory Report`;
+            document.getElementById('inventoryHubTitle').innerText=formatHubDisplayName(hubName);
+            document.getElementById('inventorySummaryTitle').innerText=`${formatHubDisplayName(hubName)} Inventory Report`;
             document.getElementById('hubDashboardView').classList.add('hidden');
             document.getElementById('hubReportView').classList.add('hidden');
             document.getElementById('attendanceReportView').classList.add('hidden');
@@ -3307,6 +3315,7 @@
                 rows: currentAttendanceRows
             };
             cloudSyncAttendance(currentActiveAttendanceHubId);
+            renderDashboard();
         }
 
         function loadAttendanceData(hubId) {
@@ -3563,7 +3572,7 @@
             if (!hasHubAccess(hubId)) { showToast('You do not have access to this hub'); return; }
             currentSummaryHubId = hubId;
             currentSummaryPeriod = 'daily';
-            document.getElementById('summaryModalHubName').innerHTML = `<i class="fa-solid fa-chart-pie text-sky-400"></i> ${hubName} - Report Summary`;
+            document.getElementById('summaryModalHubName').innerHTML = `<i class="fa-solid fa-chart-pie text-sky-400"></i> ${formatHubDisplayName(hubName)} - Report Summary`;
             document.getElementById('summaryCustomRange').classList.add('hidden');
             document.getElementById('hubSummaryModal').classList.remove('hidden');
             renderHubSummary();
@@ -3671,7 +3680,7 @@
                     const hubStats = computeSummaryStats(hub.id, range.startISO, range.endISO);
                     return `
                         <tr class="border-t border-slate-800/60 hover:bg-slate-800/30 transition">
-                            <td class="p-2 font-bold text-white">${hub.name}</td>
+                            <td class="p-2 font-bold text-white">${formatHubDisplayName(hub.name)}</td>
                             <td class="p-2 text-center text-slate-200">${hubStats.totals.totalVolume}</td>
                             <td class="p-2 text-center text-emerald-400 font-bold">${hubStats.totals.delivered}</td>
                             <td class="p-2 text-center text-sky-400 font-bold">${hubStats.avgDeliveryRate}%</td>
@@ -4250,6 +4259,51 @@
         }
 
 
+        function getCurrentDayAttendanceTotals() {
+            const today = new Date();
+            const todayISO = getTodayISO();
+            const todayShort = formatAttendanceDate(today);
+
+            let present = 0;
+            let total = 0;
+
+            Object.values(attendanceReportsData || {}).forEach(report => {
+                if (!report) return;
+
+                const rawDate = String(report.reportDate || '').trim();
+                if (!rawDate) return;
+
+                // Attendance reports are normally saved as DD-Mmm-YYYY.
+                // Also accept ISO/date-like values so old/imported data works.
+                let reportISO = '';
+                const m = rawDate.match(/^(\d{1,2})[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/](\d{4})$/i);
+                if (m) {
+                    const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+                    const monthKey = m[2].slice(0,1).toUpperCase() + m[2].slice(1,3).toLowerCase();
+                    const d = new Date(Number(m[3]), months[monthKey], Number(m[1]));
+                    reportISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                } else {
+                    const parsed = new Date(rawDate);
+                    if (!isNaN(parsed.getTime())) {
+                        reportISO = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
+                    }
+                }
+
+                if (reportISO !== todayISO && rawDate !== todayShort) return;
+
+                const totalDA = Math.max(0, Number(report.totalDA) || 0);
+                const weekend = Math.max(0, Number(report.weekend) || 0);
+                const absent = Math.max(0, Number(report.absent) || 0);
+                const onTraining = Math.max(0, Number(report.onTraining) || 0);
+                const presentDA = Math.max(totalDA - weekend - absent - onTraining, 0);
+
+                total += totalDA;
+                present += presentDA;
+            });
+
+            return { present, total };
+        }
+
         function renderDashboard() {
             let totalHubsVol = 0, totalHubsDelivered = 0, totalHubsDAPres = 0, totalHubsDATot = 0, totalHubsColl = 0, totalHubsHold = 0;
 
@@ -4284,8 +4338,16 @@
                 clusterRateEl.innerText = `${avgPct}%`;
             }
 
+            // ACTIVE AGENTS (DA) must always reflect today's D.A. attendance report,
+            // not the previous day's hub summary values.
+            const currentDayDA = getCurrentDayAttendanceTotals();
             const clusterDAEl = document.getElementById('clusterTotalDA');
-            if (clusterDAEl) clusterDAEl.innerText = `${totalHubsDAPres} / ${totalHubsDATot} DA`;
+            if (clusterDAEl) clusterDAEl.innerText = `${currentDayDA.present} / ${currentDayDA.total} DA`;
+            const clusterDAPctEl = clusterDAEl?.parentElement?.querySelector('span.text-sky-400');
+            if (clusterDAPctEl) {
+                const pct = currentDayDA.total > 0 ? ((currentDayDA.present / currentDayDA.total) * 100).toFixed(1) : '0.0';
+                clusterDAPctEl.innerHTML = `<i class="fa-solid fa-user-check"></i> ${pct}% Attendance`;
+            }
 
             const clusterHoldEl = document.getElementById('clusterTotalHold');
             if (clusterHoldEl) clusterHoldEl.innerText = `${totalHubsHold.toLocaleString()} Pcs`;
@@ -4339,7 +4401,7 @@
                                 </div>
                                 <div>
                                     <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-400">${hub.type || 'HUB'}</span>
-                                    <h3 class="text-base font-bold text-white leading-snug">${hub.name}</h3>
+                                    <h3 class="text-base font-bold text-white leading-snug">${formatHubDisplayName(hub.name)}</h3>
                                 </div>
                             </div>
 
