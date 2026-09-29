@@ -1991,10 +1991,16 @@
         }
 
         /* ---- local cache ---- */
+        // Previous Ratio is kept separately from the live form so a browser
+        // refresh/reload can never erase a manually entered value.
+        let previousRatioOverrides = {};
+
         function saveLocalState() {
             try {
                 localStorage.setItem(LS_STATE_KEY, JSON.stringify({
-                    hubList, hubReportsData, hubReportHistory, attendanceReportsData, inventoryReportsData
+                    hubList, hubReportsData, hubReportHistory,
+                    previousRatioOverrides,
+                    attendanceReportsData, inventoryReportsData
                 }));
             } catch (e) {}
         }
@@ -2007,6 +2013,7 @@
                 if (Array.isArray(st.hubList)) hubList = st.hubList;
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
+                if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
                 if (st.attendanceReportsData) attendanceReportsData = st.attendanceReportsData;
                 if (st.inventoryReportsData) inventoryReportsData = st.inventoryReportsData;
                 return true;
@@ -2060,7 +2067,8 @@
                     try {
                         await cloudDb.collection('hubReports').doc(hubId).set({
                             fields: hubReportsData[hubId] || {},
-                            history: hubReportHistory[hubId] || {}
+                            history: hubReportHistory[hubId] || {},
+                            previousRatioOverrides: previousRatioOverrides[hubId] || {}
                         });
                     } catch (e) { cloudFail(e); }
                     finally { pendingWrites.reports[hubId] = Math.max(0, (pendingWrites.reports[hubId] || 1) - 1); }
@@ -2647,7 +2655,11 @@
                 if (myAccess.isOwner && cloudDb.__firebase) {
                     if (await cloudDb.collection('hubReports').isEmpty()) {
                         for (const id of Object.keys(hubReportsData)) {
-                            await cloudDb.collection('hubReports').doc(id).set({ fields: hubReportsData[id] || {}, history: hubReportHistory[id] || {} });
+                            await cloudDb.collection('hubReports').doc(id).set({
+                                fields: hubReportsData[id] || {},
+                                history: hubReportHistory[id] || {},
+                                previousRatioOverrides: previousRatioOverrides[id] || {}
+                            });
                         }
                     }
                     if (await cloudDb.collection('attendanceReports').isEmpty()) {
@@ -2673,8 +2685,34 @@
                         delete hubReportsData[id]; delete hubReportHistory[id];
                     } else {
                         const d = ch.doc.data() || {};
-                        hubReportsData[id] = d.fields || {};
-                        hubReportHistory[id] = d.history || {};
+                        const localFields = hubReportsData[id] || {};
+                        const cloudFields = d.fields || {};
+
+                        // Do not let a stale/older Firestore snapshot erase a
+                        // locally cached Previous Ratio. Merge history by date
+                        // and prefer the newest snapshot when both exist.
+                        hubReportsData[id] = { ...localFields, ...cloudFields };
+
+                        const localHistory = hubReportHistory[id] || {};
+                        const cloudHistory = d.history || {};
+                        const mergedHistory = { ...localHistory };
+                        Object.keys(cloudHistory).forEach(dateKey => {
+                            const localEntry = mergedHistory[dateKey];
+                            const cloudEntry = cloudHistory[dateKey];
+                            if (!localEntry) {
+                                mergedHistory[dateKey] = cloudEntry;
+                                return;
+                            }
+                            const localTime = Date.parse(localEntry.savedAt || '') || 0;
+                            const cloudTime = Date.parse(cloudEntry?.savedAt || '') || 0;
+                            if (cloudTime >= localTime) mergedHistory[dateKey] = cloudEntry;
+                        });
+                        hubReportHistory[id] = mergedHistory;
+
+                        const localOverrides = previousRatioOverrides[id] || {};
+                        const cloudOverrides = d.previousRatioOverrides || {};
+                        previousRatioOverrides[id] = { ...localOverrides, ...cloudOverrides };
+
                         if (id === currentActiveHubId) touchedActive = true;
                     }
                 });
@@ -3569,6 +3607,18 @@
                 }
             });
 
+            // Keep Previous Ratio separately from the live form. This is the
+            // important part that prevents Ctrl+R from losing editable ratios.
+            const currentISO = parseReportDateToISO(reportData.m_reportDate);
+            if (currentISO) {
+                const bucket = getPreviousRatioOverrideBucket(currentActiveHubId, currentISO, true);
+                ['prevRatioInput1', 'prevRatioInput2', 'prevRatioInput3'].forEach((id, i) => {
+                    const key = ['delivered', 'fieldHold', 'fieldReturn'][i];
+                    const value = String(reportData[id] ?? '').trim();
+                    if (value && value !== '-') bucket[key] = value;
+                });
+            }
+
             hubReportsData[currentActiveHubId] = reportData;
             updateHubSummaryFromReport(currentActiveHubId, reportData);
             cloudSyncHubReport(currentActiveHubId);
@@ -3586,7 +3636,7 @@
                 resetReportFormToDefault();
             }
             calculateMorningFormulas();
-            syncPreviousDayRatios();
+            syncPreviousDayRatios({ preserveExisting: true });
             updateAllComparisons();
         }
 
@@ -5328,39 +5378,101 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        function syncPreviousDayRatios() {
-            const ids = ['prevRatioInput1', 'prevRatioInput2', 'prevRatioInput3'];
-            const clear = () => ids.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '-';
-            });
+        function getPreviousRatioOverrideBucket(hubId, reportISO, create = false) {
+            if (!hubId || !reportISO) return null;
+            if (!previousRatioOverrides[hubId] && create) previousRatioOverrides[hubId] = {};
+            if (!previousRatioOverrides[hubId]) return null;
+            if (!previousRatioOverrides[hubId][reportISO] && create) {
+                previousRatioOverrides[hubId][reportISO] = {};
+            }
+            return previousRatioOverrides[hubId][reportISO] || null;
+        }
 
-            if (!currentActiveHubId) { clear(); return; }
+        function getPreviousRatioValuesFromHistory(previous) {
+            if (!previous) return null;
+
+            // New format: exact Closing Report ratio snapshot.
+            if (previous.closingRatios) {
+                const r = previous.closingRatios;
+                return {
+                    delivered: String(r.delivered ?? '').trim(),
+                    fieldHold: String(r.fieldHold ?? '').trim(),
+                    fieldReturn: String(r.fieldReturn ?? '').trim()
+                };
+            }
+
+            // Backward compatibility: older saved reports may not have
+            // closingRatios, but their saved form still contains the computed
+            // percentage fields. Read those values instead of showing '-'.
+            const d = previous.reportData || {};
+            const pick = (id) => String(d[id] ?? '').trim();
+            if (pick('deliveredPct') || pick('fieldHoldPct') || pick('fieldReturnPct')) {
+                return {
+                    delivered: pick('deliveredPct'),
+                    fieldHold: pick('fieldHoldPct'),
+                    fieldReturn: pick('fieldReturnPct')
+                };
+            }
+
+            return null;
+        }
+
+        function syncPreviousDayRatios(options = {}) {
+            const preserveExisting = options.preserveExisting !== false;
+            const ids = ['prevRatioInput1', 'prevRatioInput2', 'prevRatioInput3'];
+            const currentValues = ids.map(id => {
+                const el = document.getElementById(id);
+                return el ? String(el.value || '').trim() : '';
+            });
+            const clearOnlyIfEmpty = () => {
+                ids.forEach((id, i) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (!preserveExisting || !currentValues[i] || currentValues[i] === '-') el.value = '-';
+                });
+            };
+
+            if (!currentActiveHubId) { clearOnlyIfEmpty(); return; }
 
             const currentISO = parseReportDateToISO(document.getElementById('m_reportDate')?.value);
             const previousISO = getPreviousReportDateISO(currentISO);
-            if (!previousISO) { clear(); return; }
+            if (!previousISO) { clearOnlyIfEmpty(); return; }
 
             const history = hubReportHistory[currentActiveHubId] || {};
             let previous = history[previousISO];
 
-            // Defensive support for imported/older history where the date is stored
-            // inside the record instead of being the object key.
+            // Defensive support for imported/older history where the date is
+            // stored inside the record instead of being the object key.
             if (!previous) {
                 previous = Object.values(history).find(entry => String(entry?.date || '') === previousISO);
             }
 
-            // Only use a saved Closing Report snapshot containing the actual saved
-            // Ratio values. Do not derive a ratio from counts here.
-            const ratios = previous?.closingRatios;
-            if (!previous || !ratios) { clear(); return; }
+            let values = getPreviousRatioValuesFromHistory(previous);
 
-            const values = [ratios.delivered, ratios.fieldHold, ratios.fieldReturn];
+            // Manual Previous Ratio values for this exact report date have
+            // priority. This makes Ctrl+R/browser reload safe even if the
+            // shared cloud snapshot arrives a little later.
+            const override = getPreviousRatioOverrideBucket(currentActiveHubId, currentISO, false);
+            if (override) {
+                values = {
+                    delivered: String(override.delivered ?? '').trim() || values?.delivered || '',
+                    fieldHold: String(override.fieldHold ?? '').trim() || values?.fieldHold || '',
+                    fieldReturn: String(override.fieldReturn ?? '').trim() || values?.fieldReturn || ''
+                };
+            }
+
+            if (!values) {
+                clearOnlyIfEmpty();
+                return;
+            }
+
+            values = [values.delivered, values.fieldHold, values.fieldReturn];
             values.forEach((value, index) => {
                 const el = document.getElementById(ids[index]);
                 if (!el) return;
-                const text = String(value ?? '').trim();
-                el.value = text || '-';
+                const v = String(value ?? '').trim();
+                if (v) el.value = v;
+                else if (!preserveExisting || !currentValues[index] || currentValues[index] === '-') el.value = '-';
             });
         }
 
@@ -5707,7 +5819,7 @@
                     // that date's exact previous day. Other inputs must not
                     // overwrite a manually edited Previous Ratio.
                     if (el.id === 'm_reportDate') {
-                        syncPreviousDayRatios();
+                        syncPreviousDayRatios({ preserveExisting: true });
                         updateAllComparisons();
                     }
                     saveCurrentHubReportData();
@@ -5775,12 +5887,23 @@
             document.getElementById('btnRefresh')?.addEventListener('click', function() {
                 if (previousDayReportMode) { showToast('Click Current Day first'); return; }
                 saveState();
+                // Save the current Previous Ratio values first. Refresh must
+                // reset the working form, but it must NOT destroy these ratios.
+                const refreshRatioBackup = ['prevRatioInput1', 'prevRatioInput2', 'prevRatioInput3']
+                    .map(id => document.getElementById(id)?.value || '');
+
                 resetReportFormToDefault();
+
+                refreshRatioBackup.forEach((value, i) => {
+                    const el = document.getElementById(['prevRatioInput1', 'prevRatioInput2', 'prevRatioInput3'][i]);
+                    if (el && value && value !== '-') el.value = value;
+                });
+
                 calculateMorningFormulas();
                 // Refresh starts a fresh report day. After the report date is
                 // reset, immediately load the exact previous calendar day's
                 // saved Closing Report ratios into Previous Ratio.
-                syncPreviousDayRatios();
+                syncPreviousDayRatios({ preserveExisting: true });
                 updateAllComparisons();
                 saveCurrentHubReportData();
                 showToast('Report form refreshed. Previous Day Ratio loaded automatically.');
