@@ -668,6 +668,71 @@
             </div>
         </div>
 
+        <!-- ADDITIONAL TODAY KPI CARDS -->
+        <div data-hide-key="additionalKpiCards" class="space-y-3">
+            <div class="flex items-center gap-2 px-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                <span class="text-[10px] uppercase font-black tracking-widest text-slate-400">TODAY'S OPERATION KPI</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL DELIVERED</span><div class="text-2xl font-black text-emerald-400 mt-1" id="kpiTodayDelivered">0 Pcs</div><span class="text-[10px] font-semibold text-slate-500">Today's closing report</span></div>
+                    <div class="w-10 h-10 bg-emerald-950/60 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-800/40"><i class="fa-solid fa-circle-check"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL ASSIGNED</span><div class="text-2xl font-black text-sky-400 mt-1" id="kpiTodayAssigned">0 Pcs</div><span class="text-[10px] font-semibold text-slate-500">Morning dispatch</span></div>
+                    <div class="w-10 h-10 bg-sky-950/60 rounded-xl flex items-center justify-center text-sky-400 border border-sky-800/40"><i class="fa-solid fa-truck"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">PENDING DELIVERY</span><div class="text-2xl font-black text-amber-400 mt-1" id="kpiTodayPending">0 Pcs</div><span class="text-[10px] font-semibold text-slate-500">Closing pending</span></div>
+                    <div class="w-10 h-10 bg-amber-950/60 rounded-xl flex items-center justify-center text-amber-400 border border-amber-800/40"><i class="fa-solid fa-clock"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">FAILED / RETURNED</span><div class="text-2xl font-black text-rose-400 mt-1" id="kpiTodayReturned">0 Pcs</div><span class="text-[10px] font-semibold text-slate-500">Field + office return</span></div>
+                    <div class="w-10 h-10 bg-rose-950/60 rounded-xl flex items-center justify-center text-rose-400 border border-rose-800/40"><i class="fa-solid fa-arrow-rotate-left"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">SUCCESS RATE</span><div class="text-2xl font-black text-emerald-400 mt-1" id="kpiTodaySuccessRate">0.0%</div><span class="text-[10px] font-semibold text-slate-500">Delivered / Assigned</span></div>
+                    <div class="w-10 h-10 bg-emerald-950/60 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-800/40"><i class="fa-solid fa-chart-pie"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">AVG PRODUCTIVITY / DA</span><div class="text-2xl font-black text-violet-400 mt-1" id="kpiTodayProductivity">0.0 Pcs</div><span class="text-[10px] font-semibold text-slate-500">Delivered per active DA</span></div>
+                    <div class="w-10 h-10 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 border border-violet-800/40"><i class="fa-solid fa-user-group"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">COD COLLECTION</span><div class="text-2xl font-black text-cyan-400 mt-1" id="kpiTodayCollection">৳0</div><span class="text-[10px] font-semibold text-slate-500">Today's collection</span></div>
+                    <div class="w-10 h-10 bg-cyan-950/60 rounded-xl flex items-center justify-center text-cyan-400 border border-cyan-800/40"><i class="fa-solid fa-money-bill-wave"></i></div>
+                </div>
+                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TARGET ACHIEVEMENT</span><div class="text-2xl font-black text-blue-400 mt-1" id="kpiTodayTarget">0.0%</div><span class="text-[10px] font-semibold text-slate-500">Against 80% delivery target</span></div>
+                    <div class="w-10 h-10 bg-blue-950/60 rounded-xl flex items-center justify-center text-blue-400 border border-blue-800/40"><i class="fa-solid fa-bullseye"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ON-TIME DELIVERY -->
+        <div data-hide-key="onTimeKpi" class="bg-[#131d36] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div><span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ON-TIME DELIVERY</span><div class="text-2xl font-black text-slate-300 mt-1" id="kpiTodayOnTime">N/A</div><span class="text-[10px] font-semibold text-slate-500">Requires a configured delivery-time target</span></div>
+            <div class="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 border border-slate-700"><i class="fa-solid fa-stopwatch"></i></div>
+        </div>
+
+        <!-- HUB PERFORMANCE & LIVE STATUS -->
+        <div data-hide-key="operationInsights" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4"><div><span class="text-xs uppercase font-black tracking-wider text-slate-300">HUB PERFORMANCE TODAY</span><p class="text-[10px] text-slate-500 mt-1">Dispatch, delivery and active DA by Hub</p></div><i class="fa-solid fa-chart-column text-sky-400"></i></div>
+                <div id="todayHubPerformance" class="space-y-2"></div>
+            </div>
+            <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-4"><div><span class="text-xs uppercase font-black tracking-wider text-slate-300">DA / OPERATION STATUS</span><p class="text-[10px] text-slate-500 mt-1">Today's morning report and current online status</p></div><i class="fa-solid fa-users-viewfinder text-indigo-400"></i></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-[#0b1329] rounded-lg border border-slate-800 p-3 text-center"><span class="text-[9px] uppercase font-bold text-slate-500 block">ACTIVE DA</span><span id="statusActiveDA" class="text-xl font-black text-sky-400">0</span></div>
+                    <div class="bg-[#0b1329] rounded-lg border border-slate-800 p-3 text-center"><span class="text-[9px] uppercase font-bold text-slate-500 block">ABSENT DA</span><span id="statusAbsentDA" class="text-xl font-black text-rose-400">0</span></div>
+                    <div class="bg-[#0b1329] rounded-lg border border-slate-800 p-3 text-center"><span class="text-[9px] uppercase font-bold text-slate-500 block">ONLINE NOW</span><span id="statusOnlineNow" class="text-xl font-black text-emerald-400">0</span></div>
+                    <div class="bg-[#0b1329] rounded-lg border border-slate-800 p-3 text-center"><span class="text-[9px] uppercase font-bold text-slate-500 block">TOP HUB</span><span id="statusTopHub" class="text-sm font-black text-amber-400 truncate block">-</span></div>
+                </div>
+            </div>
+        </div>
+
         <!-- NAVIGATION MENU TRIGGER & TASK TABS BAR -->
         <div class="flex flex-wrap items-center justify-between bg-[#131d36] p-2.5 rounded-xl border border-slate-800 gap-3">
             <div class="flex items-center gap-2">
@@ -1189,21 +1254,21 @@
                         <td class="text-left">Field Hold</td>
                         <td><input type="number" id="fieldHold" value="0"></td>
                         <td class="text-center c-muted" id="fieldHoldPct">-</td>
-                        <td colspan="2"><input type="text" id="prevRatioInput1" class="prev-ratio-input" data-target="deliveredPct" data-comp="prevComparisonVal1"></td>
+                        <td colspan="2"><input type="text" id="prevRatioInput1" class="prev-ratio-input" data-target="deliveredPct" data-comp="prevComparisonVal1" readonly placeholder="-" title="Auto from previous day"></td>
                         <td colspan="2" class="text-center" id="prevComparisonVal1">-</td>
                     </tr>
                     <tr>
                         <td class="text-left">Field Return</td>
                         <td><input type="number" id="fieldReturn" value="0"></td>
                         <td class="text-center c-muted" id="fieldReturnPct">-</td>
-                        <td colspan="2"><input type="text" id="prevRatioInput2" class="prev-ratio-input" data-target="fieldHoldPct" data-comp="prevComparisonVal2"></td>
+                        <td colspan="2"><input type="text" id="prevRatioInput2" class="prev-ratio-input" data-target="fieldHoldPct" data-comp="prevComparisonVal2" readonly placeholder="-" title="Auto from previous day"></td>
                         <td colspan="2" class="text-center" id="prevComparisonVal2">-</td>
                     </tr>
                     <tr>
                         <td class="text-left">Total Hold</td>
                         <td class="text-center c-muted" id="totalHold">0</td>
                         <td class="text-center c-muted" id="totalHoldPct">-</td>
-                        <td colspan="2"><input type="text" id="prevRatioInput3" class="prev-ratio-input" data-target="fieldReturnPct" data-comp="prevComparisonVal3"></td>
+                        <td colspan="2"><input type="text" id="prevRatioInput3" class="prev-ratio-input" data-target="fieldReturnPct" data-comp="prevComparisonVal3" readonly placeholder="-" title="Auto from previous day"></td>
                         <td colspan="2" class="text-center" id="prevComparisonVal3">-</td>
                     </tr>
                     <tr>
@@ -2434,6 +2499,7 @@
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState();
+            placeKpisBelowHubCards();
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
@@ -3382,6 +3448,84 @@
 
         /* =================== END D.A. ATTENDANCE REPORT =================== */
 
+        function parseReportDateToISO(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            let m = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+            if (m) return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`;
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            return '';
+        }
+
+        function roundRatioPct(count, base) {
+            const n = Number(count) || 0;
+            const b = Number(base) || 0;
+            return b > 0 ? Math.round((n / b) * 100) : 0;
+        }
+
+        function savePreviousDayRatioHistory(hubId, reportData) {
+            if (!hubId || !reportData) return;
+            if (!hubReportHistory[hubId]) hubReportHistory[hubId] = {};
+
+            const dateISO = parseReportDateToISO(reportData.m_reportDate) || getTodayISO();
+            const onTheWay = Number(document.getElementById('onTheWay')?.innerText || reportData.onTheWay || 0) || 0;
+            const delivered = Number(reportData.delivered || 0) || 0;
+            const fieldHold = Number(reportData.fieldHold || 0) || 0;
+            const fieldReturn = Number(reportData.fieldReturn || 0) || 0;
+
+            const old = hubReportHistory[hubId][dateISO] || {};
+            hubReportHistory[hubId][dateISO] = {
+                ...old,
+                date: dateISO,
+                totalVolume: Number(reportData.m_totalParcels || old.totalVolume || 0) || 0,
+                delivered: delivered,
+                totalHold: Number(reportData.totalHold || old.totalHold || 0) || 0,
+                collection: Number(reportData.totalCollection || old.collection || 0) || 0,
+                daPresent: Number(reportData.m_presentDA || old.daPresent || 0) || 0,
+                daTotal: Number(reportData.m_totalDA || old.daTotal || 0) || 0,
+                onTheWayRatioBase: onTheWay,
+                deliveredRatioPct: roundRatioPct(delivered, onTheWay),
+                fieldHoldRatioPct: roundRatioPct(fieldHold, onTheWay),
+                fieldReturnRatioPct: roundRatioPct(fieldReturn, onTheWay),
+                savedAt: new Date().toISOString()
+            };
+        }
+
+        function getPreviousDayRatioEntry(hubId, reportDateValue) {
+            const history = hubReportHistory?.[hubId] || {};
+            const currentISO = parseReportDateToISO(reportDateValue) || getTodayISO();
+            const current = new Date(currentISO + 'T00:00:00');
+            if (isNaN(current.getTime())) return null;
+            current.setDate(current.getDate() - 1);
+            const previousISO = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}-${String(current.getDate()).padStart(2,'0')}`;
+
+            if (history[previousISO]) return history[previousISO];
+
+            // If an exact previous-day snapshot is unavailable, use the most recent
+            // saved snapshot before the report date rather than leaving the cells blank.
+            const candidates = Object.values(history)
+                .filter(e => e && e.date && e.date < currentISO &&
+                    (e.deliveredRatioPct !== undefined || e.fieldHoldRatioPct !== undefined || e.fieldReturnRatioPct !== undefined))
+                .sort((a,b) => String(b.date).localeCompare(String(a.date)));
+            return candidates[0] || null;
+        }
+
+        function applyPreviousDayRatios() {
+            const hubId = currentActiveHubId;
+            if (!hubId) return;
+            const dateValue = document.getElementById('m_reportDate')?.value || '';
+            const entry = getPreviousDayRatioEntry(hubId, dateValue);
+            const values = entry ? [entry.deliveredRatioPct, entry.fieldHoldRatioPct, entry.fieldReturnRatioPct] : [null, null, null];
+            ['prevRatioInput1','prevRatioInput2','prevRatioInput3'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const v = values[i];
+                el.value = (v === null || v === undefined || v === '') ? '' : `${Math.round(Number(v))}%`;
+            });
+            updateAllComparisons();
+        }
+
         function saveCurrentHubReportData() {
             if (!currentActiveHubId) return;
 
@@ -3392,9 +3536,20 @@
                 }
             });
 
+            // Save calculated Morning Dispatch values too, so the dashboard
+            // can read the exact numbers shown in the report after refresh.
+            const calculatedIds = ['m_totalParcels','m_totalAssign','totalHold','totalCollection','delivered','fieldReturn','totalPending'];
+            calculatedIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) reportData[id] = el.value ?? el.innerText ?? '0';
+            });
+
             hubReportsData[currentActiveHubId] = reportData;
+            savePreviousDayRatioHistory(currentActiveHubId, reportData);
             updateHubSummaryFromReport(currentActiveHubId, reportData);
+            saveLocalState();
             cloudSyncHubReport(currentActiveHubId);
+            applyPreviousDayRatios();
         }
 
         function loadHubReportData(hubId) {
@@ -3409,6 +3564,7 @@
                 resetReportFormToDefault();
             }
             calculateMorningFormulas();
+            applyPreviousDayRatios();
         }
 
         function resetReportFormToDefault() {
@@ -3433,6 +3589,10 @@
 
             document.querySelectorAll('#hubReportView select').forEach(sel => {
                 sel.selectedIndex = 0;
+            });
+            ['prevRatioInput1','prevRatioInput2','prevRatioInput3'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
             });
         }
 
@@ -3469,7 +3629,9 @@
         function recordHubReportHistory(hubId, hub) {
             if (!hubReportHistory[hubId]) hubReportHistory[hubId] = {};
             const todayISO = getTodayISO();
+            const existing = hubReportHistory[hubId][todayISO] || {};
             hubReportHistory[hubId][todayISO] = {
+                ...existing,
                 date: todayISO,
                 totalVolume: hub.totalVolume || 0,
                 delivered: hub.delivered || 0,
@@ -4259,49 +4421,118 @@
         }
 
 
-        function getCurrentDayAttendanceTotals() {
-            const today = new Date();
-            const todayISO = getTodayISO();
-            const todayShort = formatAttendanceDate(today);
+        function getTodayMorningReportForHub(hubId) {
+            const report = hubReportsData?.[hubId];
+            if (!report) return null;
+            const rawDate = String(report.m_reportDate || '').trim();
+            if (!rawDate) return report;
 
+            // Prefer today's Morning Dispatch Report. If the saved report has a
+            // manually entered/previous date, still use the latest saved report
+            // so the dashboard reflects the report the user just prepared.
+            const todayISO = getTodayISO();
+            const todayShort = (() => {
+                const d = new Date();
+                return String(d.getDate()).padStart(2, '0') + '-' +
+                    String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+            })();
+            let reportISO = '';
+            const m = rawDate.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+            if (m) {
+                reportISO = m[3] + '-' + String(Number(m[2])).padStart(2, '0') + '-' + String(Number(m[1])).padStart(2, '0');
+            } else {
+                const parsed = new Date(rawDate);
+                if (!isNaN(parsed.getTime())) {
+                    reportISO = parsed.getFullYear() + '-' + String(parsed.getMonth() + 1).padStart(2, '0') + '-' + String(parsed.getDate()).padStart(2, '0');
+                }
+            }
+            return (reportISO === todayISO || rawDate === todayShort) ? report : report;
+        }
+
+        function getTodayHubCardStats(hub) {
+            const report = getTodayMorningReportForHub(hub.id);
+            if (!report) {
+                return {
+                    ...hub,
+                    totalVolume: Number(hub.totalVolume) || 0,
+                    delivered: Number(hub.delivered) || 0,
+                    daPresent: Number(hub.daPresent) || 0,
+                    daTotal: Number(hub.daTotal) || 0,
+                    totalHold: Number(hub.totalHold) || 0,
+                    collection: Number(hub.collection) || 0,
+                    deliveryRate: hub.deliveryRate || '0%',
+                    status: hub.status || 'No Morning Report'
+                };
+            }
+            const n = id => Math.max(0, Number(report[id]) || 0);
+            const totalVolume = Math.max(0, n('m_totalParcels') || (n('m_prevHold') + n('m_reattemptReq') + n('m_recParcel') - n('m_areaChange')));
+            const delivered = n('delivered');
+            const daPresent = n('m_presentDA');
+            const daTotal = n('m_totalDA');
+            const totalHold = n('totalPending') || n('totalHold');
+            const collection = n('totalCollection');
+            const deliveryRate = totalVolume > 0 ? ((delivered / totalVolume) * 100).toFixed(1) + '%' : (hub.deliveryRate || '0%');
+            return { ...hub, totalVolume, delivered, daPresent, daTotal, totalHold, collection, deliveryRate, status: delivered > 0 ? 'Dispatched' : 'In Progress' };
+        }
+
+        function getCurrentDayMorningDispatchTotals() {
             let present = 0;
             let total = 0;
-
-            Object.values(attendanceReportsData || {}).forEach(report => {
+            (hubList || []).forEach(hub => {
+                const report = getTodayMorningReportForHub(hub.id);
                 if (!report) return;
-
-                const rawDate = String(report.reportDate || '').trim();
-                if (!rawDate) return;
-
-                // Attendance reports are normally saved as DD-Mmm-YYYY.
-                // Also accept ISO/date-like values so old/imported data works.
-                let reportISO = '';
-                const m = rawDate.match(/^(\d{1,2})[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/](\d{4})$/i);
-                if (m) {
-                    const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
-                    const monthKey = m[2].slice(0,1).toUpperCase() + m[2].slice(1,3).toLowerCase();
-                    const d = new Date(Number(m[3]), months[monthKey], Number(m[1]));
-                    reportISO = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-                } else {
-                    const parsed = new Date(rawDate);
-                    if (!isNaN(parsed.getTime())) {
-                        reportISO = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
-                    }
-                }
-
-                if (reportISO !== todayISO && rawDate !== todayShort) return;
-
-                const totalDA = Math.max(0, Number(report.totalDA) || 0);
-                const weekend = Math.max(0, Number(report.weekend) || 0);
-                const absent = Math.max(0, Number(report.absent) || 0);
-                const onTraining = Math.max(0, Number(report.onTraining) || 0);
-                const presentDA = Math.max(totalDA - weekend - absent - onTraining, 0);
-
-                total += totalDA;
-                present += presentDA;
+                present += Math.max(0, Number(report.m_presentDA) || 0);
+                total += Math.max(0, Number(report.m_totalDA) || 0);
             });
-
             return { present, total };
+        }
+
+        function getCurrentDayMorningDispatchStats() {
+            const stats = { totalParcels: 0, totalAssigned: 0, delivered: 0, pending: 0, returned: 0, collection: 0, presentDA: 0, totalDA: 0, hubs: [] };
+            (hubList || []).forEach(hub => {
+                const report = getTodayMorningReportForHub(hub.id);
+                if (!report) return;
+                const n = id => Math.max(0, Number(report[id]) || 0);
+                const totalParcels = Math.max(0, n('m_prevHold') + n('m_reattemptReq') + n('m_recParcel') - n('m_areaChange'));
+                const assigned = Math.max(0, n('m_totalAssign') || (totalParcels - n('m_officeHold') - n('m_capShort')));
+                const delivered = n('delivered');
+                const pending = n('totalPending');
+                const returned = n('fieldReturn');
+                const collection = n('totalCollection');
+                const presentDA = n('m_presentDA');
+                const totalDA = n('m_totalDA');
+                stats.totalParcels += totalParcels; stats.totalAssigned += assigned; stats.delivered += delivered; stats.pending += pending; stats.returned += returned; stats.collection += collection; stats.presentDA += presentDA; stats.totalDA += totalDA;
+                stats.hubs.push({ name: hub.name, volume: totalParcels, assigned, delivered, presentDA, totalDA, rate: assigned > 0 ? (delivered / assigned) * 100 : 0 });
+            });
+            return stats;
+        }
+
+        function updateAdditionalKpis() {
+            const s = getCurrentDayMorningDispatchStats();
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.innerText = value; };
+            const successRate = s.totalAssigned > 0 ? (s.delivered / s.totalAssigned) * 100 : 0;
+            const productivity = s.presentDA > 0 ? s.delivered / s.presentDA : 0;
+            const targetAchievement = (successRate / 80) * 100;
+            set('kpiTodayDelivered', `${s.delivered.toLocaleString()} Pcs`);
+            set('kpiTodayAssigned', `${s.totalAssigned.toLocaleString()} Pcs`);
+            set('kpiTodayPending', `${s.pending.toLocaleString()} Pcs`);
+            set('kpiTodayReturned', `${s.returned.toLocaleString()} Pcs`);
+            set('kpiTodaySuccessRate', `${successRate.toFixed(1)}%`);
+            set('kpiTodayProductivity', `${productivity.toFixed(1)} Pcs`);
+            set('kpiTodayCollection', `৳${s.collection.toLocaleString()}`);
+            set('kpiTodayTarget', `${targetAchievement.toFixed(1)}%`);
+            set('statusActiveDA', s.presentDA.toLocaleString());
+            set('statusAbsentDA', Math.max(0, s.totalDA - s.presentDA).toLocaleString());
+            const online = parseInt(document.getElementById('onlineUsersCount')?.innerText || '0', 10) || 0;
+            set('statusOnlineNow', online.toLocaleString());
+            const top = s.hubs.slice().sort((a,b) => b.rate - a.rate)[0];
+            set('statusTopHub', top ? `${formatHubDisplayName(top.name)} (${top.rate.toFixed(1)}%)` : '-');
+            const perf = document.getElementById('todayHubPerformance');
+            if (perf) perf.innerHTML = s.hubs.length ? s.hubs.map(h => `
+                <div class="bg-[#0b1329] border border-slate-800 rounded-lg p-2.5">
+                    <div class="flex items-center justify-between gap-2"><span class="text-[10px] font-black text-white truncate">${formatHubDisplayName(h.name)}</span><span class="text-[10px] font-black text-emerald-400">${h.rate.toFixed(1)}%</span></div>
+                    <div class="flex items-center justify-between text-[9px] text-slate-500 mt-1"><span>${h.volume.toLocaleString()} Dispatch</span><span>${h.delivered.toLocaleString()} Delivered</span><span>${h.presentDA}/${h.totalDA} DA</span></div>
+                </div>`).join('') : '<div class="text-center text-xs text-slate-500 py-4">No current-day Morning Dispatch Report</div>';
         }
 
         function renderDashboard() {
@@ -4309,16 +4540,17 @@
 
             const searchQuery = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
 
-            const filteredHubs = getVisibleHubs().filter(h => 
+            const todayHubStats = getVisibleHubs().map(getTodayHubCardStats);
+            const filteredHubs = todayHubStats.filter(h => 
                 h.name.toLowerCase().includes(searchQuery) || 
                 h.id.toLowerCase().includes(searchQuery)
             );
 
-            getVisibleHubs().forEach(h => {
+            todayHubStats.forEach(h => {
                 totalHubsVol += h.totalVolume;
                 totalHubsDelivered += h.delivered;
                 totalHubsDAPres += h.daPresent;
-                totalHubsDATot += (h.daTotal || h.daPresent);
+                totalHubsDATot += h.daTotal;
                 totalHubsColl += h.collection;
                 totalHubsHold += h.totalHold;
             });
@@ -4338,9 +4570,8 @@
                 clusterRateEl.innerText = `${avgPct}%`;
             }
 
-            // ACTIVE AGENTS (DA) must always reflect today's D.A. attendance report,
-            // not the previous day's hub summary values.
-            const currentDayDA = getCurrentDayAttendanceTotals();
+            // ACTIVE AGENTS (DA) must always reflect today's MORNING DISPATCH REPORT totals from every Hub.
+            const currentDayDA = getCurrentDayMorningDispatchTotals();
             const clusterDAEl = document.getElementById('clusterTotalDA');
             if (clusterDAEl) clusterDAEl.innerText = `${currentDayDA.present} / ${currentDayDA.total} DA`;
             const clusterDAPctEl = clusterDAEl?.parentElement?.querySelector('span.text-sky-400');
@@ -4348,6 +4579,8 @@
                 const pct = currentDayDA.total > 0 ? ((currentDayDA.present / currentDayDA.total) * 100).toFixed(1) : '0.0';
                 clusterDAPctEl.innerHTML = `<i class="fa-solid fa-user-check"></i> ${pct}% Attendance`;
             }
+
+            updateAdditionalKpis();
 
             const clusterHoldEl = document.getElementById('clusterTotalHold');
             if (clusterHoldEl) clusterHoldEl.innerText = `${totalHubsHold.toLocaleString()} Pcs`;
@@ -4879,7 +5112,7 @@
         }
 
         function updateAllComparisons() {
-            document.querySelectorAll('.prev-ratio-input').forEach(input => {
+            document.querySelectorAll('.prev-ratio-input:not([readonly])').forEach(input => {
                 const targetId = input.getAttribute('data-target');
                 const compId = input.getAttribute('data-comp');
                 
@@ -5179,6 +5412,17 @@
             document.getElementById('visibilityModal').classList.add('hidden');
         }
 
+        function placeKpisBelowHubCards() {
+            const dashboard = document.getElementById('hubDashboardView');
+            const hubOverview = document.getElementById('viewOverview');
+            if (!dashboard || !hubOverview) return;
+            const ids = ['kpiCards', 'additionalKpiCards', 'onTimeKpi', 'operationInsights'];
+            ids.forEach(id => {
+                const el = document.querySelector(`[data-hide-key="${id}"]`);
+                if (el) dashboard.appendChild(el);
+            });
+        }
+
         window.onload = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
@@ -5212,7 +5456,7 @@
                 });
             });
 
-            document.querySelectorAll('.prev-ratio-input').forEach(input => {
+            document.querySelectorAll('.prev-ratio-input:not([readonly])').forEach(input => {
                 input.addEventListener('input', calculateClosingReport);
                 input.addEventListener('blur', function() {
                     let val = this.value.replace(/%/g, '').trim();
