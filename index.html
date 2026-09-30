@@ -518,6 +518,16 @@
                     </button>
                 </div>
 
+                <div class="space-y-1.5" data-owner-only data-hide-key="developerTools">
+                    <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Developer</p>
+                    <button onclick="openDeveloperModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                        <span class="w-8 h-8 rounded-lg bg-fuchsia-950/60 border border-fuchsia-800/40 flex items-center justify-center flex-shrink-0 text-fuchsia-400 text-sm">
+                            <i class="fa-solid fa-code"></i>
+                        </span>
+                        <span class="truncate">Developer</span>
+                    </button>
+                </div>
+
                 <div class="space-y-1.5">
                     <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Display</p>
                     <button onclick="toggleHideMode()" id="sideBtnHideMode" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
@@ -2479,37 +2489,133 @@
         function toggleDashboardNotificationPanel(){const p=document.getElementById('dashboardNotificationPanel');if(!p)return;p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderDashboardNotificationTab();}
         function openDashboardNotificationModal(){document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');document.getElementById('dashboardNotificationTitle').value='';document.getElementById('dashboardNotificationMessage').value='';document.getElementById('dashboardNotificationModal')?.classList.remove('hidden');}
         function closeDashboardNotificationModal(){document.getElementById('dashboardNotificationModal')?.classList.add('hidden');}
-        async function handleSaveDashboardNotification(event){event.preventDefault();if(!myAccess.isOwner||!currentUser?.uid||!cloudDb){showToast('Only the owner can post notifications');return;}const title=document.getElementById('dashboardNotificationTitle').value.trim(),message=document.getElementById('dashboardNotificationMessage').value.trim();if(!title||!message)return;try{const ref=cloudDb.doc('config/dashboardNotifications'),snap=await ref.get(),data=snap.exists?(snap.data()||{}):{},existing=Array.isArray(data.notifications)?data.notifications:[],item={id:'dn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),title,message,createdAt:new Date().toISOString(),createdBy:currentUser.uid},next=[item,...existing].slice(0,100);await ref.set({notifications:next,updatedAt:Date.now()});dashboardNotifications=next;renderDashboardNotificationTab();closeDashboardNotificationModal();showToast('Notification posted for users');}catch(e){console.error('Dashboard notification save failed',e);cloudFail(e);}}
+        async function handleSaveDashboardNotification(event){
+            event.preventDefault();
+            if(!myAccess.isOwner||!currentUser?.uid||!cloudDb){showToast('Only the owner can post notifications');return;}
+            const titleEl=document.getElementById('dashboardNotificationTitle');
+            const messageEl=document.getElementById('dashboardNotificationMessage');
+            const title=(titleEl?.value||'').trim();
+            const message=(messageEl?.value||'').trim();
+            if(!title||!message){showToast('Please enter title and message');return;}
+            const item={
+                id:'dn_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+                title,
+                message,
+                createdAt:new Date().toISOString(),
+                createdBy:currentUser.uid
+            };
+            try{
+                // Primary storage: one Firestore document per notification.
+                // This makes every new notification immediately visible to every signed-in user.
+                await cloudDb.doc('dashboardNotifications/'+item.id).set(item);
+
+                // Keep the old aggregate document for backward compatibility with existing data.
+                try{
+                    const legacyRef=cloudDb.doc('config/dashboardNotifications');
+                    const snap=await legacyRef.get();
+                    const data=snap.exists?(snap.data()||{}):{};
+                    const existing=Array.isArray(data.notifications)?data.notifications:[];
+                    const next=[item,...existing.filter(n=>n&&n.id!==item.id)].slice(0,100);
+                    await legacyRef.set({notifications:next,updatedAt:Date.now()});
+                }catch(legacyErr){
+                    console.warn('Legacy notification mirror failed:',legacyErr);
+                }
+
+                dashboardNotifications=[item,...(dashboardNotifications||[]).filter(n=>n&&n.id!==item.id)].slice(0,100);
+                renderDashboardNotificationTab();
+                closeDashboardNotificationModal();
+                if(titleEl) titleEl.value='';
+                if(messageEl) messageEl.value='';
+                showToast('Notification posted for all users');
+            }catch(e){
+                console.error('Dashboard notification save failed',e);
+                cloudFail(e);
+                showToast('Notification could not be posted. Check Firebase access.');
+            }
+        }
+
         async function markDashboardNotificationRead(id){
             if(!currentUser?.uid||!id)return;
-            // Hide immediately for this user. Never allow a stale Firestore snapshot to undo it.
-            dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]),String(id)])];
+            dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]).map(String),String(id)])];
             renderDashboardNotificationTab();
             try{
                 if(!cloudDb)return;
                 const ref=cloudDb.doc('notificationReads/'+currentUser.uid);
                 const snap=await ref.get();
                 const cloudIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];
-                const merged=[...new Set([...cloudIds,...dashboardNotificationReadIds.map(String)])];
+                const merged=[...new Set([...cloudIds.map(String),...dashboardNotificationReadIds.map(String)])];
                 dashboardNotificationReadIds=merged;
-                await ref.set({readIds:merged,updatedAt:Date.now()});
-                // Re-render after the cloud write so the item stays hidden.
+                await ref.set({readIds:merged,updatedAt:Date.now()},{merge:true});
                 renderDashboardNotificationTab();
             }catch(e){
                 console.error('Notification read state save failed',e);
-                // Keep it hidden locally even if the cloud write temporarily fails.
                 renderDashboardNotificationTab();
                 showToast('Read status could not be saved');
             }
         }
-        async function loadDashboardNotificationState(){dashboardNotifications=[];dashboardNotificationReadIds=[];if(!cloudDb||!currentUser?.uid){renderDashboardNotificationTab();return;}try{const [nSnap,rSnap]=await Promise.all([cloudDb.doc('config/dashboardNotifications').get(),cloudDb.doc('notificationReads/'+currentUser.uid).get()]);if(nSnap.exists&&Array.isArray(nSnap.data()?.notifications))dashboardNotifications=nSnap.data().notifications;if(rSnap.exists&&Array.isArray(rSnap.data()?.readIds))dashboardNotificationReadIds=rSnap.data().readIds;}catch(e){console.warn('Dashboard notification state load failed',e);}renderDashboardNotificationTab();}
-        function startDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;if(!cloudDb||!currentUser?.uid)return;dashboardNotificationUnsubscribe=cloudDb.doc('config/dashboardNotifications').onSnapshot(snap=>{dashboardNotifications=snap.exists&&Array.isArray(snap.data()?.notifications)?snap.data().notifications:[];renderDashboardNotificationTab();},()=>{});dashboardNotificationReadUnsubscribe=cloudDb.doc('notificationReads/'+currentUser.uid).onSnapshot(snap=>{
-            const cloudIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];
-            // Read state is append-only: merge cloud state with the current user's local state.
-            // This prevents an older/stale snapshot from making an already-read notice reappear.
-            dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]).map(String),...cloudIds.map(String)])];
+
+        async function loadDashboardNotificationState(){
+            dashboardNotifications=[];
+            dashboardNotificationReadIds=[];
+            if(!cloudDb||!currentUser?.uid){renderDashboardNotificationTab();return;}
+            try{
+                const [legacySnap,rSnap]=await Promise.all([
+                    cloudDb.doc('config/dashboardNotifications').get(),
+                    cloudDb.doc('notificationReads/'+currentUser.uid).get()
+                ]);
+                let legacy=[];
+                if(legacySnap.exists&&Array.isArray(legacySnap.data()?.notifications)) legacy=legacySnap.data().notifications;
+                let collection=[];
+                try{
+                    const cSnap=await cloudDb.collection('dashboardNotifications').get();
+                    collection=cSnap.docs.map(d=>d.data()||{}).filter(n=>n.id);
+                }catch(e){console.warn('Notification collection load failed',e);}
+                const map=new Map();
+                [...legacy,...collection].forEach(n=>{if(n&&n.id)map.set(String(n.id),n);});
+                dashboardNotifications=Array.from(map.values()).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,100);
+                if(rSnap.exists&&Array.isArray(rSnap.data()?.readIds))dashboardNotificationReadIds=rSnap.data().readIds.map(String);
+            }catch(e){console.warn('Dashboard notification state load failed',e);}
             renderDashboardNotificationTab();
-        },()=>{});}
+        }
+
+        function startDashboardNotificationListener(){
+            if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();
+            if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();
+            dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;
+            if(!cloudDb||!currentUser?.uid)return;
+
+            // Live notification feed: every signed-in user receives new notifications immediately.
+            let collectionUnsub=null;
+            try{
+                collectionUnsub=cloudDb.collection('dashboardNotifications').onSnapshot(snap=>{
+                    const incoming=snap.docs.map(d=>d.data()||{}).filter(n=>n.id);
+                    const map=new Map((dashboardNotifications||[]).filter(n=>n&&n.id).map(n=>[String(n.id),n]));
+                    incoming.forEach(n=>map.set(String(n.id),n));
+                    dashboardNotifications=Array.from(map.values()).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,100);
+                    renderDashboardNotificationTab();
+                },err=>console.warn('Notification live listener failed',err));
+            }catch(e){console.warn('Notification collection listener unavailable',e);}
+
+            // Legacy aggregate feed is also listened to so older notifications remain visible.
+            const legacyUnsub=cloudDb.doc('config/dashboardNotifications').onSnapshot(snap=>{
+                const incoming=snap.exists&&Array.isArray(snap.data()?.notifications)?snap.data().notifications:[];
+                const map=new Map((dashboardNotifications||[]).filter(n=>n&&n.id).map(n=>[String(n.id),n]));
+                incoming.forEach(n=>{if(n&&n.id)map.set(String(n.id),n);});
+                dashboardNotifications=Array.from(map.values()).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0,100);
+                renderDashboardNotificationTab();
+            },err=>console.warn('Legacy notification listener failed',err));
+
+            dashboardNotificationUnsubscribe=()=>{
+                try{if(collectionUnsub)collectionUnsub();}catch(e){}
+                try{if(legacyUnsub)legacyUnsub();}catch(e){}
+            };
+
+            dashboardNotificationReadUnsubscribe=cloudDb.doc('notificationReads/'+currentUser.uid).onSnapshot(snap=>{
+                const cloudIds=snap.exists&&Array.isArray(snap.data()?.readIds)?snap.data().readIds:[];
+                dashboardNotificationReadIds=[...new Set([...(dashboardNotificationReadIds||[]).map(String),...cloudIds.map(String)])];
+                renderDashboardNotificationTab();
+            },()=>{});
+        }
         function stopDashboardNotificationListener(){if(dashboardNotificationUnsubscribe)dashboardNotificationUnsubscribe();if(dashboardNotificationReadUnsubscribe)dashboardNotificationReadUnsubscribe();dashboardNotificationUnsubscribe=dashboardNotificationReadUnsubscribe=null;dashboardNotifications=[];dashboardNotificationReadIds=[];document.getElementById('dashboardNotificationPanel')?.classList.add('hidden');renderDashboardNotificationTab();}
         function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 
@@ -2545,6 +2651,8 @@
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState();
+            loadDeveloperFeaturesLocal();
+            applyDeveloperFeatures();
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
@@ -2661,7 +2769,19 @@
                 }
             }, () => {});
 
-            // 4b) first run only: upload this device's existing reports so nothing is lost
+            // Developer features: shared live cloud sync. Same key replaces the old feature.
+            cloudDb.collection('developerFeatures').onSnapshot(snap => {
+                const next = {};
+                snap.forEach(doc => { const d = doc.data() || {}; if (d.key) next[d.key] = d; });
+                if (Object.keys(next).length) {
+                    developerFeatures = next;
+                    saveDeveloperFeaturesLocal();
+                    applyDeveloperFeatures();
+                    renderDeveloperFeatureList();
+                }
+            }, () => {});
+
+            // 4b) first run only: upload this device's existing reports so nothing is lost first run only: upload this device's existing reports so nothing is lost
             try {
                 if (myAccess.isOwner && cloudDb.__firebase) {
                     if (await cloudDb.collection('hubReports').isEmpty()) {
@@ -4617,6 +4737,163 @@
             }
         }
 
+        /* =================== DEVELOPER FEATURE MANAGER ===================
+           Owner-only feature loader. Same Feature Key replaces the previous feature.
+           HTML/CSS/JS are stored in Firestore under config/developerFeatures and
+           cached locally for fast reloads. Target can be a DOM id; blank = developer area. */
+        const DEV_FEATURES_LS = 'narsingdi_developer_features_v1';
+        let developerFeatures = {};
+        let developerFeatureUnsubscribe = null;
+
+        function loadDeveloperFeaturesLocal() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(DEV_FEATURES_LS) || '{}');
+                if (raw && typeof raw === 'object') developerFeatures = raw;
+            } catch (e) { developerFeatures = {}; }
+        }
+
+        function saveDeveloperFeaturesLocal() {
+            try { localStorage.setItem(DEV_FEATURES_LS, JSON.stringify(developerFeatures)); } catch (e) {}
+        }
+
+        function ensureDeveloperArea() {
+            let area = document.getElementById('developerFeatureArea');
+            if (area) return area;
+            const host = document.querySelector('main') || document.body;
+            area = document.createElement('section');
+            area.id = 'developerFeatureArea';
+            area.className = 'w-full mt-5 space-y-4';
+            area.innerHTML = '<div class="text-xs text-slate-500 font-semibold px-1">Developer Features</div>';
+            host.appendChild(area);
+            return area;
+        }
+
+        function escapeAttr(value) {
+            return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function applyDeveloperFeature(feature) {
+            if (!feature || !feature.key) return;
+            const key = String(feature.key).trim();
+            if (!key) return;
+            const safeId = 'dev-feature-' + key.toLowerCase().replace(/[^a-z0-9_-]+/g,'-');
+            let host = feature.targetId ? document.getElementById(feature.targetId) : ensureDeveloperArea();
+            if (!host) return;
+
+            let box = document.getElementById(safeId);
+            if (!box) {
+                box = document.createElement('div');
+                box.id = safeId;
+                box.dataset.developerFeature = key;
+                host.appendChild(box);
+            }
+            box.innerHTML = feature.html || '';
+
+            const oldStyle = document.getElementById(safeId + '-style');
+            if (oldStyle) oldStyle.remove();
+            if (feature.css) {
+                const style = document.createElement('style');
+                style.id = safeId + '-style';
+                style.textContent = feature.css;
+                document.head.appendChild(style);
+            }
+
+            const oldScript = document.getElementById(safeId + '-script');
+            if (oldScript) oldScript.remove();
+            if (feature.js) {
+                try {
+                    const script = document.createElement('script');
+                    script.id = safeId + '-script';
+                    script.textContent = `(function(){\n${feature.js}\n}).call(document.getElementById(${JSON.stringify(safeId)}));`;
+                    document.body.appendChild(script);
+                } catch (e) { console.error('Developer feature JS failed:', e); }
+            }
+        }
+
+        function removeDeveloperFeature(key) {
+            const safeId = 'dev-feature-' + String(key || '').toLowerCase().replace(/[^a-z0-9_-]+/g,'-');
+            document.getElementById(safeId)?.remove();
+            document.getElementById(safeId + '-style')?.remove();
+            document.getElementById(safeId + '-script')?.remove();
+        }
+
+        function applyAllDeveloperFeatures() {
+            Object.values(developerFeatures || {}).forEach(applyDeveloperFeature);
+        }
+
+        function renderDeveloperFeatureList() {
+            const box = document.getElementById('developerFeatureList');
+            if (!box) return;
+            const items = Object.values(developerFeatures || {});
+            box.innerHTML = items.length ? items.map(f => `
+                <div class="flex items-center gap-3 bg-[#0b1329] border border-slate-800 rounded-xl px-3 py-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-fuchsia-950/60 text-fuchsia-400 flex items-center justify-center"><i class="fa-solid fa-puzzle-piece"></i></div>
+                    <div class="min-w-0 flex-1"><div class="text-xs font-black text-white truncate">${escapeHtml(f.title || f.key)}</div><div class="text-[10px] text-slate-500 truncate">Key: ${escapeHtml(f.key)}${f.targetId ? ' · Target: '+escapeHtml(f.targetId) : ' · Developer Area'}</div></div>
+                    <button onclick="editDeveloperFeature(${JSON.stringify(f.key)})" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold">Edit</button>
+                    <button onclick="deleteDeveloperFeature(${JSON.stringify(f.key)})" class="px-2.5 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-[10px] font-bold">Delete</button>
+                </div>`).join('') : '<div class="text-xs text-slate-500 text-center py-4">No developer features added yet.</div>';
+        }
+
+        function clearDeveloperForm() {
+            ['devFeatureKey','devFeatureTitle','devFeatureTarget','devFeatureHTML','devFeatureCSS','devFeatureJS'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+            const status=document.getElementById('devFeatureStatus'); if(status) status.textContent='Same Feature Key = replace/update the existing feature.';
+        }
+
+        function editDeveloperFeature(key) {
+            const f = developerFeatures[key];
+            if (!f) return;
+            document.getElementById('devFeatureKey').value = f.key || '';
+            document.getElementById('devFeatureTitle').value = f.title || '';
+            document.getElementById('devFeatureTarget').value = f.targetId || '';
+            document.getElementById('devFeatureHTML').value = f.html || '';
+            document.getElementById('devFeatureCSS').value = f.css || '';
+            document.getElementById('devFeatureJS').value = f.js || '';
+            document.getElementById('devFeatureStatus').textContent = 'Editing: ' + f.key;
+        }
+
+        async function saveDeveloperFeature() {
+            if (!myAccess.isOwner) { showToast('Only the owner can use Developer'); return; }
+            const key = String(document.getElementById('devFeatureKey')?.value || '').trim();
+            if (!key) { showToast('Feature Key is required'); return; }
+            const feature = {
+                key,
+                title: String(document.getElementById('devFeatureTitle')?.value || key).trim(),
+                targetId: String(document.getElementById('devFeatureTarget')?.value || '').trim(),
+                html: document.getElementById('devFeatureHTML')?.value || '',
+                css: document.getElementById('devFeatureCSS')?.value || '',
+                js: document.getElementById('devFeatureJS')?.value || '',
+                updatedAt: Date.now()
+            };
+            developerFeatures[key] = feature;
+            saveDeveloperFeaturesLocal();
+            applyDeveloperFeature(feature);
+            renderDeveloperFeatureList();
+            if (cloudDb) {
+                try { await cloudDb.collection('developerFeatures').doc(key).set(feature); }
+                catch (e) { cloudFail(e); showToast('Saved locally; cloud save failed'); return; }
+            }
+            document.getElementById('devFeatureStatus').textContent = 'Saved & applied: ' + key;
+            showToast('Developer feature saved and applied');
+        }
+
+        async function deleteDeveloperFeature(key) {
+            if (!myAccess.isOwner) return;
+            if (!confirm('Delete developer feature "' + key + '"?')) return;
+            delete developerFeatures[key];
+            removeDeveloperFeature(key);
+            saveDeveloperFeaturesLocal();
+            renderDeveloperFeatureList();
+            if (cloudDb) { try { await cloudDb.collection('developerFeatures').doc(key).delete(); } catch (e) { cloudFail(e); } }
+            showToast('Developer feature deleted');
+        }
+
+        function openDeveloperModal() {
+            if (!myAccess.isOwner) { showToast('Only the owner can use Developer'); return; }
+            renderDeveloperFeatureList();
+            document.getElementById('developerModal')?.classList.remove('hidden');
+        }
+        function closeDeveloperModal() { document.getElementById('developerModal')?.classList.add('hidden'); }
+
         function finishHeaderBoot() {
             document.documentElement.classList.remove('app-booting');
         }
@@ -5856,6 +6133,7 @@
             { group: 'controls', key: 'dataImport',    icon: 'fa-upload',         label: 'Import Data' },
             { group: 'controls', key: 'noticeActions', icon: 'fa-bullhorn',       label: 'Dismiss Notice buttons' },
             { group: 'controls', key: 'sheetActions',  icon: 'fa-pen-to-square',  label: 'Add / Edit / Delete Sheet buttons' },
+            { group: 'controls', key: 'developerTools', icon: 'fa-code', label: 'Developer tools' },
             { group: 'sections', key: 'kpiCards',      icon: 'fa-chart-simple',   label: 'Top 4 KPI cards (Dispatch, Delivery, DA, Hold)' },
             { group: 'sections', key: 'hubCards',      icon: 'fa-cubes',          label: 'Hub Management Cards' },
             { group: 'sections', key: 'taskTabs',      icon: 'fa-star',           label: 'Daily Task Sheet tabs' },
@@ -6850,6 +7128,33 @@
 
     </script>
 <script>window.addEventListener('load', finishHeaderBoot, {once:true});</script>
+    <div id="developerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+        <div class="bg-[#111a31] border border-fuchsia-900/50 rounded-2xl w-full max-w-6xl max-h-[92vh] overflow-hidden shadow-2xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+                <div><h3 class="text-base font-black text-white flex items-center gap-2"><i class="fa-solid fa-code text-fuchsia-400"></i> Developer</h3><p class="text-[10px] text-slate-500 mt-1">Add future features here. Reusing the same Feature Key replaces the previous version.</p></div>
+                <button onclick="closeDeveloperModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 p-5 overflow-y-auto max-h-[calc(92vh-72px)]">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Feature Key *</label><input id="devFeatureKey" placeholder="e.g. ageingReport" class="w-full bg-[#0b1329] text-xs text-white rounded-lg px-3 py-2 border border-slate-700"></div>
+                        <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Title</label><input id="devFeatureTitle" placeholder="Ageing Report" class="w-full bg-[#0b1329] text-xs text-white rounded-lg px-3 py-2 border border-slate-700"></div>
+                    </div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Target Element ID (optional)</label><input id="devFeatureTarget" placeholder="Leave blank = Developer Feature Area" class="w-full bg-[#0b1329] text-xs text-white rounded-lg px-3 py-2 border border-slate-700"></div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">HTML</label><textarea id="devFeatureHTML" rows="9" placeholder="Paste feature HTML here..." class="w-full bg-[#0b1329] text-[11px] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 font-mono"></textarea></div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">CSS</label><textarea id="devFeatureCSS" rows="7" placeholder="Paste feature CSS here..." class="w-full bg-[#0b1329] text-[11px] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 font-mono"></textarea></div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-1">JavaScript</label><textarea id="devFeatureJS" rows="9" placeholder="Paste feature JavaScript here..." class="w-full bg-[#0b1329] text-[11px] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 font-mono"></textarea></div>
+                    <div class="flex items-center justify-between gap-3 pt-1"><span id="devFeatureStatus" class="text-[10px] text-slate-500">Same Feature Key = replace/update the existing feature.</span><div class="flex gap-2"><button onclick="clearDeveloperForm()" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">Clear</button><button onclick="saveDeveloperFeature()" class="px-4 py-2 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[10px] font-black"><i class="fa-solid fa-floppy-disk mr-1"></i> Save & Apply</button></div></div>
+                </div>
+                <div class="bg-[#0b1329] border border-slate-800 rounded-xl p-4 h-fit">
+                    <div class="flex items-center justify-between mb-3"><h4 class="text-xs font-black text-white">Installed Features</h4><button onclick="clearDeveloperForm()" class="text-[10px] text-sky-400 hover:text-sky-300 font-bold">New Feature</button></div>
+                    <div id="developerFeatureList" class="space-y-2"></div>
+                    <div class="mt-4 p-3 rounded-xl border border-amber-900/40 bg-amber-950/20 text-[10px] text-amber-200/80 leading-relaxed"><b>How it works:</b> Give a feature a unique key. Paste its HTML/CSS/JS and press <b>Save & Apply</b>. If you later paste a new version using the same key, the dashboard replaces the old version. Cloud sync keeps the feature available after refresh and on other signed-in devices.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="dashboardNotificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
         <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
             <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
