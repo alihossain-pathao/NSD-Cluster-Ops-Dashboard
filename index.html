@@ -518,13 +518,12 @@
                     </button>
                 </div>
 
-                <div class="space-y-1.5" data-owner-only data-hide-key="developerTools">
-                    <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Developer</p>
-                    <button onclick="openDeveloperModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
-                        <span class="w-8 h-8 rounded-lg bg-fuchsia-950/60 border border-fuchsia-800/40 flex items-center justify-center flex-shrink-0 text-fuchsia-400 text-sm">
-                            <i class="fa-solid fa-code"></i>
+                <div class="space-y-1.5" data-owner-only>
+                    <button data-owner-only onclick="openOwnerAccessModal(); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center flex-shrink-0 text-emerald-400 text-sm">
+                            <i class="fa-solid fa-user-shield"></i>
                         </span>
-                        <span class="truncate">Developer</span>
+                        <span class="truncate">Owner Access</span>
                     </button>
                 </div>
 
@@ -891,6 +890,24 @@
             <div class="flex gap-2 mt-4">
                 <button onclick="closePinModal()" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition">Cancel</button>
                 <button onclick="submitPin()" class="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OWNER ACCESS MODAL -->
+    <div id="ownerAccessModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+        <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl">
+            <div class="flex items-center justify-between p-4 border-b border-slate-800">
+                <h3 class="text-sm font-black text-white flex items-center gap-2"><i class="fa-solid fa-user-shield text-emerald-400"></i> Owner Access</h3>
+                <button onclick="closeOwnerAccessModal()" class="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="text-xs text-slate-400">Any existing Owner can assign Owner access to another Google account by email.</div>
+                <div class="flex gap-2">
+                    <input id="ownerAccessEmail" type="email" placeholder="Google account email" class="flex-1 bg-[#0b1329] border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500" onkeydown="if(event.key==='Enter') grantOwnerAccess()">
+                    <button onclick="grantOwnerAccess()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black"><i class="fa-solid fa-user-plus mr-1"></i> Assign Owner</button>
+                </div>
+                <div><div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Current Owners</div><div id="ownerAccessList" class="space-y-2 max-h-64 overflow-y-auto"></div></div>
             </div>
         </div>
     </div>
@@ -2202,17 +2219,23 @@
 
         async function refreshGoogleOwnerStatus() {
             if (!cloudAuth || !currentUser || !cloudDb) { myAccess.isOwner = false; return; }
-            const email = (currentUser.email || '').toLowerCase();
-            if (OWNER_EMAILS.map(x => String(x).toLowerCase()).includes(email)) {
-                myAccess.isOwner = true;
-                dashboardOwnerUid = currentUser.uid;
-                renderClusterNotices();
-                return;
-            }
+            const email = (currentUser.email || '').trim().toLowerCase();
             try {
                 const ref = cloudDb.doc('config/ownerAccess');
                 const snap = await ref.get();
                 const data = snap.exists ? (snap.data() || {}) : {};
+                const configuredOwners = Array.isArray(data.ownerEmails) ? data.ownerEmails : [];
+                const allOwners = [...new Set([...OWNER_EMAILS, ...configuredOwners].map(x => String(x || '').trim().toLowerCase()).filter(Boolean))];
+                if (allOwners.includes(email)) {
+                    myAccess.isOwner = true;
+                    dashboardOwnerUid = data.ownerUid || currentUser.uid;
+                    // Keep the shared owner list compatible with older ownerAccess documents.
+                    if (!configuredOwners.includes(email)) {
+                        try { await ref.set({ ...data, ownerEmails: allOwners, updatedAt: Date.now() }); } catch (e) {}
+                    }
+                    renderClusterNotices();
+                    return;
+                }
                 if (data.ownerEmail) {
                     dashboardOwnerUid = data.ownerUid || null;
                     myAccess.isOwner = data.ownerUid
@@ -2220,7 +2243,7 @@
                         : String(data.ownerEmail).toLowerCase() === email;
                 } else {
                     // First signed-in Google account becomes the dashboard owner.
-                    await ref.set({ ownerEmail: currentUser.email, ownerUid: currentUser.uid, ownerName: currentUser.displayName || '', createdAt: Date.now() });
+                    await ref.set({ ownerEmail: currentUser.email, ownerUid: currentUser.uid, ownerName: currentUser.displayName || '', ownerEmails: allOwners.length ? allOwners : [email], createdAt: Date.now() });
                     dashboardOwnerUid = currentUser.uid;
                     myAccess.isOwner = true;
                 }
@@ -4896,6 +4919,81 @@
             if (cloudDb) { try { await cloudDb.collection('developerFeatures').doc(key).delete(); } catch (e) { cloudFail(e); } }
             showToast('Developer feature deleted');
         }
+
+        async function loadOwnerAccessList() {
+            if (!cloudDb) return [];
+            try {
+                const snap = await cloudDb.doc('config/ownerAccess').get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                return [...new Set([...OWNER_EMAILS, ...(Array.isArray(data.ownerEmails) ? data.ownerEmails : [])]
+                    .map(x => String(x || '').trim().toLowerCase()).filter(Boolean))];
+            } catch (e) {
+                console.warn('Could not load owner access list', e);
+                return [...new Set(OWNER_EMAILS.map(x => String(x).trim().toLowerCase()).filter(Boolean))];
+            }
+        }
+
+        async function renderOwnerAccessList() {
+            const box = document.getElementById('ownerAccessList');
+            if (!box) return;
+            const owners = await loadOwnerAccessList();
+            if (!owners.length) {
+                box.innerHTML = '<div class="text-xs text-slate-500">No owner accounts configured.</div>';
+                return;
+            }
+            box.innerHTML = owners.map(email => `
+                <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[#0b1329] border border-slate-800">
+                    <div class="min-w-0"><div class="text-xs font-bold text-white truncate">${escapeHtml(email)}</div><div class="text-[10px] text-emerald-400">Owner access</div></div>
+                    <button type="button" class="text-[10px] font-bold text-red-400 hover:text-red-300 px-2 py-1 rounded border border-red-900/50" onclick="removeOwnerAccess('${escapeHtml(email)}')">Remove</button>
+                </div>`).join('');
+        }
+
+        async function grantOwnerAccess() {
+            if (!myAccess.isOwner || !cloudDb) { showToast('Only an owner can assign owner access'); return; }
+            const input = document.getElementById('ownerAccessEmail');
+            const email = String(input?.value || '').trim().toLowerCase();
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid Google email'); return; }
+            try {
+                const ref = cloudDb.doc('config/ownerAccess');
+                const snap = await ref.get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                const owners = [...new Set([...OWNER_EMAILS, ...(Array.isArray(data.ownerEmails) ? data.ownerEmails : []), email]
+                    .map(x => String(x || '').trim().toLowerCase()).filter(Boolean))];
+                await ref.set({ ...data, ownerEmail: data.ownerEmail || currentUser.email, ownerUid: data.ownerUid || currentUser.uid, ownerEmails: owners, updatedAt: Date.now() });
+                input.value = '';
+                await renderOwnerAccessList();
+                showToast('Owner access assigned');
+            } catch (e) {
+                console.error('Grant owner access failed', e);
+                cloudFail(e);
+                showToast('Could not assign owner access');
+            }
+        }
+
+        async function removeOwnerAccess(email) {
+            if (!myAccess.isOwner || !cloudDb) return;
+            const target = String(email || '').trim().toLowerCase();
+            const protectedOwners = OWNER_EMAILS.map(x => String(x).trim().toLowerCase());
+            if (protectedOwners.includes(target)) { showToast('Primary owner cannot be removed here'); return; }
+            if (!confirm('Remove owner access for ' + target + '?')) return;
+            try {
+                const ref = cloudDb.doc('config/ownerAccess');
+                const snap = await ref.get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                const owners = [...new Set((Array.isArray(data.ownerEmails) ? data.ownerEmails : []).map(x => String(x || '').trim().toLowerCase()).filter(Boolean))]
+                    .filter(x => x !== target);
+                await ref.set({ ...data, ownerEmails: owners, updatedAt: Date.now() });
+                await renderOwnerAccessList();
+                showToast('Owner access removed');
+            } catch (e) { cloudFail(e); showToast('Could not remove owner access'); }
+        }
+
+        function openOwnerAccessModal() {
+            if (!myAccess.isOwner) { showToast('Only an owner can manage owner access'); return; }
+            renderOwnerAccessList();
+            document.getElementById('ownerAccessModal')?.classList.remove('hidden');
+        }
+        function closeOwnerAccessModal() { document.getElementById('ownerAccessModal')?.classList.add('hidden'); }
 
         function openDeveloperModal() {
             if (!myAccess.isOwner) { showToast('Only the owner can use Developer'); return; }
