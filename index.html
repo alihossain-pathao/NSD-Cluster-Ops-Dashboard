@@ -2126,6 +2126,132 @@
             }
         }
 
+        /* =================== OWNER ACCESS =================== */
+        function normalizeOwnerEmail(email) {
+            return String(email || '').trim().toLowerCase();
+        }
+
+        function getPrimaryOwnerEmails() {
+            return OWNER_EMAILS.map(normalizeOwnerEmail).filter(Boolean);
+        }
+
+        async function getOwnerAccessData() {
+            if (!cloudDb) throw new Error('Shared database is not connected.');
+            const ref = cloudDb.doc('config/ownerAccess');
+            const snap = await ref.get();
+            const data = snap.exists ? (snap.data() || {}) : {};
+            const legacy = data.ownerEmail ? [normalizeOwnerEmail(data.ownerEmail)] : [];
+            const owners = [...new Set([...getPrimaryOwnerEmails(), ...legacy,
+                ...(Array.isArray(data.ownerEmails) ? data.ownerEmails.map(normalizeOwnerEmail) : [])
+            ].filter(Boolean))];
+            return { ref, data, owners };
+        }
+
+        async function renderOwnerAccessList() {
+            const list = document.getElementById('ownerAccessList');
+            if (!list) return;
+            if (!myAccess.isOwner) {
+                list.innerHTML = '<div class="text-xs text-rose-400 font-bold">Only an Owner can manage Owner Access.</div>';
+                return;
+            }
+            list.innerHTML = '<div class="text-xs text-slate-500">Loading owners...</div>';
+            try {
+                const { owners } = await getOwnerAccessData();
+                const primary = new Set(getPrimaryOwnerEmails());
+                list.innerHTML = owners.length ? owners.map(email => `
+                    <div class="flex items-center justify-between gap-3 bg-[#0b1329] border border-slate-800 rounded-lg px-3 py-2">
+                        <div class="min-w-0">
+                            <div class="text-xs text-white font-bold truncate">${escapeHtml(email)}</div>
+                            <div class="text-[9px] font-black ${primary.has(email) ? 'text-emerald-400' : 'text-sky-400'}">${primary.has(email) ? 'PRIMARY OWNER' : 'OWNER ACCESS'}</div>
+                        </div>
+                        ${primary.has(email) ? '<span class="text-[9px] text-slate-500 font-bold">Protected</span>' : `<button type="button" class="text-[10px] font-black text-rose-400 hover:text-rose-300" onclick="revokeOwnerAccess('${encodeURIComponent(email)}')"><i class="fa-solid fa-user-minus mr-1"></i>Remove</button>`}
+                    </div>`).join('') : '<div class="text-xs text-slate-500">No owners configured.</div>';
+            } catch (e) {
+                console.error('Owner list load failed', e);
+                list.innerHTML = '<div class="text-xs text-rose-400 font-bold">Could not load Owner Access. Check Firestore rules/connection.</div>';
+            }
+        }
+
+        async function openOwnerAccessModal() {
+            if (!myAccess.isOwner) {
+                // Re-check once because Google auth and owner status can finish asynchronously.
+                try { await refreshGoogleOwnerStatus(); } catch (e) {}
+            }
+            if (!myAccess.isOwner) {
+                showToast('Only the owner can manage Owner Access');
+                return;
+            }
+            const modal = document.getElementById('ownerAccessModal');
+            if (modal) modal.classList.remove('hidden');
+            const input = document.getElementById('ownerAccessEmail');
+            if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
+            await renderOwnerAccessList();
+        }
+
+        function closeOwnerAccessModal() {
+            document.getElementById('ownerAccessModal')?.classList.add('hidden');
+        }
+
+        async function grantOwnerAccess() {
+            if (!myAccess.isOwner) {
+                try { await refreshGoogleOwnerStatus(); } catch (e) {}
+            }
+            if (!myAccess.isOwner) { showToast('Only the owner can assign Owner Access'); return; }
+            const input = document.getElementById('ownerAccessEmail');
+            const email = normalizeOwnerEmail(input?.value);
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showToast('Enter a valid Google account email');
+                return;
+            }
+            try {
+                const { ref, data, owners } = await getOwnerAccessData();
+                if (owners.includes(email)) {
+                    showToast('This account already has Owner Access');
+                    return;
+                }
+                const updatedOwners = [...new Set([...owners, email])];
+                await ref.set({
+                    ...data,
+                    ownerEmail: data.ownerEmail || getPrimaryOwnerEmails()[0] || email,
+                    ownerUid: data.ownerUid || currentUser?.uid || null,
+                    ownerEmails: updatedOwners,
+                    updatedAt: Date.now()
+                });
+                if (input) input.value = '';
+                await refreshGoogleOwnerStatus();
+                await renderOwnerAccessList();
+                showToast(`${email} now has Owner Access`);
+            } catch (e) {
+                console.error('Grant Owner Access failed', e);
+                showToast('Could not save Owner Access. Check Firestore rules/connection.');
+            }
+        }
+
+        async function revokeOwnerAccess(encodedEmail) {
+            if (!myAccess.isOwner) { showToast('Only the owner can remove Owner Access'); return; }
+            const email = normalizeOwnerEmail(decodeURIComponent(encodedEmail || ''));
+            if (!email || getPrimaryOwnerEmails().includes(email)) {
+                showToast('The primary owner cannot be removed');
+                return;
+            }
+            try {
+                const { ref, data, owners } = await getOwnerAccessData();
+                const updatedOwners = owners.filter(x => x !== email);
+                await ref.set({
+                    ...data,
+                    ownerEmails: updatedOwners,
+                    updatedAt: Date.now()
+                });
+                await renderOwnerAccessList();
+                showToast(`${email} Owner Access removed`);
+            } catch (e) {
+                console.error('Revoke Owner Access failed', e);
+                showToast('Could not remove Owner Access. Check Firestore rules/connection.');
+            }
+        }
+
+        /* =================== END OWNER ACCESS =================== */
+
         async function refreshGoogleOwnerStatus() {
             if (!cloudAuth || !currentUser || !cloudDb) { myAccess.isOwner = false; return; }
             const email = String(currentUser.email || currentUser.providerData?.find(p => p.email)?.email || '').trim().toLowerCase();
