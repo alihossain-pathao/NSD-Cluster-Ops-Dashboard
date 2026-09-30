@@ -2828,14 +2828,9 @@
         }
 
         function formatHubDisplayName(hubName) {
-            const raw = String(hubName || 'Hub').trim().replace(/\s+/g, ' ');
-            if (!raw) return 'Hub';
-            const clean = raw.replace(/\s+HUB$/i, '').trim();
-            const titlePart = clean
-                .split(/([\s-]+)/)
-                .map(part => /^[\s-]+$/.test(part) ? part : (part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part))
-                .join('');
-            return `${titlePart} Hub`;
+            const name = String(hubName || 'HUB').trim().replace(/\s+/g, ' ');
+            if (!name) return 'HUB';
+            return /\bHUB\b$/i.test(name) ? name.toUpperCase() : `${name.toUpperCase()} HUB`;
         }
 
         function generateReport(hubId, hubName) {
@@ -4706,8 +4701,8 @@
 
                 return {
                     hub, fields, rawDate, reportISO, isCurrent, todayDisplay,
-                    vanIn: String(fields.m_vanInTime || '-').trim() || '-',
-                    dispatch: String(fields.m_dispatchTime || '-').trim() || '-',
+                    vanIn: normalizeTime12(String(fields.m_vanInTime || '').trim()) || '-',
+                    dispatch: normalizeTime12(String(fields.m_dispatchTime || '').trim()) || '-',
                     totalParcels, totalAssign,
                     assignRate: pct(totalAssign, totalParcels),
                     totalDA, presentDA, attendance: pct(presentDA, totalDA),
@@ -4751,7 +4746,7 @@
             const deliveryBase = currentRows.reduce((a, r) => a + r.delivered + r.fieldHold + r.fieldReturn, 0);
             const deliveryRate = deliveryBase > 0 ? Math.round(totalDelivered / deliveryBase * 100) : 0;
             const parseClockMinutes = value => {
-                const m = String(value || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+                const m = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
                 if (!m) return null;
                 let h = Number(m[1]), min = Number(m[2]);
                 if (m[3]) { const ap = m[3].toUpperCase(); if (ap === 'AM' && h === 12) h = 0; if (ap === 'PM' && h !== 12) h += 12; }
@@ -4759,7 +4754,16 @@
             };
             const elapsed = fields => {
                 const saved = String(fields.m_elapsedTime || '').trim();
-                if (saved) return saved;
+                if (saved) {
+                    const vm = parseClockMinutes(fields.m_vanInTime);
+                    const dm = parseClockMinutes(fields.m_dispatchTime);
+                    if (vm !== null && dm !== null) {
+                        let diff = dm - vm;
+                        if (diff < 0) diff += 24 * 60;
+                        return Math.floor(diff / 60) + ' Hours ' + (diff % 60) + ' Minutes';
+                    }
+                    return saved;
+                }
                 const start = parseClockMinutes(fields.m_vanInTime);
                 const end = parseClockMinutes(fields.m_dispatchTime);
                 if (start === null || end === null) return '-';
@@ -5666,7 +5670,32 @@
             calculateClosingReport();
         }
 
+        // TIME FORMAT FIX: accepts HH:MM, HH:MM:SS with AM/PM and always displays H:MM AM/PM.
+        // Global helper: calculateMorningTime() is outside window.onload, so this
+        // function must also be in global scope.
+        function normalizeTime12(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            const m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+            if (!m) return raw;
+            let h = Number(m[1]);
+            const min = Number(m[2]);
+            let ap = m[3] ? m[3].toUpperCase() : '';
+            if (!ap) {
+                ap = h >= 12 ? 'PM' : 'AM';
+                if (h === 0) h = 12;
+                else if (h > 12) h -= 12;
+            } else if (h === 0) {
+                h = 12;
+            }
+            return `${h}:${String(min).padStart(2, '0')} ${ap}`;
+        }
+
         function calculateMorningTime() {
+            const vNorm = document.getElementById('m_vanInTime');
+            const dNorm = document.getElementById('m_dispatchTime');
+            if (vNorm && vNorm.value) vNorm.value = normalizeTime12(vNorm.value);
+            if (dNorm && dNorm.value) dNorm.value = normalizeTime12(dNorm.value);
             const elapsedEl = document.getElementById('m_elapsedTime');
             const vTimeEl = document.getElementById('m_vanInTime');
             const dTimeEl = document.getElementById('m_dispatchTime');
@@ -5680,11 +5709,12 @@
             try {
                 const vDate = parseTime(vTimeStr);
                 const dDate = parseTime(dTimeStr);
-                if (elapsedEl && vDate && dDate && dDate >= vDate) {
+                if (elapsedEl && vDate && dDate) {
                     let diffMs = dDate - vDate;
-                    let diffMins = Math.floor(diffMs / 60000);
-                    let hrs = Math.floor(diffMins / 60);
-                    let mins = diffMins % 60;
+                    if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const hrs = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
                     elapsedEl.innerText = `${hrs} Hours ${mins} Minutes`;
                 }
             } catch(e) {
@@ -5695,7 +5725,7 @@
         function parseTime(tStr) {
             if (!tStr) return null;
             let d = new Date();
-            let match = tStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+            let match = tStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
             if (!match) return null;
             let hrs = parseInt(match[1]);
             let mins = parseInt(match[2]);
@@ -5897,7 +5927,47 @@
 
             initAttendanceReportListeners();
 
+            function normalizeTime12(value) {
+                const raw = String(value || '').trim();
+                if (!raw) return '';
+                const m = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+                if (!m) return raw;
+                let h = Number(m[1]);
+                const min = Number(m[2]);
+                let ap = m[3] ? m[3].toUpperCase() : '';
+                if (!ap) {
+                    ap = h >= 12 ? 'PM' : 'AM';
+                    if (h === 0) h = 12;
+                    else if (h > 12) h -= 12;
+                } else {
+                    if (h === 0) h = 12;
+                }
+                return `${h}:${String(min).padStart(2, '0')} ${ap}`;
+            }
+
+            function normalizeReportTimes() {
+                ['m_vanInTime', 'm_dispatchTime'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && el.value) el.value = normalizeTime12(el.value);
+                });
+            }
+
             document.querySelectorAll('#hubReportView input, #hubReportView select').forEach(el => {
+                el.addEventListener('blur', () => {
+                    if (el.id === 'm_vanInTime' || el.id === 'm_dispatchTime') {
+                        const normalized = normalizeTime12(el.value);
+                        if (normalized !== el.value) el.value = normalized;
+                        calculateMorningTime();
+                        saveCurrentHubReportData();
+                    }
+                });
+                el.addEventListener('change', () => {
+                    if (el.id === 'm_vanInTime' || el.id === 'm_dispatchTime') {
+                        el.value = normalizeTime12(el.value);
+                        calculateMorningTime();
+                        saveCurrentHubReportData();
+                    }
+                });
                 el.addEventListener('input', () => {
                     calculateMorningFormulas();
                     // Report Date changes must refresh the Previous Ratio from
