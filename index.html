@@ -2828,9 +2828,14 @@
         }
 
         function formatHubDisplayName(hubName) {
-            const name = String(hubName || 'HUB').trim().replace(/\s+/g, ' ');
-            if (!name) return 'HUB';
-            return /\bHUB\b$/i.test(name) ? name.toUpperCase() : `${name.toUpperCase()} HUB`;
+            const raw = String(hubName || 'Hub').trim().replace(/\s+/g, ' ');
+            if (!raw) return 'Hub';
+            const clean = raw.replace(/\s+HUB$/i, '').trim();
+            const titlePart = clean
+                .split(/([\s-]+)/)
+                .map(part => /^[\s-]+$/.test(part) ? part : (part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part))
+                .join('');
+            return `${titlePart} Hub`;
         }
 
         function generateReport(hubId, hubName) {
@@ -3198,6 +3203,86 @@
         // Capture paste once, before the input's native paste handling.
         // Using stopImmediatePropagation prevents duplicate processing by multiple handlers.
         document.addEventListener('paste', handleInventoryPaste, true);
+
+        // ================================================================
+        // REPORT BULK MULTI-ROW PASTE
+        // Paste values copied as one value per line directly into the
+        // corresponding vertical report rows. Example: 17\n12\n5
+        // fills the selected row and the next rows in the same report field group.
+        // ================================================================
+        const REPORT_BULK_PASTE_GROUPS = [
+            // Morning: Received Parcel Ageing
+            ['m_age1','m_age2','m_age3','m_age4'],
+            // Morning: Dispatch Report
+            ['m_prevHold','m_reattemptReq','m_recParcel','m_areaChange'],
+            // Morning: Office Hold / Capacity Shortage
+            ['m_officeHold','m_capShort'],
+            // Morning: Hub In-Charge
+            ['m_totalHubIC','m_presentHubIC'],
+            // Closing: Delivery result rows
+            ['delivered','fieldHold','fieldReturn'],
+            // Closing: Backlog rows
+            ['totalIssue','totalSolved','totalPending','hubNotReceived'],
+            // Closing: IMS return/reverse columns
+            ['ims_issue_ret','ims_solved_ret','ims_pending_ret'],
+            ['ims_issue_rev','ims_solved_rev','ims_pending_rev'],
+            // Closing: Previous Day Ratio rows
+            ['prevRatioInput1','prevRatioInput2','prevRatioInput3']
+        ];
+
+        function getReportBulkGroupIndex(inputId) {
+            for (const group of REPORT_BULK_PASTE_GROUPS) {
+                const index = group.indexOf(inputId);
+                if (index !== -1) return { group, index };
+            }
+            return null;
+        }
+
+        function handleReportBulkPaste(event) {
+            const target = event.target;
+            if (!target || !target.matches('#hubReportView input')) return;
+            if (target.readOnly || target.disabled) return;
+
+            const clipboard = event.clipboardData || window.clipboardData;
+            const raw = clipboard ? (clipboard.getData('text/plain') || clipboard.getData('text') || '') : '';
+            if (!raw || !raw.trim()) return;
+
+            const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+                .split('\n').map(v => v.trim()).filter(v => v !== '');
+            if (lines.length < 2) return;
+
+            const info = getReportBulkGroupIndex(target.id);
+            if (!info) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            const { group, index } = info;
+            const values = lines.slice(0, group.length - index);
+            values.forEach((value, offset) => {
+                const el = document.getElementById(group[index + offset]);
+                if (!el) return;
+                // Keep numeric fields numeric; text fields (e.g. Previous Ratio) stay text.
+                if (el.type === 'number') {
+                    const cleaned = value.replace(/,/g, '').replace(/%/g, '').trim();
+                    el.value = cleaned;
+                } else {
+                    el.value = value;
+                }
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            // Recalculate all dependent report ratios/totals and persist the edited report.
+            try { calculateMorningFormulas(); } catch (e) {}
+            try { calculateClosingReport(); } catch (e) {}
+            try { updateAllComparisons(); } catch (e) {}
+            try { saveCurrentHubReportData(); } catch (e) {}
+            showToast(`${values.length} row${values.length === 1 ? '' : 's'} pasted successfully`);
+        }
+
+        document.addEventListener('paste', handleReportBulkPaste, true);
+
 
         function inventoryCellCount(value) {
             const v = String(value ?? '').trim();
