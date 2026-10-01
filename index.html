@@ -1960,6 +1960,9 @@
         // otherwise Firestore rules using request.auth != null can reject a
         // perfectly valid user's first save.
         let cloudAuthReadyResolve = null;
+        let googleAuthListenerStarted = false;
+        let cloudSyncListenersStarted = false;
+        let cloudSyncInitializationRunning = false;
         let cloudAuthReadyPromise = new Promise(resolve => { cloudAuthReadyResolve = resolve; });
 
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
@@ -2953,6 +2956,8 @@
 
         function setupGoogleAuth() {
             if (!cloudAuth) { finishOwnerPermissionCheck(true); return; }
+            if (googleAuthListenerStarted) return;
+            googleAuthListenerStarted = true;
 
             cloudAuth.onAuthStateChanged(async user => {
                 currentUser = user || null;
@@ -2977,6 +2982,11 @@
                     // Firebase may restore Auth after the first render. Retry every
                     // durable shared write as soon as the signed-in session exists.
                     try { await flushSharedOutbox(); } catch (e) { console.warn('Auth-ready shared retry failed:', e); }
+                    // If Auth was restored after the first 20-second startup wait,
+                    // finish the shared Firestore initialization now.
+                    if (!cloudSyncListenersStarted && !cloudSyncInitializationRunning) {
+                        try { await initCloudSync(); } catch (e) { console.error('Late cloud sync initialization failed:', e); cloudFail(e); }
+                    }
                 } else {
                     myAccess.isOwner = false;
                     finishOwnerPermissionCheck(true);
@@ -2993,6 +3003,9 @@
         }
 
         async function initCloudSync() {
+            if (cloudSyncListenersStarted || cloudSyncInitializationRunning) return;
+            cloudSyncInitializationRunning = true;
+            try {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState();
             loadTabsAndSheets();
@@ -3345,6 +3358,10 @@
             }
 
             applyOwnerOnlyUI();
+            cloudSyncListenersStarted = true;
+            } finally {
+                cloudSyncInitializationRunning = false;
+            }
         }
 
         function toggleSidebar() {
@@ -6615,6 +6632,9 @@
                 renderConsolidatedMatrix();
                 renderLeaderboard();
                 renderClusterNotices();
+            }).catch(err => {
+                console.error('Cloud sync startup failed:', err);
+                cloudFail(err);
             });
 
             initAttendanceReportListeners();
