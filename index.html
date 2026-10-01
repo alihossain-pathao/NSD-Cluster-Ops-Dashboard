@@ -3144,7 +3144,6 @@
             }, err => { console.error('Shared taskData listener failed:', err); cloudFail(err); });
 
             cloudDb.doc('config/notices').onSnapshot(snap => {
-                if (noticeWriteInFlight > 0) return;
                 if (snap.exists) {
                     const nd = snap.data() || {};
                     cloudDismissedNoticeIds = Array.isArray(nd.dismissedNoticeIds) ? nd.dismissedNoticeIds : [];
@@ -3183,39 +3182,19 @@
                 let touchedActive = false;
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
-                    // Always process Firestore snapshots. Firestore is the shared source of truth.
                     if (ch.type === 'removed') {
-                        delete hubReportsData[id]; delete hubReportHistory[id];
+                        delete hubReportsData[id];
+                        delete hubReportHistory[id];
+                        delete previousRatioOverrides[id];
                     } else {
+                        // IMPORTANT: Firestore is authoritative. Do not merge a
+                        // user's old LocalStorage copy back into a remote report.
+                        // The previous implementation could make two browsers
+                        // display different versions of the same report.
                         const d = ch.doc.data() || {};
-                        const localFields = hubReportsData[id] || {};
-                        const cloudFields = d.fields || {};
-
-                        // Do not let a stale/older Firestore snapshot erase a
-                        // locally cached Previous Ratio. Merge history by date
-                        // and prefer the newest snapshot when both exist.
-                        hubReportsData[id] = { ...localFields, ...cloudFields };
-
-                        const localHistory = hubReportHistory[id] || {};
-                        const cloudHistory = d.history || {};
-                        const mergedHistory = { ...localHistory };
-                        Object.keys(cloudHistory).forEach(dateKey => {
-                            const localEntry = mergedHistory[dateKey];
-                            const cloudEntry = cloudHistory[dateKey];
-                            if (!localEntry) {
-                                mergedHistory[dateKey] = cloudEntry;
-                                return;
-                            }
-                            const localTime = Date.parse(localEntry.savedAt || '') || 0;
-                            const cloudTime = Date.parse(cloudEntry?.savedAt || '') || 0;
-                            if (cloudTime >= localTime) mergedHistory[dateKey] = cloudEntry;
-                        });
-                        hubReportHistory[id] = mergedHistory;
-
-                        const localOverrides = previousRatioOverrides[id] || {};
-                        const cloudOverrides = d.previousRatioOverrides || {};
-                        previousRatioOverrides[id] = { ...localOverrides, ...cloudOverrides };
-
+                        hubReportsData[id] = d.fields || {};
+                        hubReportHistory[id] = d.history || {};
+                        previousRatioOverrides[id] = d.previousRatioOverrides || {};
                         if (id === currentActiveHubId) touchedActive = true;
                     }
                 });
