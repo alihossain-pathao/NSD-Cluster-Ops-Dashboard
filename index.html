@@ -1913,6 +1913,7 @@
         // first authoritative hubs snapshot arrives, never render stale/default
         // Hub cards from this browser's LocalStorage.
         let hubCloudStateReady = false;
+        let hubListenerError = '';
         let cloudUserCap = null;
         let currentUser = null;
         let myAccess = { isOwner: false };
@@ -2987,12 +2988,16 @@
                 // An empty snapshot is valid and MUST clear stale LocalStorage Hubs.
                 hubList = next;
                 hubCloudStateReady = true;
+                hubListenerError = '';
                 saveLocalState();
                 rerenderAll();
             }, err => {
                 console.error('hubs listener failed', err);
                 hubCloudStateReady = false;
+                hubListenerError = (err && (err.code || err.message)) || 'unknown error';
+                sharedListenersUid = null;
                 cloudFail(err);
+                try { renderDashboard(); } catch (e) {}
             });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
@@ -5301,6 +5306,27 @@
 
             const grid = document.getElementById('hubCardsGrid');
             if (!grid) return;
+
+            // Visible status instead of a silent blank area when hubs cannot load.
+            let hubBanner = document.getElementById('hubStatusBanner');
+            if (!hubBanner) {
+                hubBanner = document.createElement('div');
+                hubBanner.id = 'hubStatusBanner';
+                grid.parentNode.insertBefore(hubBanner, grid);
+            }
+            let hubMsg = '', hubMsgColor = 'text-amber-300 border-amber-800/60 bg-amber-950/40';
+            if (hubListenerError) {
+                hubMsg = 'Hubs could not be loaded from the shared database (' + escapeHtml(hubListenerError) + '). '
+                    + (/permission/i.test(hubListenerError)
+                        ? 'Firestore rules do not allow this account to read hubs - ask the owner to update the rules.'
+                        : 'Check internet connection and refresh.');
+                hubMsgColor = 'text-rose-300 border-rose-800/60 bg-rose-950/40';
+            } else if (cloudDb && cloudDb.__firebase && !hubCloudStateReady) {
+                hubMsg = currentUser ? 'Loading hubs from shared database...' : 'Sign in with Google to load the hubs.';
+            }
+            hubBanner.innerHTML = hubMsg
+                ? `<div class="mb-3 px-4 py-3 rounded-xl border text-xs font-bold ${hubMsgColor}">${hubMsg}</div>`
+                : '';
 
             grid.innerHTML = filteredHubs.map(hub => `
                 <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 hover:border-sky-800/60 hover:-translate-y-1 hover:shadow-2xl transition-all duration-200 shadow-xl flex flex-col justify-between relative group">
