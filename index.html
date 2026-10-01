@@ -1909,6 +1909,10 @@
         ======================================================================================= */
         let cloudDb = null;
         let cloudAuth = null;
+        // Firestore is authoritative for the Hub Management Cards. Until the
+        // first authoritative hubs snapshot arrives, never render stale/default
+        // Hub cards from this browser's LocalStorage.
+        let hubCloudStateReady = false;
         let cloudUserCap = null;
         let currentUser = null;
         let myAccess = { isOwner: false };
@@ -1964,12 +1968,15 @@
             } catch (e) {}
         }
 
-        function loadLocalState() {
+        function loadLocalState(options = {}) {
             try {
                 const raw = localStorage.getItem(LS_STATE_KEY);
                 if (!raw) return false;
                 const st = JSON.parse(raw);
-                if (Array.isArray(st.hubList)) hubList = st.hubList;
+                // Shared Hub List is intentionally excluded during cloud startup.
+                // LocalStorage may contain deleted/old Hubs and must never restore
+                // them before Firestore confirms the current shared state.
+                if (options.useHubList !== false && Array.isArray(st.hubList)) hubList = st.hubList;
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
@@ -2127,45 +2134,26 @@
         async function migrateLegacyHubListToPerHubDocs() {
             if (!cloudDb) return false;
             try {
-                // IMPORTANT: migration is one-time only.  Never rebuild deleted Hubs
-                // from the old config/hubList document after the migration is complete.
+                // FINAL Hub source-of-truth rule:
+                // `hubs/{hubId}` is authoritative. The old `config/hubList` document
+                // is NEVER read to recreate Hubs. This prevents a deleted Hub from
+                // returning after Ctrl+R, browser restart, or another user's refresh.
                 const migrationRef = cloudDb.doc('config/hubStorageMigration');
                 const migrationSnap = await migrationRef.get();
                 const migration = migrationSnap.exists ? (migrationSnap.data() || {}) : {};
                 if (migration.completed === true) return true;
 
-                const hubsSnap = await cloudDb.collection('hubs').get();
-                if (!hubsSnap.empty) {
-                    if (myAccess.isOwner) {
-                        await migrationRef.set({ completed: true, version: 1, completedAt: Date.now() });
-                    }
-                    return true;
-                }
-
-                // One-time import of the old array, if it still exists.
-                const legacySnap = await cloudDb.doc('config/hubList').get();
-                const legacy = legacySnap.exists ? (legacySnap.data() || {}) : {};
-                const legacyHubs = Array.isArray(legacy.hubList) ? legacy.hubList : [];
-
-                if (legacyHubs.length > 0) {
-                    for (const hub of legacyHubs) {
-                        if (hub?.id) await cloudSyncHub(hub.id, hub);
-                    }
-                } else if (myAccess.isOwner && Array.isArray(hubList) && hubList.length > 0) {
-                    // First installation: only the Owner seeds the initial Hub docs.
-                    for (const hub of JSON.parse(JSON.stringify(hubList))) {
-                        if (hub?.id) await cloudSyncHub(hub.id, hub);
-                    }
-                }
-
-                // Mark migration complete even when the resulting Hub collection is
-                // intentionally empty. This prevents deleted Hubs from coming back.
                 if (myAccess.isOwner) {
-                    await migrationRef.set({ completed: true, version: 1, completedAt: Date.now() });
+                    await migrationRef.set({
+                        completed: true,
+                        version: 2,
+                        authoritativeCollection: 'hubs',
+                        completedAt: Date.now()
+                    });
                 }
                 return true;
             } catch (e) {
-                console.error('Hub migration failed:', e);
+                console.error('Hub migration marker failed:', e);
                 cloudFail(e);
                 return false;
             }
@@ -2865,7 +2853,10 @@
 
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
-            loadLocalState();
+            loadLocalState({ useHubList: false });
+            // Do not trust cached/default Hub cards while Firestore is initializing.
+            hubList = [];
+            hubCloudStateReady = false;
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
@@ -2885,12 +2876,23 @@
             }
 
             if (!cloudDb) {
-                // Plain file / no shared database: no owner controls until Google sign-in is available.
+                // If Firebase is genuinely unavailable, fall back to this device's
+                // cached Hub List. In normal Firebase use this branch is not reached.
+                loadLocalState({ useHubList: true });
+                hubCloudStateReady = true;
                 myAccess.isOwner = false;
                 finishOwnerPermissionCheck(true);
                 updateProfileUI();
+                renderDashboard();
+                renderConsolidatedMatrix();
+                renderLeaderboard();
                 return;
             }
+
+            // Firebase is available: cached/default Hubs are not trusted.
+            hubList = [];
+            hubCloudStateReady = false;
+            renderDashboard();
 
             if (cloudUserCap) {
                 try { myAccess.isOwner = !!(await cloudUserCap.isOwner()); } catch (e) { myAccess.isOwner = false; }
@@ -2960,10 +2962,18 @@
                     if (hub && hub.id) next.push(JSON.parse(JSON.stringify(hub)));
                 });
                 next.sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+
+                // This snapshot is the only authority for Hub Management Cards.
+                // An empty snapshot is valid and MUST clear stale LocalStorage Hubs.
                 hubList = next;
+                hubCloudStateReady = true;
                 saveLocalState();
                 rerenderAll();
-            }, err => { console.error('hubs listener failed', err); cloudFail(err); });
+            }, err => {
+                console.error('hubs listener failed', err);
+                hubCloudStateReady = false;
+                cloudFail(err);
+            });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
@@ -6367,7 +6377,11 @@
         window.onload = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
-            loadLocalState();
+            loadLocalState({ useHubList: false });
+            // Never render the three hard-coded/default Hub cards before the
+            // authoritative Firestore Hub snapshot is received.
+            hubList = [];
+            hubCloudStateReady = false;
             loadTabsAndSheets();
             loadNoticesFromStorage();
             updateProfileUI();
