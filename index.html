@@ -2089,10 +2089,70 @@
             return job;
         }
 
-        function cloudSyncHubList() {
+        async function cloudSyncHub(hubId, hubOverride = null) {
+            if (!hubId || !cloudDb) return false;
+            const hub = hubOverride || hubList.find(h => h.id === hubId);
+            if (!hub) return false;
+            try {
+                return await queueSharedDocument('hubs/' + hubId, {
+                    hub: JSON.parse(JSON.stringify(hub))
+                });
+            } catch (e) {
+                console.error('Hub cloud sync error:', hubId, e);
+                cloudFail(e);
+                return false;
+            }
+        }
+
+        async function cloudSyncHubList() {
             saveLocalState();
-            if (!cloudDb) return;
-            queueSharedDocument('config/hubList', { hubList: JSON.parse(JSON.stringify(hubList)) });
+            if (!cloudDb) return false;
+            try {
+                // Permanent multi-user Hub storage: each Hub is its own Firestore
+                // document. This avoids whole-array last-write-wins conflicts.
+                const hubs = JSON.parse(JSON.stringify(hubList));
+                for (const hub of hubs) {
+                    if (!hub?.id) continue;
+                    const ok = await cloudSyncHub(hub.id, hub);
+                    if (!ok) return false;
+                }
+                return true;
+            } catch (e) {
+                console.error('Hub List cloud sync error:', e);
+                cloudFail(e);
+                return false;
+            }
+        }
+
+        async function migrateLegacyHubListToPerHubDocs() {
+            if (!cloudDb) return false;
+            try {
+                const hubsSnap = await cloudDb.collection('hubs').get();
+                if (!hubsSnap.empty) return true;
+
+                const legacySnap = await cloudDb.doc('config/hubList').get();
+                const legacy = legacySnap.exists ? (legacySnap.data() || {}) : {};
+                const legacyHubs = Array.isArray(legacy.hubList) ? legacy.hubList : [];
+
+                if (legacyHubs.length > 0) {
+                    for (const hub of legacyHubs) {
+                        if (hub?.id) await cloudSyncHub(hub.id, hub);
+                    }
+                    return true;
+                }
+
+                // First installation: only the Owner may seed the shared Hub docs.
+                if (myAccess.isOwner && Array.isArray(hubList) && hubList.length > 0) {
+                    for (const hub of JSON.parse(JSON.stringify(hubList))) {
+                        if (hub?.id) await cloudSyncHub(hub.id, hub);
+                    }
+                }
+                return true;
+            } catch (e) {
+                console.error('Hub migration failed:', e);
+                cloudFail(e);
+                return false;
+            }
         }
         function cloudSyncTaskData() {
             if (!cloudDb) return;
@@ -2830,14 +2890,7 @@
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
             await Promise.all([
                 (async () => {
-                    try {
-                        const hubDoc = await cloudDb.doc('config/hubList').get();
-                        if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
-                            hubList = hubDoc.data().hubList;
-                        } else if (myAccess.isOwner) {
-                            await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
-                        }
-                    } catch (e) {}
+                    await migrateLegacyHubListToPerHubDocs();
                 })(),
                 (async () => {
                     try {
@@ -2882,16 +2935,19 @@
                 })()
             ]);
 
-            cloudDb.doc('config/hubList').onSnapshot(snap => {
-                if (!snap.exists) return;
-                const data = snap.data() || {};
-                if (!Array.isArray(data.hubList)) return;
-                // ALWAYS accept Firestore snapshots. Local pending flags must not
-                // hide another user's Add/Remove operation.
-                hubList = JSON.parse(JSON.stringify(data.hubList));
+            // Permanent real-time Hub source of truth: one Firestore document per Hub.
+            cloudDb.collection('hubs').onSnapshot(snap => {
+                const next = [];
+                snap.docs.forEach(doc => {
+                    const d = doc.data() || {};
+                    const hub = d.hub && typeof d.hub === 'object' ? d.hub : d;
+                    if (hub && hub.id) next.push(JSON.parse(JSON.stringify(hub)));
+                });
+                next.sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+                hubList = next;
                 saveLocalState();
                 rerenderAll();
-            }, err => { console.error('hubList listener failed', err); cloudFail(err); });
+            }, err => { console.error('hubs listener failed', err); cloudFail(err); });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
@@ -4025,7 +4081,7 @@
 
             recordHubReportHistory(hubId, hub);
             renderDashboard();
-            cloudSyncHubList();
+            cloudSyncHub(hubId);
         }
 
         /* DAILY / WEEKLY / MONTHLY / CUSTOM REPORT SUMMARY */
@@ -5510,31 +5566,68 @@
             document.getElementById('removeHubModal').classList.add('hidden');
         }
 
-        function handleRemoveHubSelect() {
+        async function handleRemoveHubSelect() {
             const select = document.getElementById('removeHubSelect');
             const selectedId = select.value;
             if (selectedId) {
-                removeHubDirect(selectedId);
+                await removeHubDirect(selectedId);
                 closeRemoveHubModal();
             }
         }
 
-        function removeHubDirect(hubId) {
-            hubList = hubList.filter(h => h.id !== hubId);
-            delete hubReportsData[hubId];
-            delete hubReportHistory[hubId];
-            delete attendanceReportsData[hubId];
-            delete inventoryReportsData[hubId];
-            filterHubs();
-            renderConsolidatedMatrix();
-            renderLeaderboard();
-            cloudSyncHubList();
-            if (cloudDb) {
-                try { cloudDb.collection('hubReports').doc(hubId).delete(); } catch (e) {}
-                try { cloudDb.collection('attendanceReports').doc(hubId).delete(); } catch (e) {}
-                try { cloudDb.collection('inventoryReports').doc(hubId).delete(); } catch (e) {}
+        async function removeHubDirect(hubId) {
+            if (!hubId) return;
+            if (!cloudDb) {
+                showToast('Cloud database is not connected. Hub was not removed.');
+                return;
             }
-            showToast(`Hub ${hubId} removed successfully!`);
+
+            const existingHub = hubList.find(h => h.id === hubId);
+            if (!existingHub) {
+                showToast('Hub not found');
+                return;
+            }
+
+            const previousHubList = JSON.parse(JSON.stringify(hubList));
+            try {
+                // Delete the Hub document first. The collection listener will then
+                // remove it from every user's dashboard automatically.
+                const hubDeleted = await cloudDb.collection('hubs').doc(hubId).delete().then(() => true).catch(err => {
+                    cloudFail(err);
+                    return false;
+                });
+                if (!hubDeleted) {
+                    showToast(`Hub ${hubId} could not be removed from Cloud.`);
+                    return;
+                }
+
+                // Remove dependent shared documents after the Hub itself is safely deleted.
+                const cleanup = [];
+                cleanup.push(cloudDb.collection('hubReports').doc(hubId).delete().catch(e => console.warn('hubReports cleanup failed', e)));
+                cleanup.push(cloudDb.collection('attendanceReports').doc(hubId).delete().catch(e => console.warn('attendanceReports cleanup failed', e)));
+                cleanup.push(cloudDb.collection('inventoryReports').doc(hubId).delete().catch(e => console.warn('inventoryReports cleanup failed', e)));
+                await Promise.all(cleanup);
+
+                hubList = hubList.filter(h => h.id !== hubId);
+                delete hubReportsData[hubId];
+                delete hubReportHistory[hubId];
+                delete attendanceReportsData[hubId];
+                delete inventoryReportsData[hubId];
+                saveLocalState();
+                filterHubs();
+                renderConsolidatedMatrix();
+                renderLeaderboard();
+                showToast(`Hub ${hubId} removed successfully for all users.`);
+            } catch (e) {
+                console.error('Remove Hub failed:', e);
+                cloudFail(e);
+                hubList = previousHubList;
+                saveLocalState();
+                renderDashboard();
+                renderConsolidatedMatrix();
+                renderLeaderboard();
+                showToast(`Hub ${hubId} removal failed. No shared change was confirmed.`);
+            }
         }
 
         function openAddHubModal() { document.getElementById('addHubModal').classList.remove('hidden'); }
@@ -5543,7 +5636,7 @@
             document.getElementById('addHubForm').reset();
         }
 
-        function handleAddHub(event) {
+        async function handleAddHub(event) {
             event.preventDefault();
             const name = document.getElementById('newHubName').value.trim();
             const id = document.getElementById('newHubId').value.trim().toUpperCase();
@@ -5558,13 +5651,27 @@
             if (document.getElementById('newHubReportSummary').checked) selectedReports.push('summary');
             if (document.getElementById('newHubReportAttendance').checked) selectedReports.push('attendance');
 
-            hubList.push({ id, name, type: 'HUB', totalVolume: 0, daPresent: 0, daTotal: 0, delivered: 0, totalHold: 0, collection: 0, issues: 0, deliveryRate: '0%', status: 'In Progress', reports: selectedReports });
+            const newHub = { id, name, type: 'HUB', totalVolume: 0, daPresent: 0, daTotal: 0, delivered: 0, totalHold: 0, collection: 0, issues: 0, deliveryRate: '0%', status: 'In Progress', reports: selectedReports };
+            hubList.push(newHub);
             renderDashboard();
             renderConsolidatedMatrix();
             renderLeaderboard();
-            cloudSyncHubList();
+
+            // Write only this Hub document. This prevents one user's Add from
+            // overwriting another user's simultaneous Add/Remove operation.
+            const synced = await cloudSyncHub(id, newHub);
+            if (!synced) {
+                hubList = hubList.filter(h => h.id !== id);
+                saveLocalState();
+                renderDashboard();
+                renderConsolidatedMatrix();
+                renderLeaderboard();
+                showToast(`Hub ${name} could not be added to Cloud.`);
+                return;
+            }
+
             closeAddHubModal();
-            showToast(`Hub ${name} added successfully!`);
+            showToast(`Hub ${name} added successfully for all users.`);
         }
 
         function filterHubs() {
