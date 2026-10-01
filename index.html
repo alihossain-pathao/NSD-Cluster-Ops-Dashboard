@@ -2127,9 +2127,22 @@
         async function migrateLegacyHubListToPerHubDocs() {
             if (!cloudDb) return false;
             try {
-                const hubsSnap = await cloudDb.collection('hubs').get();
-                if (!hubsSnap.empty) return true;
+                // IMPORTANT: migration is one-time only.  Never rebuild deleted Hubs
+                // from the old config/hubList document after the migration is complete.
+                const migrationRef = cloudDb.doc('config/hubStorageMigration');
+                const migrationSnap = await migrationRef.get();
+                const migration = migrationSnap.exists ? (migrationSnap.data() || {}) : {};
+                if (migration.completed === true) return true;
 
+                const hubsSnap = await cloudDb.collection('hubs').get();
+                if (!hubsSnap.empty) {
+                    if (myAccess.isOwner) {
+                        await migrationRef.set({ completed: true, version: 1, completedAt: Date.now() });
+                    }
+                    return true;
+                }
+
+                // One-time import of the old array, if it still exists.
                 const legacySnap = await cloudDb.doc('config/hubList').get();
                 const legacy = legacySnap.exists ? (legacySnap.data() || {}) : {};
                 const legacyHubs = Array.isArray(legacy.hubList) ? legacy.hubList : [];
@@ -2138,14 +2151,17 @@
                     for (const hub of legacyHubs) {
                         if (hub?.id) await cloudSyncHub(hub.id, hub);
                     }
-                    return true;
-                }
-
-                // First installation: only the Owner may seed the shared Hub docs.
-                if (myAccess.isOwner && Array.isArray(hubList) && hubList.length > 0) {
+                } else if (myAccess.isOwner && Array.isArray(hubList) && hubList.length > 0) {
+                    // First installation: only the Owner seeds the initial Hub docs.
                     for (const hub of JSON.parse(JSON.stringify(hubList))) {
                         if (hub?.id) await cloudSyncHub(hub.id, hub);
                     }
+                }
+
+                // Mark migration complete even when the resulting Hub collection is
+                // intentionally empty. This prevents deleted Hubs from coming back.
+                if (myAccess.isOwner) {
+                    await migrationRef.set({ completed: true, version: 1, completedAt: Date.now() });
                 }
                 return true;
             } catch (e) {
