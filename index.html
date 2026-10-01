@@ -1851,26 +1851,6 @@
             }
         ];
 
-        // Keep a protected built-in fallback so a blank/empty Firestore hubList
-        // can never make the dashboard disappear for every user.
-        const DEFAULT_HUB_LIST = JSON.parse(JSON.stringify(hubList));
-
-        // Shared hub configuration state. The Owner's current browser list may
-        // contain intentional hub changes that are not part of the original
-        // built-in defaults. In that case the Owner's list is the source to
-        // publish to Firestore; normal users always consume Firestore only.
-        let sharedHubSyncReady = false;
-        let sharedHubSyncInProgress = false;
-
-        function hubListsEqual(a, b) {
-            try { return JSON.stringify(a || []) === JSON.stringify(b || []); }
-            catch (e) { return false; }
-        }
-
-        function hasOwnerCustomHubList() {
-            return Array.isArray(hubList) && hubList.length > 0 && !hubListsEqual(hubList, DEFAULT_HUB_LIST);
-        }
-
         let taskSheets = {
             morning: [
                 { id: 'm1', title: 'Morning Dispatch Sheet', url: 'https://docs.google.com/spreadsheets', desc: 'Daily parcel dispatch and DA distribution tracker' },
@@ -1945,119 +1925,41 @@
         let presenceRefreshTimer = null;
         let authStateResolved = false;
         let presenceSessionToken = 0;
-
-        // Centralized shared-data layer for reports that live outside the main hub/attendance/inventory stores.
-        // Firestore is authoritative; localStorage is only a cache/backup.
-        let agentPerformanceData = {};
-        let ageingSharedData = { rows: [], matrix: {}, ages: [], reportDate: null, updatedAt: 0 };
-        let excelHubSharedData = { rows: [], groups: {}, reportDate: '', updatedAt: 0 };
-        let agentPerformanceListenerReady = false;
-        let sharedExtrasReady = false;
-
-
-        // Firebase Auth can take a moment to restore the Google session after
-        // Ctrl+R/F5. Cloud writes must wait for that session to be ready;
-        // otherwise Firestore rules using request.auth != null can reject a
-        // perfectly valid user's first save.
-        let cloudAuthReadyResolve = null;
-        let googleAuthListenerStarted = false;
-        let cloudSyncListenersStarted = false;
-        let cloudSyncInitializationRunning = false;
-        let cloudAuthReadyPromise = new Promise(resolve => { cloudAuthReadyResolve = resolve; });
-
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {}, inventory: {} };
 
         function debounce(fn, wait) {
-            let t = null;
-            let lastArgs = null;
-            let lastThis = null;
-            const wrapped = function (...args) {
-                lastArgs = args;
-                lastThis = this;
+            let t;
+            return function (...args) {
                 clearTimeout(t);
-                t = setTimeout(() => {
-                    t = null;
-                    const a = lastArgs;
-                    const th = lastThis;
-                    lastArgs = null;
-                    lastThis = null;
-                    fn.apply(th, a || []);
-                }, wait);
+                t = setTimeout(() => fn.apply(this, args), wait);
             };
-            wrapped.flush = function () {
-                if (t) {
-                    clearTimeout(t);
-                    t = null;
-                    const a = lastArgs;
-                    const th = lastThis;
-                    lastArgs = null;
-                    lastThis = null;
-                    return fn.apply(th, a || []);
-                }
-            };
-            return wrapped;
         }
 
         let lastCloudErrorToast = 0;
         function cloudFail(e) {
-            console.error('Cloud save failed:', e);
-            const code = e?.code || e?.name || '';
-            const msg = String(e?.message || '');
+            console.error('Cloud save failed', e);
             if (Date.now() - lastCloudErrorToast > 8000) {
                 lastCloudErrorToast = Date.now();
-
-                // Keep the normal message short, but expose the real Firebase
-                // reason in the console for troubleshooting.
-                if (code === 'permission-denied') {
-                    showToast('Shared database permission denied — check Firestore rules');
-                } else if (code === 'unauthenticated') {
-                    showToast('Google session is not ready — please try Save again');
-                } else if (msg.includes('maximum') || msg.includes('1 MiB')) {
-                    showToast('Shared report is too large for Firestore');
-                } else {
-                    showToast('Could not save to shared database (saved on this device only)');
-                }
+                showToast('Could not save to shared database (saved on this device only)');
             }
         }
 
-        async function waitForCloudAuth(timeoutMs = 20000) {
-            if (!cloudDb) return false;
-            if (currentUser) return true;
-            if (!cloudAuth) return false;
-
-            // Do not resolve from the first onAuthStateChanged(null) callback.
-            // Firebase can briefly report null while restoring persisted Google
-            // credentials after a refresh. Poll firebase.auth().currentUser
-            // until the session is actually available.
-            const started = Date.now();
-            while (Date.now() - started < timeoutMs) {
-                if (currentUser) return true;
-                try {
-                    const restoredUser = cloudAuth.currentUser;
-                    if (restoredUser) {
-                        currentUser = restoredUser;
-                        authStateResolved = true;
-                        return true;
-                    }
-                } catch (e) {}
-                await new Promise(resolve => setTimeout(resolve, 150));
-            }
-            return false;
-        }
-
-        /* ---- local cache ---- */
-        // Previous Ratio is kept separately from the live form so a browser
-        // refresh/reload can never erase a manually entered value.
+        /* ---- local cache + authoritative shared cloud sync ----
+           Firestore is the source of truth for shared data. localStorage is only
+           a device cache/fallback and is NEVER merged back over an existing
+           Firestore document during startup. */
         let previousRatioOverrides = {};
+        const sharedWriteQueues = Object.create(null);
+        const sharedWriteLatest = Object.create(null);
+        const SHARED_OUTBOX_KEY = 'narsingdi_shared_cloud_outbox_v3';
 
         function saveLocalState() {
             try {
                 localStorage.setItem(LS_STATE_KEY, JSON.stringify({
                     hubList, hubReportsData, hubReportHistory,
                     previousRatioOverrides,
-                    attendanceReportsData, inventoryReportsData,
-                    agentPerformanceData, ageingSharedData, excelHubSharedData
+                    attendanceReportsData, inventoryReportsData
                 }));
             } catch (e) {}
         }
@@ -2073,128 +1975,80 @@
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
                 if (st.attendanceReportsData) attendanceReportsData = st.attendanceReportsData;
                 if (st.inventoryReportsData) inventoryReportsData = st.inventoryReportsData;
-                if (st.agentPerformanceData) agentPerformanceData = st.agentPerformanceData;
-                if (st.ageingSharedData) ageingSharedData = st.ageingSharedData;
-                if (st.excelHubSharedData) excelHubSharedData = st.excelHubSharedData;
                 return true;
             } catch (e) { return false; }
         }
-
-        function postAgentPerformanceStateToFrame() {
-            const frame = document.getElementById('agentPerformancePageFrame');
-            const hubId = frame?.dataset?.hubId;
-            if (!frame?.contentWindow || !hubId) return;
-            const data = agentPerformanceData[hubId];
-            if (!data) return;
-            try { frame.contentWindow.postMessage({ type:'sharedAgentPerformanceState', hubId, payload:data }, '*'); } catch(e) {}
-        }
-
-        window.addEventListener('message', event => {
-            const msg = event?.data;
-            if (!msg || (msg.type !== 'agentPerformanceReady' && msg.type !== 'agentPerformanceChanged')) return;
-            const hubId = String(msg.hubId || '');
-            if (!hubId || !msg.payload) return;
-
-            // A cloud copy is authoritative. Only migrate the iframe's local copy when
-            // Firestore has no copy for this hub; after that, normal changes are shared live.
-            if (msg.type === 'agentPerformanceReady' && agentPerformanceData[hubId]) {
-                postAgentPerformanceStateToFrame();
-                return;
-            }
-
-            agentPerformanceData[hubId] = {
-                masterList: Array.isArray(msg.payload.masterList) ? msg.payload.masterList : [],
-                agents: Array.isArray(msg.payload.agents) ? msg.payload.agents : [],
-                updatedAt: Date.now(),
-                updatedBy: currentUser?.uid || ''
-            };
-            saveLocalState();
-            cloudSyncAgentPerformance(hubId, agentPerformanceData[hubId]);
-        });
-
-        /* ---- cloud writers (debounced) ---- */
-        /* ---- CLOUD WRITERS: immediate, serialized, Firestore-authoritative ---- */
-        // The dashboard must never depend on a 400-700ms debounce for shared data.
-        // A debounced write could be cancelled by navigation/refresh and, more
-        // importantly, two rapid edits could leave the other browser behind.
-        const sharedWriteQueues = {};
-        const sharedWriteLatest = {};
-        const SHARED_OUTBOX_KEY = 'narsingdi_shared_cloud_outbox_v2';
 
         function readSharedOutbox() {
             try {
                 const raw = localStorage.getItem(SHARED_OUTBOX_KEY);
                 const obj = raw ? JSON.parse(raw) : {};
-                return (obj && typeof obj === 'object') ? obj : {};
+                return obj && typeof obj === 'object' ? obj : {};
             } catch (e) { return {}; }
         }
-
-        function writeSharedOutbox(outbox) {
-            try { localStorage.setItem(SHARED_OUTBOX_KEY, JSON.stringify(outbox)); } catch (e) {
-                console.warn('Shared outbox cache failed:', e);
-            }
+        function writeSharedOutbox(obj) {
+            try { localStorage.setItem(SHARED_OUTBOX_KEY, JSON.stringify(obj || {})); } catch (e) {}
         }
-
         function rememberSharedWrite(path, payload) {
-            const outbox = readSharedOutbox();
-            outbox[path] = { payload, queuedAt: Date.now() };
-            writeSharedOutbox(outbox);
+            const out = readSharedOutbox();
+            out[path] = { payload, queuedAt: Date.now() };
+            writeSharedOutbox(out);
+        }
+        function forgetSharedWrite(path, payload) {
+            const out = readSharedOutbox();
+            if (out[path] && JSON.stringify(out[path].payload) === JSON.stringify(payload)) delete out[path];
+            writeSharedOutbox(out);
         }
 
-        function forgetSharedWrite(path, payload) {
-            const outbox = readSharedOutbox();
-            if (!outbox[path]) return;
-            // Only remove if this is still the payload that was successfully written.
-            // A newer edit may have replaced it while the previous write was in flight.
-            if (JSON.stringify(outbox[path].payload) === JSON.stringify(payload)) delete outbox[path];
-            writeSharedOutbox(outbox);
+        async function waitForCloudAuth(timeoutMs = 15000) {
+            if (!cloudAuth) return false;
+            if (cloudAuth.currentUser) {
+                currentUser = cloudAuth.currentUser;
+                return true;
+            }
+            const started = Date.now();
+            while (Date.now() - started < timeoutMs) {
+                if (cloudAuth.currentUser) {
+                    currentUser = cloudAuth.currentUser;
+                    return true;
+                }
+                if (authStateResolved && !cloudAuth.currentUser) return false;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return !!cloudAuth.currentUser;
         }
 
         async function flushSharedOutbox() {
-            if (!cloudDb) return;
-            if (!await waitForCloudAuth(20000)) return;
-            const outbox = readSharedOutbox();
-            for (const [path, item] of Object.entries(outbox)) {
+            if (!cloudDb || !(await waitForCloudAuth(15000))) return;
+            const out = readSharedOutbox();
+            for (const path of Object.keys(out)) {
+                const payload = out[path]?.payload;
+                if (payload === undefined) continue;
                 try {
-                    const payload = item?.payload || {};
-                    await cloudDb.doc(path).set({
-                        ...payload,
-                        updatedAt: Date.now(),
-                        updatedBy: currentUser?.uid || ''
-                    });
+                    await cloudDb.doc(path).set({ ...payload, _syncAt: Date.now(), _syncBy: currentUser?.uid || '' });
                     forgetSharedWrite(path, payload);
                 } catch (e) {
                     cloudFail(e);
-                    console.error('Shared outbox retry failed:', path, e);
+                    break;
                 }
             }
         }
 
         function queueSharedDocument(path, payload) {
             if (!path) return Promise.resolve(false);
-            // Always keep the newest shared edit in a durable local outbox until
-            // Firestore confirms the write. LocalStorage is only the retry queue;
-            // Firestore remains the source of truth.
             rememberSharedWrite(path, payload);
             sharedWriteLatest[path] = payload;
-
-            if (!cloudDb) return Promise.resolve(false);
             const previous = sharedWriteQueues[path] || Promise.resolve();
             const job = previous.then(async () => {
                 const latest = sharedWriteLatest[path];
-                if (latest === undefined) return false;
-                if (!await waitForCloudAuth(20000)) return false;
+                if (latest === undefined || !cloudDb) return false;
+                if (!(await waitForCloudAuth(15000))) return false;
                 try {
-                    await cloudDb.doc(path).set({
-                        ...latest,
-                        updatedAt: Date.now(),
-                        updatedBy: currentUser?.uid || ''
-                    });
+                    await cloudDb.doc(path).set({ ...latest, _syncAt: Date.now(), _syncBy: currentUser?.uid || '' });
                     forgetSharedWrite(path, latest);
                     return true;
                 } catch (e) {
                     cloudFail(e);
-                    console.error('Shared write failed:', path, e);
                     return false;
                 }
             });
@@ -2204,137 +2058,52 @@
 
         function cloudSyncHubList() {
             saveLocalState();
-            if (!cloudDb || !myAccess.isOwner) return;
-            queueSharedDocument('config/hubList', { hubList });
+            if (!cloudDb) return;
+            queueSharedDocument('config/hubList', { hubList: JSON.parse(JSON.stringify(hubList)) });
         }
-
         function cloudSyncTaskData() {
+            if (!cloudDb) return;
             queueSharedDocument('config/taskData', { taskTabs, taskSheets });
         }
-
         function cloudSyncNotices() {
+            if (!cloudDb) return;
             noticeWriteInFlight++;
-            Promise.resolve(queueSharedDocument('config/notices', {
-                clusterNotices,
-                dismissedNoticeIds: cloudDismissedNoticeIds
-            })).finally(() => {
-                noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1);
-            });
+            queueSharedDocument('config/notices', { clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds })
+                .finally(() => { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); });
         }
-
         async function writeNoticesNow() {
+            if (!cloudDb) return;
             noticeWriteInFlight++;
-            try {
-                await queueSharedDocument('config/notices', {
-                    clusterNotices,
-                    dismissedNoticeIds: cloudDismissedNoticeIds
-                });
-            } finally {
-                noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1);
-            }
+            try { await queueSharedDocument('config/notices', { clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); }
+            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
         }
-
         function cloudSyncUiHide() {
             if (!cloudDb || !dashboardOwnerUid) return;
-            queueSharedDocument('ownerSettings/' + dashboardOwnerUid, { uiHide });
+            queueSharedDocument('ownerSettings/' + dashboardOwnerUid, { uiHide, updatedAt: Date.now() });
         }
-
         function cloudSyncHubReport(hubId) {
-            if (!hubId || !cloudDb) return;
+            if (!hubId) return;
             saveLocalState();
+            if (!cloudDb) return;
             queueSharedDocument('hubReports/' + hubId, {
                 fields: hubReportsData[hubId] || {},
                 history: hubReportHistory[hubId] || {},
                 previousRatioOverrides: previousRatioOverrides[hubId] || {}
             });
         }
-
         function cloudSyncAttendance(hubId) {
-            if (!hubId || !cloudDb) return;
+            if (!hubId) return;
             saveLocalState();
-            queueSharedDocument('attendanceReports/' + hubId, {
-                ...(attendanceReportsData[hubId] || {})
-            });
+            if (!cloudDb) return;
+            queueSharedDocument('attendanceReports/' + hubId, { ...(attendanceReportsData[hubId] || {}) });
         }
-
         function cloudSyncInventory(hubId) {
-            if (!hubId || !cloudDb) return;
+            if (!hubId) return;
             saveLocalState();
-            queueSharedDocument('inventoryReports/' + hubId, {
-                ...(inventoryReportsData[hubId] || {})
-            });
-        }
-
-        const cloudSyncAgentPerformance = function (hubId, payload) {
-            if (!hubId || !payload || !cloudDb) return;
-            queueSharedDocument('agentPerformanceReports/' + hubId, {
-                masterList: Array.isArray(payload.masterList) ? payload.masterList : [],
-                agents: Array.isArray(payload.agents) ? payload.agents : []
-            });
-        };
-
-        const cloudSyncAgeingReport = function () {
             if (!cloudDb) return;
-            queueSharedDocument('sharedReports/ageing', {
-                rows: Array.isArray(ageingRows) ? ageingRows : [],
-                matrix: ageingMatrix || {},
-                ages: Array.isArray(ageingAges) ? ageingAges : [],
-                reportDate: ageingReportDate ? ageingReportDate.toISOString() : null
-            });
-        };
-
-        const cloudSyncExcelHubReport = function () {
-            if (!cloudDb) return;
-            queueSharedDocument('sharedReports/excelHub', {
-                rows: Array.isArray(excelHubReportRows) ? excelHubReportRows : [],
-                groups: excelHubReportGroups || {},
-                reportDate: excelHubReportDate || ''
-            });
-        };
-
-        async function flushSharedCloudWrites() {
-            try {
-                await Promise.all(Object.values(sharedWriteQueues));
-            } catch (e) { console.warn('Shared cloud flush failed:', e); }
+            queueSharedDocument('inventoryReports/' + hubId, { ...(inventoryReportsData[hubId] || {}) });
         }
 
-        /* ---- everyone sees every hub (no per-person access rules) ---- */
-        function getVisibleHubs() { return hubList; }
-        function hasHubAccess() { return true; }
-
-        let ownerPermissionReady = false;
-
-        function applyOwnerOnlyUI() {
-            const pending = !ownerPermissionReady;
-            document.body.classList.toggle('owner-permission-pending', pending);
-            document.querySelectorAll('[data-owner-only]').forEach(el => {
-                el.style.display = pending ? 'none' : (myAccess.isOwner ? '' : 'none');
-            });
-            const modal = document.getElementById('visibilityModal');
-            if (modal && pending) modal.classList.add('hidden');
-        }
-
-        function finishOwnerPermissionCheck(isReady = true) {
-            ownerPermissionReady = !!isReady;
-            applyOwnerOnlyUI();
-        }
-
-        function rerenderAll() {
-            renderDashboard();
-            renderConsolidatedMatrix();
-            renderLeaderboard();
-        }
-
-        function isEditingInside(containerId) {
-            const c = document.getElementById(containerId);
-            const ae = document.activeElement;
-            return !!(c && ae && c.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
-        }
-
-        /* =================== FIREBASE (SHARED DATABASE) ===================
-           1. Create a Firebase project + Firestore database (see README steps)
-           2. Paste your web-app config below
-        =================================================================== */
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyAhV_HigmlMaluZhJTaMfifhgZaZ5FMIBo",
             authDomain: "nsd-cluster-ops-dashboar-923cc.firebaseapp.com",
@@ -2356,7 +2125,7 @@
                 const wrapSnap = s => ({ id: s.id, exists: s.exists, data: () => s.exists ? unpack(s.data()) : undefined });
                 const wrapDoc = ref => ({
                     get: async () => wrapSnap(await ref.get()),
-                    set: d => ref.set(pack(d)),
+                    set: (d, options) => ref.set(pack(d), options || undefined),
                     delete: () => ref.delete(),
                     onSnapshot: (ok, err) => ref.onSnapshot(s => ok(wrapSnap(s)), err)
                 });
@@ -2723,9 +2492,6 @@
         }
 
         window.addEventListener('pagehide', () => {
-            // Flush debounced shared writes first so a quick Ctrl+R/close does not
-            // leave the latest edit only in LocalStorage.
-            flushSharedCloudWrites();
             // Best-effort cleanup. The 45-second heartbeat timeout is the fallback
             // if the browser terminates the page before this async delete completes.
             removeMyPresence();
@@ -2956,18 +2722,12 @@
 
         function setupGoogleAuth() {
             if (!cloudAuth) { finishOwnerPermissionCheck(true); return; }
-            if (googleAuthListenerStarted) return;
-            googleAuthListenerStarted = true;
 
             cloudAuth.onAuthStateChanged(async user => {
                 currentUser = user || null;
                 authStateResolved = true;
-
-                // Release all queued cloud writers only after Firebase has
-                // definitely restored the current Google session.
-                if (cloudAuthReadyResolve) {
-                    cloudAuthReadyResolve(currentUser);
-                    cloudAuthReadyResolve = null;
+                if (currentUser) {
+                    setTimeout(() => { flushSharedOutbox().catch(() => {}); }, 0);
                 }
 
                 // Start the online-user listener immediately after Firebase restores
@@ -2979,14 +2739,6 @@
                     await loadNoticePersonalState();
                     await loadDashboardNotificationState();
                     startDashboardNotificationListener();
-                    // Firebase may restore Auth after the first render. Retry every
-                    // durable shared write as soon as the signed-in session exists.
-                    try { await flushSharedOutbox(); } catch (e) { console.warn('Auth-ready shared retry failed:', e); }
-                    // If Auth was restored after the first 20-second startup wait,
-                    // finish the shared Firestore initialization now.
-                    if (!cloudSyncListenersStarted && !cloudSyncInitializationRunning) {
-                        try { await initCloudSync(); } catch (e) { console.error('Late cloud sync initialization failed:', e); cloudFail(e); }
-                    }
                 } else {
                     myAccess.isOwner = false;
                     finishOwnerPermissionCheck(true);
@@ -3003,9 +2755,6 @@
         }
 
         async function initCloudSync() {
-            if (cloudSyncListenersStarted || cloudSyncInitializationRunning) return;
-            cloudSyncInitializationRunning = true;
-            try {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState();
             loadTabsAndSheets();
@@ -3018,18 +2767,8 @@
                 setupGoogleAuth();
                 // Complete a previous redirect-based Google sign-in when returning to the dashboard.
                 await handleGoogleRedirectResult();
-
-                // IMPORTANT: do not attach Firestore reads/listeners until Firebase Auth
-                // has restored the Google session. If listeners start while request.auth
-                // is still null, Firestore can return permission-denied and permanently
-                // close that listener for this page load.
-                const authReady = await waitForCloudAuth(20000);
-                if (!authReady) {
-                    console.warn('Shared sync delayed: Firebase Auth user is not available yet.');
-                    showToast('Google sign-in is not ready — shared data will start after sign-in.');
-                    updateProfileUI();
-                    return;
-                }
+                // Do not read/seed shared data until Firebase Auth has finished restoring.
+                await waitForCloudAuth(15000);
             } else {
                 // fallback: Claude artifact runtime (only exists when published inside Claude)
                 try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
@@ -3049,9 +2788,6 @@
             } else {
                 await refreshGoogleOwnerStatus();
             }
-            // Retry any edits that were made while Firebase Auth/Firestore was
-            // temporarily unavailable (including edits made just before refresh).
-            await flushSharedOutbox();
             await loadNoticePersonalState();
             await loadDashboardNotificationState();
             startDashboardNotificationListener();
@@ -3061,47 +2797,14 @@
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
             await Promise.all([
                 (async () => {
-                    sharedHubSyncInProgress = true;
                     try {
-                        const localHubsBeforeCloud = Array.isArray(hubList) ? JSON.parse(JSON.stringify(hubList)) : [];
                         const hubDoc = await cloudDb.doc('config/hubList').get();
-                        const cloudHubs = hubDoc.exists && Array.isArray(hubDoc.data().hubList)
-                            ? hubDoc.data().hubList
-                            : [];
-
-                        if (myAccess.isOwner) {
-                            // Firestore is authoritative. Never publish an old LocalStorage
-                            // hub list automatically during startup; only an explicit
-                            // Add/Remove/Import action may call cloudSyncHubList().
-                            if (cloudHubs.length > 0) {
-                                hubList = cloudHubs;
-                            } else {
-                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                                await cloudDb.doc('config/hubList').set({ hubList, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
-                            }
-                        } else {
-                            // Normal users NEVER use their own old LocalStorage hub list
-                            // as shared configuration. They consume Firestore only.
-                            if (cloudHubs.length > 0) {
-                                hubList = cloudHubs;
-                            } else if (localHubsBeforeCloud.length > 0) {
-                                // Temporary visual fallback only if the shared document
-                                // has not been initialized yet. Do not write it back.
-                                hubList = localHubsBeforeCloud;
-                            } else {
-                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                            }
+                        if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
+                            hubList = hubDoc.data().hubList;
+                        } else if (myAccess.isOwner) {
+                            await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
                         }
-
-                        sharedHubSyncReady = true;
-                        saveLocalState();
-                        renderDashboard();
-                    } catch (e) {
-                        console.error('Shared hub configuration load failed:', e);
-                        // Keep the local UI available, but do not mark shared sync ready.
-                    } finally {
-                        sharedHubSyncInProgress = false;
-                    }
+                    } catch (e) {}
                 })(),
                 (async () => {
                     try {
@@ -3147,39 +2850,25 @@
             ]);
 
             cloudDb.doc('config/hubList').onSnapshot(snap => {
-                if (pendingWrites.hubList > 0 || sharedHubSyncInProgress) return;
-                if (snap.exists && Array.isArray(snap.data().hubList)) {
-                    const cloudHubs = snap.data().hubList;
-                    if (cloudHubs.length > 0) {
-                        // Owner may have just changed the list locally; while the write
-                        // settles, do not replace it with an older snapshot.
-                        if (myAccess.isOwner && hasOwnerCustomHubList() && !hubListsEqual(cloudHubs, hubList)) {
-                            return;
-                        }
-                        hubList = cloudHubs;
-                        sharedHubSyncReady = true;
-                        saveLocalState();
-                        rerenderAll();
-                    } else if (myAccess.isOwner) {
-                        hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                        sharedHubSyncReady = true;
-                        saveLocalState();
-                        rerenderAll();
-                        cloudDb.doc('config/hubList').set({ hubList }).catch(cloudFail);
-                    }
-                }
-            }, err => {
-                console.error('Shared hubList listener failed:', err);
-                cloudFail(err);
-            });
+                if (!snap.exists) return;
+                const data = snap.data() || {};
+                if (!Array.isArray(data.hubList)) return;
+                // ALWAYS accept Firestore snapshots. Local pending flags must not
+                // hide another user's Add/Remove operation.
+                hubList = JSON.parse(JSON.stringify(data.hubList));
+                saveLocalState();
+                rerenderAll();
+            }, err => { console.error('hubList listener failed', err); cloudFail(err); });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
-                    if (Array.isArray(snap.data().taskTabs)) taskTabs = snap.data().taskTabs;
-                    if (snap.data().taskSheets) taskSheets = snap.data().taskSheets;
+                    const data = snap.data() || {};
+                    if (Array.isArray(data.taskTabs)) taskTabs = data.taskTabs;
+                    if (data.taskSheets) taskSheets = data.taskSheets;
+                    saveTabsAndSheetsLocalOnly();
                     renderTaskTabs();
                 }
-            }, err => { console.error('Shared taskData listener failed:', err); cloudFail(err); });
+            }, err => { console.error('taskData listener failed', err); cloudFail(err); });
 
             cloudDb.doc('config/notices').onSnapshot(snap => {
                 if (snap.exists) {
@@ -3188,7 +2877,7 @@
                     if (Array.isArray(nd.clusterNotices)) clusterNotices = nd.clusterNotices;
                     renderClusterNotices();
                 }
-            }, err => { console.error('Shared notices listener failed:', err); cloudFail(err); });
+            }, err => { console.error('notices listener failed', err); cloudFail(err); });
 
             // 4b) first run only: upload this device's existing reports so nothing is lost first run only: upload this device's existing reports so nothing is lost
             try {
@@ -3217,31 +2906,26 @@
 
             // 5) every hub's morning/closing report + history (shared, live)
             cloudDb.collection('hubReports').onSnapshot(snap => {
+                const seen = new Set();
                 let touchedActive = false;
-                snap.docChanges().forEach(ch => {
-                    const id = ch.doc.id;
-                    if (ch.type === 'removed') {
-                        delete hubReportsData[id];
-                        delete hubReportHistory[id];
-                        delete previousRatioOverrides[id];
-                    } else {
-                        // IMPORTANT: Firestore is authoritative. Do not merge a
-                        // user's old LocalStorage copy back into a remote report.
-                        // The previous implementation could make two browsers
-                        // display different versions of the same report.
-                        const d = ch.doc.data() || {};
-                        hubReportsData[id] = d.fields || {};
-                        hubReportHistory[id] = d.history || {};
-                        previousRatioOverrides[id] = d.previousRatioOverrides || {};
-                        if (id === currentActiveHubId) touchedActive = true;
-                    }
+                snap.docs.forEach(doc => {
+                    const id = doc.id;
+                    seen.add(id);
+                    const d = doc.data() || {};
+                    hubReportsData[id] = d.fields || {};
+                    hubReportHistory[id] = d.history || {};
+                    previousRatioOverrides[id] = d.previousRatioOverrides || {};
+                    if (id === currentActiveHubId) touchedActive = true;
                 });
+                Object.keys(hubReportsData).forEach(id => { if (!seen.has(id)) delete hubReportsData[id]; });
+                Object.keys(hubReportHistory).forEach(id => { if (!seen.has(id)) delete hubReportHistory[id]; });
+                Object.keys(previousRatioOverrides).forEach(id => { if (!seen.has(id)) delete previousRatioOverrides[id]; });
                 saveLocalState();
-                if (touchedActive && !document.getElementById('hubReportView').classList.contains('hidden') && !isEditingInside('hubReportView')) {
-                    loadHubReportData(currentActiveHubId);
+                if (touchedActive && document.getElementById('hubReportView') && !document.getElementById('hubReportView').classList.contains('hidden') && !isEditingInside('hubReportView')) {
+                    try { loadHubReportData(currentActiveHubId); } catch (e) {}
                 }
                 rerenderAll();
-            }, err => { console.warn('Shared hubReports listener failed:', err); cloudFail(err); });
+            }, err => { console.error('hubReports listener failed', err); cloudFail(err); });
 
             // 6) every hub's D.A. attendance (shared, live)
             try {
@@ -3253,20 +2937,19 @@
                 renderDashboard();
             } catch (e) { cloudFail(e); }
             cloudDb.collection('attendanceReports').onSnapshot(snap => {
-                snap.docChanges().forEach(ch => {
-                    const id = ch.doc.id;
-                    // Always process Firestore snapshots. Firestore is the shared source of truth.
-                    if (ch.type === 'removed') delete attendanceReportsData[id];
-                    else {
-                        attendanceReportsData[id] = ch.doc.data() || {};
-                        if (id === currentActiveAttendanceHubId && !isEditingInside('attendanceReportView')) {
-                            try { loadAttendanceData(id); } catch (e) {}
-                        }
-                    }
+                const seen = new Set();
+                let touched = false;
+                snap.docs.forEach(doc => {
+                    const id = doc.id;
+                    seen.add(id);
+                    attendanceReportsData[id] = doc.data() || {};
+                    if (id === currentActiveAttendanceHubId) touched = true;
                 });
+                Object.keys(attendanceReportsData).forEach(id => { if (!seen.has(id)) delete attendanceReportsData[id]; });
                 saveLocalState();
+                if (touched && !isEditingInside('attendanceReportView')) { try { loadAttendanceData(currentActiveAttendanceHubId); } catch (e) {} }
                 renderDashboard();
-            }, err => { console.warn('Shared attendanceReports listener failed:', err); cloudFail(err); });
+            }, err => { console.error('attendance listener failed', err); cloudFail(err); });
 
             // 7) every hub's inventory report (shared, live)
             try {
@@ -3274,77 +2957,19 @@
                 inventorySnap.docs.forEach(d => { inventoryReportsData[d.id] = d.data() || {}; });
                 saveLocalState();
             } catch (e) { cloudFail(e); }
-            try {
-                const [agentSnap, ageingSnap, excelSnap] = await Promise.all([
-                    cloudDb.collection('agentPerformanceReports').get(),
-                    cloudDb.doc('sharedReports/ageing').get(),
-                    cloudDb.doc('sharedReports/excelHub').get()
-                ]);
-                agentSnap.docs.forEach(d => { agentPerformanceData[d.id] = d.data() || {}; });
-                if (ageingSnap.exists) {
-                    const d = ageingSnap.data() || {};
-                    ageingRows = Array.isArray(d.rows) ? d.rows : [];
-                    ageingMatrix = d.matrix || {};
-                    ageingAges = Array.isArray(d.ages) ? d.ages : [];
-                    ageingReportDate = d.reportDate ? new Date(d.reportDate) : null;
-                }
-                if (excelSnap.exists) {
-                    const d = excelSnap.data() || {};
-                    excelHubReportRows = Array.isArray(d.rows) ? d.rows : [];
-                    excelHubReportGroups = d.groups || {};
-                    excelHubReportDate = d.reportDate || '';
-                }
-                saveLocalState();
-            } catch (e) { console.warn('Shared extra-data initial load skipped:', e); }
-
             cloudDb.collection('inventoryReports').onSnapshot(snap => {
-                snap.docChanges().forEach(ch => {
-                    const id = ch.doc.id;
-                    // Always process Firestore snapshots. Firestore is the shared source of truth.
-                    if (ch.type === 'removed') delete inventoryReportsData[id];
-                    else {
-                        inventoryReportsData[id] = ch.doc.data() || {};
-                        if (id === currentActiveInventoryHubId && !isEditingInside('inventoryReportView')) {
-                            try { loadInventoryData(id); } catch (e) {}
-                        }
-                    }
+                const seen = new Set();
+                let touched = false;
+                snap.docs.forEach(doc => {
+                    const id = doc.id;
+                    seen.add(id);
+                    inventoryReportsData[id] = doc.data() || {};
+                    if (id === currentActiveInventoryHubId) touched = true;
                 });
+                Object.keys(inventoryReportsData).forEach(id => { if (!seen.has(id)) delete inventoryReportsData[id]; });
                 saveLocalState();
-            }, err => { console.warn('Shared inventoryReports listener failed:', err); cloudFail(err); });
-
-            // 8) Agent Performance Report master lists + live numbers (shared, live)
-            cloudDb.collection('agentPerformanceReports').onSnapshot(snap => {
-                snap.docChanges().forEach(ch => {
-                    const id = ch.doc.id;
-                    if (ch.type === 'removed') delete agentPerformanceData[id];
-                    else agentPerformanceData[id] = ch.doc.data() || {};
-                });
-                agentPerformanceListenerReady = true;
-                postAgentPerformanceStateToFrame();
-            }, err => { console.error('Shared agentPerformanceReports listener failed:', err); cloudFail(err); });
-
-            // 9) Imported Ageing / Consignment report (shared, live)
-            cloudDb.doc('sharedReports/ageing').onSnapshot(snap => {
-                if (!snap.exists) return;
-                const d = snap.data() || {};
-                ageingRows = Array.isArray(d.rows) ? d.rows : [];
-                ageingMatrix = d.matrix || {};
-                ageingAges = Array.isArray(d.ages) ? d.ages : [];
-                ageingReportDate = d.reportDate ? new Date(d.reportDate) : null;
-                sharedExtrasReady = true;
-                if (!document.getElementById('ageingReportView')?.classList.contains('hidden')) renderAgeingReport();
-            }, err => { console.error('Shared ageing report listener failed:', err); cloudFail(err); });
-
-            // 10) Imported Excel Hub report (shared, live)
-            cloudDb.doc('sharedReports/excelHub').onSnapshot(snap => {
-                if (!snap.exists) return;
-                const d = snap.data() || {};
-                excelHubReportRows = Array.isArray(d.rows) ? d.rows : [];
-                excelHubReportGroups = d.groups || {};
-                excelHubReportDate = d.reportDate || '';
-                sharedExtrasReady = true;
-                if (!document.getElementById('excelImportReportView')?.classList.contains('hidden')) renderExcelHubReport('all');
-            }, err => { console.error('Shared Excel hub report listener failed:', err); cloudFail(err); });
+                if (touched && !isEditingInside('inventoryReportView')) { try { loadInventoryData(currentActiveInventoryHubId); } catch (e) {} }
+            }, err => { console.error('inventory listener failed', err); cloudFail(err); });
 
             if (dashboardOwnerUid) {
                 cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
@@ -3354,14 +2979,11 @@
                         applyUiHide();
                         renderVisibilityList();
                     }
-                }, () => {});
+                }, err => { console.error('ownerSettings listener failed', err); cloudFail(err); });
             }
 
             applyOwnerOnlyUI();
-            cloudSyncListenersStarted = true;
-            } finally {
-                cloudSyncInitializationRunning = false;
-            }
+            flushSharedOutbox().catch(() => {});
         }
 
         function toggleSidebar() {
@@ -4652,11 +4274,14 @@
             };
         }
 
-        function saveTabsAndSheets() {
+        function saveTabsAndSheetsLocalOnly() {
             try {
                 localStorage.setItem('narsingdi_task_tabs', JSON.stringify(taskTabs));
                 localStorage.setItem('narsingdi_task_sheets', JSON.stringify(taskSheets));
             } catch (e) {}
+        }
+        function saveTabsAndSheets() {
+            saveTabsAndSheetsLocalOnly();
             cloudSyncTaskData();
         }
 
@@ -5637,28 +5262,6 @@
                 .replace(/SHIBPUR HUB AGENT PERFORMANCE REPORT/g, hubTitle)
                 .replace(/shibpur_master_agents/g, hubKey + '_master_agents');
 
-            // Bridge the embedded report to the parent Firebase shared-data layer.
-            // This keeps the existing Agent Performance Report UI unchanged while making
-            // its master agent list and live values shared across users/devices.
-            const agentBridge = `<script>(function(){
-                const HUB_ID=${JSON.stringify(String(hubId))};
-                function snapshot(){
-                    try{return {masterList:Array.isArray(window.masterList)?window.masterList:[],agents:Array.isArray(window.agents)?window.agents:[]};}catch(e){return {masterList:[],agents:[]};}
-                }
-                function send(type){try{parent.postMessage({type,hubId:HUB_ID,payload:snapshot()},'*');}catch(e){}}
-                const wrap=(name)=>{const old=window[name];if(typeof old!=='function')return;window[name]=function(){const r=old.apply(this,arguments);send('agentPerformanceChanged');return r;};};
-                ['updateValue','processPasteData','saveAgentSetup','resetDefaultAgents','clearAllData'].forEach(wrap);
-                window.addEventListener('message',function(e){const m=e&&e.data;if(!m||m.type!=='sharedAgentPerformanceState'||m.hubId!==HUB_ID||!m.payload)return;try{
-                    if(Array.isArray(m.payload.masterList)){window.masterList=m.payload.masterList.map(a=>({...a}));localStorage.setItem(HUB_ID.toLowerCase().replace(/[^a-z0-9]+/g,'_')+'_master_agents',JSON.stringify(window.masterList));}
-                    if(Array.isArray(m.payload.agents))window.agents=m.payload.agents.map(a=>({...a}));
-                    if(typeof window.renderTable==='function')window.renderTable();
-                }catch(e){}}
-                );
-                window.addEventListener('load',function(){send('agentPerformanceReady');},{once:true});
-                setTimeout(function(){send('agentPerformanceReady');},300);
-            })();<\/script>`;
-            reportHtml = reportHtml.replace('</body>', agentBridge + '</body>');
-
             // Reuse one modal/iframe so no extra browser page or tab opens.
             let modal = document.getElementById('agentPerformancePageModal');
             if (!modal) {
@@ -5673,11 +5276,6 @@
             }
 
             const frame = document.getElementById('agentPerformancePageFrame');
-            frame.dataset.hubId = String(hubId);
-            frame.onload = () => {
-                const data = agentPerformanceData[String(hubId)];
-                if (data) postAgentPerformanceStateToFrame();
-            };
             frame.srcdoc = reportHtml;
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
@@ -6632,9 +6230,6 @@
                 renderConsolidatedMatrix();
                 renderLeaderboard();
                 renderClusterNotices();
-            }).catch(err => {
-                console.error('Cloud sync startup failed:', err);
-                cloudFail(err);
             });
 
             initAttendanceReportListeners();
@@ -7140,7 +6735,6 @@
                 });
 
                 ageingAges = Array.from(ageSet).sort((a,b) => a-b);
-                cloudSyncAgeingReport();
 
                 const meta = document.getElementById('ageingReportMeta');
                 if (meta) {
@@ -7464,7 +7058,6 @@
                     const g = excelHubReportGroups[k];
                     g.summary = aggregateExcelRows(g.rows, g.label);
                 });
-                cloudSyncExcelHubReport();
 
                 const meta = document.getElementById('excelImportReportMeta');
                 if (meta) {
