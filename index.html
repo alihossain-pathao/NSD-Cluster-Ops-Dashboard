@@ -438,17 +438,17 @@
 <button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
-<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-g</p>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-h</p>
 </div>
 </div>
 <script>
-/* Ctrl+R / F5: if this browser was signed in before, show a plain "Loading" splash instead of the
-   login screen while Firebase restores the saved session (a second or two). */
+/* Ctrl+R / F5: if this browser was signed in before, show NO login/loading screen while Firebase
+   restores the saved session. The gate appears only if Firebase says nobody is signed in. */
 try {
     if (localStorage.getItem('nsdWasSignedIn') === '1') {
-        document.getElementById('authGateTitle').textContent = 'Loading dashboard...';
-        document.getElementById('authGateStatus').textContent = 'Signing you in...';
-        document.getElementById('authGateLoginBtn').classList.add('hidden');
+        var g = document.getElementById('authGate');
+        g.style.display = 'none';
+        g.classList.add('hidden');
     }
 } catch (e) {}
 </script>
@@ -2474,18 +2474,16 @@ try {
                 // LOGIN REQUIRED: the dashboard is never shown without sign-in.
                 // While Firebase restores a saved session (Ctrl+R/F5) the gate shows
                 // "Checking sign-in..."; the button appears once we know nobody is signed in.
-                gate?.classList.remove('hidden');
                 const gStatus = document.getElementById('authGateStatus');
                 const gBtn = document.getElementById('authGateLoginBtn');
                 let hadSession = false;
                 try { hadSession = localStorage.getItem('nsdWasSignedIn') === '1'; } catch (e) {}
                 const gTitle = document.getElementById('authGateTitle');
                 if (hadSession && !authStateResolved && !authCheckSlow) {
-                    // Saved session is being restored: no login screen, just a loading splash.
-                    if (gTitle) gTitle.textContent = 'Loading dashboard...';
-                    if (gStatus) gStatus.textContent = 'Signing you in...';
-                    gBtn?.classList.add('hidden');
+                    // Saved session is being restored: keep the gate closed (no flash).
+                    if (gate) { gate.classList.add('hidden'); gate.style.display = 'none'; }
                 } else if (authStateResolved || authCheckSlow) {
+                    if (gate) { gate.classList.remove('hidden'); gate.style.display = ''; }
                     if (gTitle) gTitle.textContent = 'Sign in to continue';
                     if (gStatus) gStatus.textContent = !cloudAuth
                         ? 'Sign-in service could not load. Check your internet connection and refresh the page.'
@@ -2495,6 +2493,8 @@ try {
                           + (!authStateResolved && lastJsError ? ' (' + lastJsError + ')' : '');
                     gBtn?.classList.remove('hidden');
                 } else {
+                    if (gate) { gate.classList.remove('hidden'); gate.style.display = ''; }
+                    if (gTitle) gTitle.textContent = 'Sign in to continue';
                     if (gStatus) gStatus.textContent = 'Checking sign-in... (you can already click the button below)';
                     gBtn?.classList.remove('hidden');
                 }
@@ -5395,7 +5395,7 @@ try {
                 hubMsgColor = 'text-rose-300 border-rose-800/60 bg-rose-950/40';
             } else if (cloudDb && cloudDb.__firebase && !hubCloudStateReady) {
                 if (currentUser) hubMsg = 'Loading hubs from shared database...';
-                else if (!authStateResolved) hubMsg = 'Checking sign-in...';
+                else if (!authStateResolved) hubMsg = 'Loading hubs...';
                 else hubMsg = 'Sign in with Google to load the hubs. '
                     + '<button type="button" onclick="googleSignIn()" class="ml-2 px-3 py-1 rounded-lg bg-white text-slate-900 font-black text-[11px]"><i class="fa-brands fa-google mr-1"></i>Sign in with Google</button>';
             }
