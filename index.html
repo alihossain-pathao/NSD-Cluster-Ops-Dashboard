@@ -1966,19 +1966,29 @@
             }
         }
 
-        async function waitForCloudAuth(timeoutMs = 15000) {
+        async function waitForCloudAuth(timeoutMs = 20000) {
             if (!cloudDb) return false;
             if (currentUser) return true;
             if (!cloudAuth) return false;
 
-            try {
-                await Promise.race([
-                    cloudAuthReadyPromise,
-                    new Promise(resolve => setTimeout(resolve, timeoutMs))
-                ]);
-            } catch (e) {}
-
-            return !!currentUser;
+            // Do not resolve from the first onAuthStateChanged(null) callback.
+            // Firebase can briefly report null while restoring persisted Google
+            // credentials after a refresh. Poll firebase.auth().currentUser
+            // until the session is actually available.
+            const started = Date.now();
+            while (Date.now() - started < timeoutMs) {
+                if (currentUser) return true;
+                try {
+                    const restoredUser = cloudAuth.currentUser;
+                    if (restoredUser) {
+                        currentUser = restoredUser;
+                        authStateResolved = true;
+                        return true;
+                    }
+                } catch (e) {}
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            return false;
         }
 
         /* ---- local cache ---- */
@@ -2023,6 +2033,12 @@
         function cloudSyncHubList() {
             saveLocalState();
             if (!cloudDb) return;
+
+            // Hub structure is shared cluster configuration. Only the owner may
+            // write the complete hub list; normal users must never overwrite the
+            // owner's list with their older LocalStorage copy.
+            if (!myAccess.isOwner) return;
+
             pendingWrites.hubList++;
             cloudWriteHubList();
         }
@@ -2824,6 +2840,7 @@
                 const authReady = await waitForCloudAuth(20000);
                 if (!authReady) {
                     console.warn('Shared sync delayed: Firebase Auth user is not available yet.');
+                    showToast('Google sign-in is not ready — shared data will start after sign-in.');
                     updateProfileUI();
                     return;
                 }
@@ -2908,13 +2925,19 @@
             ]);
 
             cloudDb.doc('config/hubList').onSnapshot(snap => {
-                if (pendingWrites.hubList > 0) return;                       // ignore echoes while our own write is in flight
+                if (pendingWrites.hubList > 0) return;                       // ignore echoes while owner's write is in flight
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
+                    // Firestore is the shared source of truth. Replace the local
+                    // cache with the cloud list so different users cannot keep
+                    // seeing their own device-only hub list.
                     hubList = snap.data().hubList;
                     saveLocalState();
                     rerenderAll();
                 }
-            }, err => { console.error('Shared hubList listener failed:', err); cloudFail(err); });
+            }, err => {
+                console.error('Shared hubList listener failed:', err);
+                cloudFail(err);
+            });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
