@@ -1916,6 +1916,11 @@ try {
         let currentActiveAttendanceHubId = null;
         let currentAttendanceRows = [];
         let inventoryReportsData = {};
+        /* Agent Setup (EID + Name list) - one shared list PER HUB: Firestore agentSetups/{hubId} */
+        let agentSetupsData = {};
+        let agentSetupsLoaded = false;
+        const AGENT_SETUP_LS = 'narsingdi_agent_setups_v1';
+        try { agentSetupsData = JSON.parse(localStorage.getItem(AGENT_SETUP_LS)) || {}; } catch (e) { agentSetupsData = {}; }
         let currentActiveInventoryHubId = null;
         let currentInventoryRows = [];
 
@@ -2245,6 +2250,35 @@ try {
             saveLocalState();
             if (!cloudDb) return;
             queueSharedDocument('inventoryReports/' + hubId, { ...(inventoryReportsData[hubId] || {}) });
+        }
+
+        /* ---- Agent Setup: per-hub list, shared with every user via Firestore ---- */
+        function pendingAgentSetupWrite(id) { return sharedWriteLatest['agentSetups/' + id] !== undefined; }
+        function saveAgentSetupsLocal() {
+            try { localStorage.setItem(AGENT_SETUP_LS, JSON.stringify(agentSetupsData)); } catch (e) {}
+        }
+        function getHubAgentSetup(hubId) {
+            const e = agentSetupsData[hubId];
+            return (e && Array.isArray(e.list) && e.list.length) ? e.list : null;
+        }
+        function saveHubAgentSetup(hubId, list) {
+            if (!hubId) return Promise.resolve(false);
+            const clean = Array.isArray(list)
+                ? list.map(a => ({ eid: String(a.eid || '').trim(), name: String(a.name || '').trim() }))
+                : null;               // null = "reset to default" for everyone
+            agentSetupsData[hubId] = { list: clean };
+            saveAgentSetupsLocal();
+            if (!cloudDb) return Promise.resolve(false);
+            return queueSharedDocument('agentSetups/' + hubId, { list: clean });
+        }
+        function pushAgentSetupToOpenReport(hubId) {
+            try {
+                if (window.__agentReportHubId !== hubId) return;
+                const f = document.getElementById('agentPerformancePageFrame');
+                if (f && f.contentWindow && f.contentWindow.__applyAgentSetup) {
+                    f.contentWindow.__applyAgentSetup(getHubAgentSetup(hubId));
+                }
+            } catch (e) {}
         }
 
         const FIREBASE_CONFIG = {
@@ -3203,6 +3237,28 @@ try {
                 saveLocalState();
                 if (touched && !isEditingInside('inventoryReportView')) { try { loadInventoryData(currentActiveInventoryHubId); } catch (e) {} }
             }, err => { console.error('inventory listener failed', err); cloudFail(err); });
+
+            // 8) every hub's Agent Setup list (shared, live, separate per hub)
+            try {
+                const agentSnap = await cloudDb.collection('agentSetups').get();
+                agentSnap.docs.forEach(d => { agentSetupsData[d.id] = d.data() || {}; });
+                agentSetupsLoaded = true;
+                saveAgentSetupsLocal();
+            } catch (e) { console.warn('agentSetups load failed (check Firestore rules)', e); cloudFail(e); }
+            cloudDb.collection('agentSetups').onSnapshot(snap => {
+                const changed = [];
+                const seen = new Set();
+                snap.docs.forEach(doc => {
+                    seen.add(doc.id);
+                    const before = JSON.stringify((agentSetupsData[doc.id] || {}).list || null);
+                    agentSetupsData[doc.id] = doc.data() || {};
+                    if (before !== JSON.stringify(agentSetupsData[doc.id].list || null)) changed.push(doc.id);
+                });
+                Object.keys(agentSetupsData).forEach(id => { if (!seen.has(id) && !pendingAgentSetupWrite(id)) delete agentSetupsData[id]; });
+                agentSetupsLoaded = true;
+                saveAgentSetupsLocal();
+                changed.forEach(pushAgentSetupToOpenReport);
+            }, err => { console.error('agentSetups listener failed', err); cloudFail(err); });
 
             if (dashboardOwnerUid) {
                 cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
@@ -5513,11 +5569,46 @@ try {
             const hubTitle = safeHubName.toUpperCase().replace(/\s+HUB$/i, '') + ' HUB AGENT PERFORMANCE REPORT';
             const hubKey = safeHubName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'hub';
 
-            // Keep the existing Agent Performance Report design and make its data separate per hub.
+            // Keep the existing Agent Performance Report design. Agent Setup (EID + Name) is now
+            // stored PER HUB in the shared database (agentSetups/{hubId}) instead of this device only.
+            const legacyKey = hubKey + '_master_agents';   // old per-device key, used once for migration
+            if (agentSetupsLoaded && !agentSetupsData[hubId]) {
+                try {
+                    const legacy = JSON.parse(localStorage.getItem(legacyKey));
+                    if (Array.isArray(legacy) && legacy.length) saveHubAgentSetup(hubId, legacy);
+                } catch (e) {}
+            }
+            window.__agentReportHubId = hubId;
+
+            const must = (src, a, b) => { if (!src.includes(a)) console.warn('Agent report patch target not found:', a); return src.split(a).join(b); };
             reportHtml = reportHtml
                 .replace(/Shibpur Hub Agent Performance Report/g, hubTitle)
-                .replace(/SHIBPUR HUB AGENT PERFORMANCE REPORT/g, hubTitle)
-                .replace(/shibpur_master_agents/g, hubKey + '_master_agents');
+                .replace(/SHIBPUR HUB AGENT PERFORMANCE REPORT/g, hubTitle);
+            reportHtml = must(reportHtml,
+                "let masterList = JSON.parse(localStorage.getItem('shibpur_master_agents')) || defaultAgents;",
+                "const __HUB_ID = " + JSON.stringify(hubId) + ";\n" +
+                "        let masterList = (window.parent.getHubAgentSetup && window.parent.getHubAgentSetup(__HUB_ID)) || defaultAgents;");
+            reportHtml = must(reportHtml,
+                "localStorage.setItem('shibpur_master_agents', JSON.stringify(masterList));",
+                "if (window.parent.saveHubAgentSetup) window.parent.saveHubAgentSetup(__HUB_ID, masterList);");
+            reportHtml = must(reportHtml,
+                "localStorage.removeItem('shibpur_master_agents');",
+                "if (window.parent.saveHubAgentSetup) window.parent.saveHubAgentSetup(__HUB_ID, null);");
+            reportHtml = must(reportHtml,
+                "Monthly Agent List Successfully Saved!",
+                "Agent list saved for this hub (shared with everyone)!");
+            reportHtml = must(reportHtml,
+                "function openAgentModal() {",
+                "window.__applyAgentSetup = function (list) {\n" +
+                "            const next = list || defaultAgents;\n" +
+                "            const old = {}; agents.forEach(a => { old[a.eid + '|' + a.name] = a; });\n" +
+                "            masterList = next;\n" +
+                "            agents = masterList.map(a => ({ ...a, assign: 0, delivery: 0, hold: 0, returnCount: 0, ...(old[a.eid + '|' + a.name] ? { assign: old[a.eid + '|' + a.name].assign, delivery: old[a.eid + '|' + a.name].delivery, hold: old[a.eid + '|' + a.name].hold, returnCount: old[a.eid + '|' + a.name].returnCount } : {}) }));\n" +
+                "            renderTable();\n" +
+                "            const m = document.getElementById('agentModal');\n" +
+                "            if (m && m.classList.contains('hidden')) document.getElementById('agentSetupInput').value = masterList.map(a => a.eid + '\\t' + a.name).join('\\n');\n" +
+                "        };\n" +
+                "        function openAgentModal() {");
 
             // Reuse one modal/iframe so no extra browser page or tab opens.
             let modal = document.getElementById('agentPerformancePageModal');
@@ -5542,6 +5633,7 @@ try {
             const modal = document.getElementById('agentPerformancePageModal');
             const frame = document.getElementById('agentPerformancePageFrame');
             if (frame) frame.srcdoc = '';
+            window.__agentReportHubId = null;
             if (modal) modal.classList.add('hidden');
             document.body.style.overflow = '';
         }
@@ -5774,6 +5866,7 @@ try {
                 cleanup.push(cloudDb.collection('hubReports').doc(hubId).delete().catch(e => console.warn('hubReports cleanup failed', e)));
                 cleanup.push(cloudDb.collection('attendanceReports').doc(hubId).delete().catch(e => console.warn('attendanceReports cleanup failed', e)));
                 cleanup.push(cloudDb.collection('inventoryReports').doc(hubId).delete().catch(e => console.warn('inventoryReports cleanup failed', e)));
+                cleanup.push(cloudDb.collection('agentSetups').doc(hubId).delete().catch(e => console.warn('agentSetups cleanup failed', e)));
                 await Promise.all(cleanup);
 
                 hubList = hubList.filter(h => h.id !== hubId);
@@ -5781,6 +5874,8 @@ try {
                 delete hubReportHistory[hubId];
                 delete attendanceReportsData[hubId];
                 delete inventoryReportsData[hubId];
+                delete agentSetupsData[hubId];
+                saveAgentSetupsLocal();
                 saveLocalState();
                 filterHubs();
                 renderConsolidatedMatrix();
