@@ -2024,6 +2024,9 @@
         // Previous Ratio is kept separately from the live form so a browser
         // refresh/reload can never erase a manually entered value.
         let previousRatioOverrides = {};
+        // Hub List is Firestore-authoritative. Keep the device copy only as an
+        // offline fallback; never let it overwrite the shared Firestore list.
+        let cachedHubListBackup = null;
 
         function saveLocalState() {
             try {
@@ -2036,15 +2039,15 @@
             } catch (e) {}
         }
 
-        function loadLocalState() {
+        function loadLocalState(includeHubList = true) {
             try {
                 const raw = localStorage.getItem(LS_STATE_KEY);
                 if (!raw) return false;
                 const st = JSON.parse(raw);
-                // IMPORTANT: Hub List is NOT restored from LocalStorage.
-                // Firestore is the single source of truth for shared Hub List.
-                // This prevents one browser's old 2-hub/3-hub cache from changing
-                // what that browser displays while other users use the cloud list.
+                if (Array.isArray(st.hubList)) {
+                    cachedHubListBackup = JSON.parse(JSON.stringify(st.hubList));
+                    if (includeHubList) hubList = st.hubList;
+                }
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
@@ -2136,15 +2139,7 @@
         const cloudWriteHubList = debounce(async function () {
             try {
                 if (!await waitForCloudAuth()) return;
-                // Firestore is the single source of truth for the Hub List.
-                // Every successful Owner change gets a server timestamp so other
-                // browsers can immediately consume the exact same configuration.
-                await cloudDb.doc('config/hubList').set({
-                    hubList: JSON.parse(JSON.stringify(hubList)),
-                    updatedAt: Date.now(),
-                    updatedBy: currentUser?.uid || '',
-                    source: 'owner'
-                });
+                await cloudDb.doc('config/hubList').set({ hubList });
             } catch (e) { cloudFail(e); }
             finally { pendingWrites.hubList = Math.max(0, pendingWrites.hubList - 1); }
         }, 600);
@@ -2941,7 +2936,10 @@
 
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
-            loadLocalState();
+            // Do not load the cached Hub List into the live UI. Firestore is the
+            // single source of truth for Hub configuration. Other report caches
+            // are still restored locally.
+            loadLocalState(false);
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
@@ -2999,25 +2997,28 @@
                             ? hubDoc.data().hubList
                             : [];
 
-                        // IMPORTANT: Firestore is the ONLY source of truth for the
-                        // shared Hub List. Never publish this browser's LocalStorage
-                        // copy during startup. This was the cause of one browser
-                        // showing 2 hubs while another showed 3 hubs.
+                        // Firestore is authoritative for every signed-in user, including
+                        // the Owner. Never promote an old browser/LocalStorage Hub List
+                        // into Firestore during startup. A browser that previously had
+                        // 2 hubs must therefore adopt the same shared list as a browser
+                        // that has 3 hubs.
                         if (cloudHubs.length > 0) {
                             hubList = JSON.parse(JSON.stringify(cloudHubs));
-                        } else {
-                            // If the shared document does not exist yet, initialize it
-                            // once from the built-in default. Normal users only use the
-                            // same fallback until the Owner creates the shared document.
+                        } else if (myAccess.isOwner) {
+                            // Initialize the shared document only when it does not exist
+                            // (or contains an empty list). This is the only startup seed.
                             hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                            if (myAccess.isOwner) {
-                                await cloudDb.doc('config/hubList').set({
-                                    hubList: JSON.parse(JSON.stringify(hubList)),
-                                    updatedAt: Date.now(),
-                                    updatedBy: currentUser?.uid || '',
-                                    source: 'owner-init'
-                                });
-                            }
+                            await cloudDb.doc('config/hubList').set({
+                                hubList,
+                                updatedAt: Date.now(),
+                                updatedBy: currentUser?.uid || ''
+                            });
+                        } else if (Array.isArray(cachedHubListBackup) && cachedHubListBackup.length > 0) {
+                            // Offline/read-failure fallback only. This branch never writes
+                            // the cached list back to Firestore.
+                            hubList = JSON.parse(JSON.stringify(cachedHubListBackup));
+                        } else {
+                            hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
                         }
 
                         sharedHubSyncReady = true;
@@ -3074,33 +3075,25 @@
             ]);
 
             cloudDb.doc('config/hubList').onSnapshot(snap => {
-                // NEVER ignore a Hub List snapshot because of local pending writes.
-                // The successful Firestore document is the shared truth and must be
-                // applied identically on every browser, including the Owner browser.
-                if (snap.exists && Array.isArray(snap.data().hubList) && snap.data().hubList.length > 0) {
+                if (pendingWrites.hubList > 0 || sharedHubSyncInProgress) return;
+                if (snap.exists && Array.isArray(snap.data().hubList)) {
                     const cloudHubs = snap.data().hubList;
-                    hubList = JSON.parse(JSON.stringify(cloudHubs));
-                    sharedHubSyncReady = true;
-                    saveLocalState();
-                    rerenderAll();
-                } else if (myAccess.isOwner) {
-                    hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                    sharedHubSyncReady = true;
-                    saveLocalState();
-                    rerenderAll();
-                    cloudDb.doc('config/hubList').set({
-                        hubList: JSON.parse(JSON.stringify(hubList)),
-                        updatedAt: Date.now(),
-                        updatedBy: currentUser?.uid || '',
-                        source: 'owner-init'
-                    }).catch(cloudFail);
-                } else {
-                    // No shared document yet. Show the built-in list temporarily;
-                    // do not write it from a normal user browser.
-                    hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                    sharedHubSyncReady = true;
-                    saveLocalState();
-                    rerenderAll();
+                    if (cloudHubs.length > 0) {
+                        // Firestore snapshot is authoritative for both Owner and users.
+                        // Never keep an older browser-specific list here. Explicit Owner
+                        // Add/Remove actions already write the new list to Firestore, and
+                        // pendingWrites prevents this listener from racing that write.
+                        hubList = JSON.parse(JSON.stringify(cloudHubs));
+                        sharedHubSyncReady = true;
+                        saveLocalState();
+                        rerenderAll();
+                    } else if (myAccess.isOwner) {
+                        hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                        sharedHubSyncReady = true;
+                        saveLocalState();
+                        rerenderAll();
+                        cloudDb.doc('config/hubList').set({ hubList }).catch(cloudFail);
+                    }
                 }
             }, err => {
                 console.error('Shared hubList listener failed:', err);
@@ -6564,7 +6557,9 @@
         window.onload = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
-            loadLocalState();
+            // Hub List is loaded from Firestore below; only report/cache data is
+            // restored locally during the initial paint.
+            loadLocalState(false);
             loadTabsAndSheets();
             loadNoticesFromStorage();
             updateProfileUI();
