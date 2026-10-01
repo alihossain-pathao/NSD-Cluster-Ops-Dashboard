@@ -430,9 +430,10 @@
 </div>
 <h2 class="text-lg font-black text-white">Sign in to continue</h2>
 <p class="text-xs text-slate-400 mt-2 leading-relaxed" id="authGateStatus">Checking sign-in...</p>
-<button class="hidden mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
+<button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-c</p>
 </div>
 </div>
 <!-- SIDEBAR OVERLAY & DRAWER -->
@@ -2462,10 +2463,10 @@
                             ? 'Please sign in with your Google account to enter the Narsingdi Cluster Operations Center.'
                             : 'Sign-in check is taking long. Click the button below to sign in.')
                           + (!authStateResolved && lastJsError ? ' (' + lastJsError + ')' : '');
-                    gBtn?.classList.toggle('hidden', !cloudAuth);
+                    gBtn?.classList.remove('hidden');
                 } else {
-                    if (gStatus) gStatus.textContent = 'Checking sign-in...';
-                    gBtn?.classList.add('hidden');
+                    if (gStatus) gStatus.textContent = 'Checking sign-in... (you can already click the button below)';
+                    gBtn?.classList.remove('hidden');
                 }
             }
             applyOwnerOnlyUI();
@@ -2636,8 +2637,18 @@
             return map[code] || ('Google sign-in failed' + (code ? ' (' + code + ')' : '') + '. Check the browser console for details.');
         }
 
+        function setGateMessage(msg) {
+            const el = document.getElementById('authGateStatus');
+            if (el) el.textContent = msg;
+        }
+
         async function googleSignIn() {
-            if (!cloudAuth) { showToast('Firebase Auth is not available'); return; }
+            if (!cloudAuth) {
+                const m = 'Firebase sign-in could not load in this browser. Open the link in Chrome/Safari (not an in-app browser), check internet, then refresh.';
+                setGateMessage(m); showToast(m);
+                return;
+            }
+            setGateMessage('Opening Google sign-in...');
             try {
                 const provider = new firebase.auth.GoogleAuthProvider();
                 provider.setCustomParameters({ prompt: 'select_account' });
@@ -2660,6 +2671,7 @@
                     }
                 }
 
+                setGateMessage(googleAuthErrorMessage(e));
                 showToast(googleAuthErrorMessage(e));
             }
         }
