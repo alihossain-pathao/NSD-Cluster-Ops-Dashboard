@@ -1851,6 +1851,10 @@
             }
         ];
 
+        // Keep a protected built-in fallback so a blank/empty Firestore hubList
+        // can never make the dashboard disappear for every user.
+        const DEFAULT_HUB_LIST = JSON.parse(JSON.stringify(hubList));
+
         let taskSheets = {
             morning: [
                 { id: 'm1', title: 'Morning Dispatch Sheet', url: 'https://docs.google.com/spreadsheets', desc: 'Daily parcel dispatch and DA distribution tracker' },
@@ -2874,11 +2878,26 @@
                 (async () => {
                     try {
                         const hubDoc = await cloudDb.doc('config/hubList').get();
-                        if (hubDoc.exists && Array.isArray(hubDoc.data().hubList)) {
-                            hubList = hubDoc.data().hubList;
-                        } else if (myAccess.isOwner) {
-                            await cloudDb.doc('config/hubList').set({ hubList });   // first run: seed shared DB
+                        const cloudHubs = hubDoc.exists && Array.isArray(hubDoc.data().hubList)
+                            ? hubDoc.data().hubList
+                            : [];
+
+                        if (cloudHubs.length > 0) {
+                            // Firestore is the shared source of truth.
+                            hubList = cloudHubs;
+                        } else {
+                            // An empty/missing cloud list is treated as an uninitialized
+                            // configuration, not as a request to show zero hubs. Restore
+                            // the protected built-in list and let the owner seed it.
+                            if (!Array.isArray(hubList) || hubList.length === 0) {
+                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            }
+                            if (myAccess.isOwner) {
+                                await cloudDb.doc('config/hubList').set({ hubList });
+                            }
                         }
+                        saveLocalState();
+                        renderDashboard();
                     } catch (e) {}
                 })(),
                 (async () => {
@@ -2927,12 +2946,19 @@
             cloudDb.doc('config/hubList').onSnapshot(snap => {
                 if (pendingWrites.hubList > 0) return;                       // ignore echoes while owner's write is in flight
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
-                    // Firestore is the shared source of truth. Replace the local
-                    // cache with the cloud list so different users cannot keep
-                    // seeing their own device-only hub list.
-                    hubList = snap.data().hubList;
-                    saveLocalState();
-                    rerenderAll();
+                    const cloudHubs = snap.data().hubList;
+                    // Never render an empty shared list. During first-run initialization
+                    // the owner seeds Firestore with the built-in list below.
+                    if (cloudHubs.length > 0) {
+                        hubList = cloudHubs;
+                        saveLocalState();
+                        rerenderAll();
+                    } else if (myAccess.isOwner) {
+                        hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                        saveLocalState();
+                        rerenderAll();
+                        cloudDb.doc('config/hubList').set({ hubList }).catch(cloudFail);
+                    }
                 }
             }, err => {
                 console.error('Shared hubList listener failed:', err);
