@@ -423,14 +423,14 @@
 <span id="toastMsg">Action completed successfully</span>
 </div>
 <!-- LOGIN GATE: dashboard requires Google sign-in -->
-<div class="hidden fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-5" id="authGate">
+<div class="fixed inset-0 z-[100] bg-[#0b1329] flex items-center justify-center p-5" id="authGate">
 <div class="w-full max-w-sm bg-[#131d36] border border-slate-800 rounded-2xl p-6 shadow-2xl text-center">
 <div class="mx-auto w-14 h-14 rounded-2xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 mb-4">
 <i class="fa-solid fa-shield-halved text-2xl"></i>
 </div>
 <h2 class="text-lg font-black text-white">Sign in to continue</h2>
-<p class="text-xs text-slate-400 mt-2 leading-relaxed">Please sign in with your Google account to enter the Narsingdi Cluster Operations Center.</p>
-<button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
+<p class="text-xs text-slate-400 mt-2 leading-relaxed" id="authGateStatus">Checking sign-in...</p>
+<button class="hidden mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
 </div>
@@ -2432,7 +2432,8 @@
             const logoutBtn = document.getElementById('sidebarLogoutBtn');
             const gate = document.getElementById('authGate');
             if (!name) return;
-            if (currentUser) {
+            if (currentUser || cloudUserCap) {
+                if (!currentUser) { name.textContent = 'Signed in'; gate?.classList.add('hidden'); applyOwnerOnlyUI(); return; }
                 name.textContent = currentUser.displayName || 'Google User';
                 avatar.src = currentUser.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
                 loginBtn?.classList.add('hidden');
@@ -2444,12 +2445,20 @@
                 loginBtn?.classList.remove('hidden');
                 logoutBtn?.classList.add('hidden');
 
-                // IMPORTANT: on Ctrl+R/F5 Firebase needs a moment to restore LOCAL auth.
-                // Never show the login screen during that short initialization window.
+                // LOGIN REQUIRED: the dashboard is never shown without sign-in.
+                // While Firebase restores a saved session (Ctrl+R/F5) the gate shows
+                // "Checking sign-in..."; the button appears once we know nobody is signed in.
+                gate?.classList.remove('hidden');
+                const gStatus = document.getElementById('authGateStatus');
+                const gBtn = document.getElementById('authGateLoginBtn');
                 if (authStateResolved) {
-                    gate?.classList.remove('hidden');
+                    if (gStatus) gStatus.textContent = cloudAuth
+                        ? 'Please sign in with your Google account to enter the Narsingdi Cluster Operations Center.'
+                        : 'Sign-in service could not load. Check your internet connection and refresh the page.';
+                    gBtn?.classList.toggle('hidden', !cloudAuth);
                 } else {
-                    gate?.classList.add('hidden');
+                    if (gStatus) gStatus.textContent = 'Checking sign-in...';
+                    gBtn?.classList.add('hidden');
                 }
             }
             applyOwnerOnlyUI();
@@ -2822,7 +2831,7 @@
         function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 
         function setupGoogleAuth() {
-            if (!cloudAuth) { finishOwnerPermissionCheck(true); return; }
+            if (!cloudAuth) { authStateResolved = true; finishOwnerPermissionCheck(true); updateProfileUI(); return; }
 
             cloudAuth.onAuthStateChanged(async user => {
                 currentUser = user || null;
@@ -2854,6 +2863,7 @@
                 renderVisibilityList();
                 applyUiHide();
                 renderTaskTabs();
+                try { renderDashboard(); } catch (e) {}
             });
         }
 
@@ -2886,6 +2896,7 @@
                 // cached Hub List. In normal Firebase use this branch is not reached.
                 loadLocalState({ useHubList: true });
                 hubCloudStateReady = true;
+                authStateResolved = true;
                 myAccess.isOwner = false;
                 finishOwnerPermissionCheck(true);
                 updateProfileUI();
@@ -5322,7 +5333,10 @@
                         : 'Check internet connection and refresh.');
                 hubMsgColor = 'text-rose-300 border-rose-800/60 bg-rose-950/40';
             } else if (cloudDb && cloudDb.__firebase && !hubCloudStateReady) {
-                hubMsg = currentUser ? 'Loading hubs from shared database...' : 'Sign in with Google to load the hubs.';
+                if (currentUser) hubMsg = 'Loading hubs from shared database...';
+                else if (!authStateResolved) hubMsg = 'Checking sign-in...';
+                else hubMsg = 'Sign in with Google to load the hubs. '
+                    + '<button type="button" onclick="googleSignIn()" class="ml-2 px-3 py-1 rounded-lg bg-white text-slate-900 font-black text-[11px]"><i class="fa-brands fa-google mr-1"></i>Sign in with Google</button>';
             }
             hubBanner.innerHTML = hubMsg
                 ? `<div class="mb-3 px-4 py-3 rounded-xl border text-xs font-bold ${hubMsgColor}">${hubMsg}</div>`
