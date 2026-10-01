@@ -5,13 +5,18 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Narsingdi Cluster &amp; Hub Dashboard</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin/>
+<link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin/>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin/>
 <script src="https://cdn.tailwindcss.com"></script>
-<script defer="" src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Firebase first: login restore must not wait for the big Chart.js / xlsx downloads -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script defer="" src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script defer="" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script defer="" src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -428,14 +433,25 @@
 <div class="mx-auto w-14 h-14 rounded-2xl bg-sky-950/60 border border-sky-800/40 flex items-center justify-center text-sky-400 mb-4">
 <i class="fa-solid fa-shield-halved text-2xl"></i>
 </div>
-<h2 class="text-lg font-black text-white">Sign in to continue</h2>
+<h2 class="text-lg font-black text-white" id="authGateTitle">Sign in to continue</h2>
 <p class="text-xs text-slate-400 mt-2 leading-relaxed" id="authGateStatus">Checking sign-in...</p>
 <button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
-<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-e</p>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-g</p>
 </div>
 </div>
+<script>
+/* Ctrl+R / F5: if this browser was signed in before, show a plain "Loading" splash instead of the
+   login screen while Firebase restores the saved session (a second or two). */
+try {
+    if (localStorage.getItem('nsdWasSignedIn') === '1') {
+        document.getElementById('authGateTitle').textContent = 'Loading dashboard...';
+        document.getElementById('authGateStatus').textContent = 'Signing you in...';
+        document.getElementById('authGateLoginBtn').classList.add('hidden');
+    }
+} catch (e) {}
+</script>
 <!-- SIDEBAR OVERLAY & DRAWER -->
 <div class="hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <aside class="fixed top-0 left-0 h-full w-72 bg-[#131d36] border-r border-slate-800 z-50 transform -translate-x-full flex flex-col justify-between p-4 shadow-2xl" id="sidebarDrawer">
@@ -2461,7 +2477,16 @@
                 gate?.classList.remove('hidden');
                 const gStatus = document.getElementById('authGateStatus');
                 const gBtn = document.getElementById('authGateLoginBtn');
-                if (authStateResolved || authCheckSlow) {
+                let hadSession = false;
+                try { hadSession = localStorage.getItem('nsdWasSignedIn') === '1'; } catch (e) {}
+                const gTitle = document.getElementById('authGateTitle');
+                if (hadSession && !authStateResolved && !authCheckSlow) {
+                    // Saved session is being restored: no login screen, just a loading splash.
+                    if (gTitle) gTitle.textContent = 'Loading dashboard...';
+                    if (gStatus) gStatus.textContent = 'Signing you in...';
+                    gBtn?.classList.add('hidden');
+                } else if (authStateResolved || authCheckSlow) {
+                    if (gTitle) gTitle.textContent = 'Sign in to continue';
                     if (gStatus) gStatus.textContent = !cloudAuth
                         ? 'Sign-in service could not load. Check your internet connection and refresh the page.'
                         : (authStateResolved
@@ -2696,6 +2721,7 @@
 
         async function googleSignOut() {
             try {
+                try { localStorage.removeItem('nsdWasSignedIn'); } catch (e) {}
                 await removeMyPresence();
                 stopPresence();
                 await cloudAuth?.signOut();
@@ -2865,6 +2891,10 @@
                 authStateResolved = true;
                 // Open (or close) the login gate IMMEDIATELY. It must never wait for the
                 // slower owner / notification lookups below, which can hang or fail.
+                try {
+                    if (currentUser) localStorage.setItem('nsdWasSignedIn', '1');
+                    else localStorage.removeItem('nsdWasSignedIn');
+                } catch (e) {}
                 try { updateProfileUI(); } catch (e) { console.error(e); }
                 if (currentUser) {
                     setTimeout(() => { flushSharedOutbox().catch(() => {}); }, 0);
@@ -6465,7 +6495,7 @@
             document.getElementById('visibilityModal').classList.add('hidden');
         }
 
-        window.onload = async function() {
+        const appStart = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
             const safeStep = fn => { try { fn(); } catch (e) { console.error('Startup step failed', e); if (!lastJsError) lastJsError = String(e && e.message || e); } };
@@ -6722,6 +6752,9 @@
                 }
             });
         };
+        // Start as soon as the HTML is ready (not after every font/image has loaded).
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', appStart, { once: true });
+        else appStart();
 
 
         /* =================== AGEING / CONSIGNMENT REPORT JS =================== */
