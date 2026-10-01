@@ -438,7 +438,7 @@
 <button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
-<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-h</p>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-i</p>
 </div>
 </div>
 <script>
@@ -1932,6 +1932,23 @@ try {
         let hubCloudStateReady = false;
         // Leftover hook called from a late <script>; it was never defined (harmless ReferenceError).
         function finishHeaderBoot() { document.documentElement.classList.remove('app-booting'); }
+        // Last hub list received from Firestore on THIS browser. Used only to paint the hub cards
+        // instantly after Ctrl+R for a user who was signed in; the live snapshot replaces it
+        // within a moment. It is deleted on sign-out / expired session / permission error.
+        const HUB_CACHE_KEY = 'nsdHubSnapshotCache';
+        function readHubSnapshotCache() {
+            try {
+                if (localStorage.getItem('nsdWasSignedIn') !== '1') return [];
+                const arr = JSON.parse(localStorage.getItem(HUB_CACHE_KEY) || '[]');
+                return Array.isArray(arr) ? arr.filter(h => h && h.id) : [];
+            } catch (e) { return []; }
+        }
+        function writeHubSnapshotCache(list) {
+            try { localStorage.setItem(HUB_CACHE_KEY, JSON.stringify(list)); } catch (e) {}
+        }
+        function clearHubSnapshotCache() {
+            try { localStorage.removeItem(HUB_CACHE_KEY); } catch (e) {}
+        }
         let hubListenerError = '';
         let authCheckSlow = false;
         let lastJsError = '';
@@ -2722,6 +2739,7 @@ try {
         async function googleSignOut() {
             try {
                 try { localStorage.removeItem('nsdWasSignedIn'); } catch (e) {}
+                clearHubSnapshotCache();
                 await removeMyPresence();
                 stopPresence();
                 await cloudAuth?.signOut();
@@ -2893,7 +2911,7 @@ try {
                 // slower owner / notification lookups below, which can hang or fail.
                 try {
                     if (currentUser) localStorage.setItem('nsdWasSignedIn', '1');
-                    else localStorage.removeItem('nsdWasSignedIn');
+                    else { localStorage.removeItem('nsdWasSignedIn'); clearHubSnapshotCache(); hubList = []; }
                 } catch (e) {}
                 try { updateProfileUI(); } catch (e) { console.error(e); }
                 if (currentUser) {
@@ -2931,8 +2949,8 @@ try {
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
             loadLocalState({ useHubList: false });
-            // Do not trust cached/default Hub cards while Firestore is initializing.
-            hubList = [];
+            // Hub cards: only the last Firestore snapshot (if signed in before), never defaults.
+            hubList = readHubSnapshotCache();
             hubCloudStateReady = false;
             loadTabsAndSheets();
             loadNoticesFromStorage();
@@ -2967,8 +2985,8 @@ try {
                 return;
             }
 
-            // Firebase is available: cached/default Hubs are not trusted.
-            hubList = [];
+            // Firebase is available: only the last Firestore snapshot is used until the live one arrives.
+            hubList = readHubSnapshotCache();
             hubCloudStateReady = false;
             renderDashboard();
 
@@ -3061,11 +3079,14 @@ try {
                 hubList = next;
                 hubCloudStateReady = true;
                 hubListenerError = '';
+                writeHubSnapshotCache(next);
                 saveLocalState();
                 rerenderAll();
             }, err => {
                 console.error('hubs listener failed', err);
                 hubCloudStateReady = false;
+                hubList = [];
+                clearHubSnapshotCache();
                 hubListenerError = (err && (err.code || err.message)) || 'unknown error';
                 sharedListenersUid = null;
                 cloudFail(err);
@@ -5394,8 +5415,8 @@ try {
                         : 'Check internet connection and refresh.');
                 hubMsgColor = 'text-rose-300 border-rose-800/60 bg-rose-950/40';
             } else if (cloudDb && cloudDb.__firebase && !hubCloudStateReady) {
-                if (currentUser) hubMsg = 'Loading hubs from shared database...';
-                else if (!authStateResolved) hubMsg = 'Loading hubs...';
+                if (currentUser) hubMsg = '';          // loading: show nothing
+                else if (!authStateResolved) hubMsg = ''; // restoring saved login: show nothing
                 else hubMsg = 'Sign in with Google to load the hubs. '
                     + '<button type="button" onclick="googleSignIn()" class="ml-2 px-3 py-1 rounded-lg bg-white text-slate-900 font-black text-[11px]"><i class="fa-brands fa-google mr-1"></i>Sign in with Google</button>';
             }
@@ -6502,7 +6523,7 @@ try {
             safeStep(() => loadLocalState({ useHubList: false }));
             // Never render the three hard-coded/default Hub cards before the
             // authoritative Firestore Hub snapshot is received.
-            hubList = [];
+            hubList = readHubSnapshotCache();
             hubCloudStateReady = false;
             safeStep(loadTabsAndSheets);
             safeStep(loadNoticesFromStorage);
