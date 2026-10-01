@@ -26,6 +26,35 @@
 
         .toast-notify { position: fixed; bottom: 20px; right: 20px; background-color: #0f2942; color: #ffffff; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; border: 1px solid #0284c7; }
         .toast-notify.show { opacity: 1; transform: translateY(0); }
+        /* Notice ticker: scrolls right -> left until the user clicks Read */
+        .notice-bar { position:relative; overflow:hidden; display:none; align-items:center; gap:14px; padding:10px 14px 10px 18px; border-radius:18px;
+            background: linear-gradient(110deg, rgba(124,58,237,.22) 0%, rgba(19,29,54,.92) 38%, rgba(19,29,54,.92) 100%);
+            border:1px solid rgba(167,139,250,.28); box-shadow: 0 8px 30px -12px rgba(124,58,237,.55), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(8px); }
+        .notice-bar.is-on { display:flex; animation: noticeBarIn .45s cubic-bezier(.2,.8,.2,1); }
+        .notice-bar::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background: linear-gradient(180deg,#a78bfa,#e879f9,#f59e0b); }
+        @keyframes noticeBarIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform:none; } }
+        .notice-badge { flex:0 0 auto; display:flex; align-items:center; gap:9px; padding:6px 12px 6px 8px; border-radius:999px; background: rgba(139,92,246,.18); border:1px solid rgba(167,139,250,.35); color:#ddd6fe; font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+        .notice-bell { position:relative; width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg,#8b5cf6,#d946ef); color:#fff; font-size:12px; }
+        .notice-bell::after { content:''; position:absolute; inset:0; border-radius:999px; border:2px solid rgba(167,139,250,.7); animation: noticePulse 1.8s ease-out infinite; }
+        @keyframes noticePulse { 0% { transform:scale(1); opacity:.9; } 100% { transform:scale(1.9); opacity:0; } }
+        .notice-count { min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:#ef4444; color:#fff; font-size:10px; font-weight:900; letter-spacing:0; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 0 0 3px rgba(239,68,68,.22); }
+        .notice-ticker-wrap { overflow:hidden; position:relative; flex:1 1 auto; min-width:0;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
+                    mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
+        .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; padding-left:100%; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
+        .notice-ticker-wrap:hover .notice-ticker-track { animation-play-state: paused; }
+        @keyframes noticeTickerMove { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        .notice-item { display:inline-flex; align-items:center; gap:11px; padding:6px 7px 6px 8px; border-radius:999px; background: rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09); font-size:12px; }
+        .notice-item-ico { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(245,158,11,.16); color:#fbbf24; font-size:11px; }
+        .notice-item-title { color:#fff; font-weight:800; }
+        .notice-item-msg { color:#cbd5e1; font-weight:500; }
+        .notice-item-time { color:#64748b; font-size:10px; font-weight:700; }
+        .notice-read-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; border:0; cursor:pointer; color:#fff; font-size:10px; font-weight:900; letter-spacing:.04em;
+            background: linear-gradient(135deg,#10b981,#059669); box-shadow:0 4px 12px -4px rgba(16,185,129,.7); transition: transform .15s ease, filter .15s ease; }
+        .notice-read-btn:hover { transform: translateY(-1px) scale(1.04); filter:brightness(1.1); }
+        .notice-read-btn:active { transform: scale(.96); }
+        @media (max-width: 640px) { .notice-badge-text { display:none; } .notice-bar { padding:8px 10px 8px 14px; gap:10px; } }
+        @media (prefers-reduced-motion: reduce) { .notice-ticker-track { animation-duration: 60s; } .notice-bell::after { animation:none; } }
 
 
 
@@ -643,6 +672,11 @@ try {
 </div>
 <input accept=".xlsx,.xls,.csv" class="hidden" id="excelReportInput" onchange="importExcelHubReport(event)" type="file"/>
 <input accept=".xlsx,.xls,.csv" class="hidden" id="ageingReportInput" onchange="importAgeingReport(event)" type="file"/>
+</div>
+<!-- NOTICE TICKER (unread notifications scroll until marked Read) -->
+<div class="notice-bar" id="dashboardNoticeTicker">
+<div class="notice-badge"><span class="notice-bell"><i class="fa-solid fa-bell"></i></span><span class="notice-badge-text">Notice</span><span class="notice-count" id="dashboardNoticeTickerCount">0</span></div>
+<div class="notice-ticker-wrap"><div class="notice-ticker-track" id="dashboardNoticeTickerTrack"></div></div>
 </div>
 <!-- TOP 4 QUICK ACTION CARDS -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-hide-key="kpiCards">
@@ -2795,6 +2829,26 @@ try {
             // the notification list from rendering.
             if(!list)return;
             const unread=getDashboardNotificationUnread();
+            // Scrolling ticker on the dashboard: shows every unread notice moving
+            // right -> left, repeating until the user presses Read.
+            const ticker=document.getElementById('dashboardNoticeTicker');
+            const track=document.getElementById('dashboardNoticeTickerTrack');
+            if(ticker&&track){
+                const sig=unread.map(n=>String(n.id)+'|'+(n.title||'')+'|'+(n.message||'')).join('~~');
+                if(!unread.length){
+                    ticker.classList.remove('is-on');
+                    track.innerHTML='';track.dataset.sig='';
+                }else{
+                    ticker.classList.add('is-on');
+                    const cnt=document.getElementById('dashboardNoticeTickerCount');if(cnt)cnt.textContent=unread.length>99?'99+':String(unread.length);
+                    if(track.dataset.sig!==sig){ // rebuild only on change so the scroll doesn't restart
+                        track.dataset.sig=sig;
+                        track.innerHTML=unread.map(n=>`<span class="notice-item"><span class="notice-item-ico"><i class="fa-solid fa-bullhorn"></i></span><span class="notice-item-title">${escapeHtml(n.title||'Notice')}</span><span class="notice-item-msg">${escapeHtml(String(n.message||'').replace(/\s+/g,' '))}</span>${n.createdAt?`<span class="notice-item-time">${escapeHtml(new Date(n.createdAt).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</span>`:''}<button type="button" onclick="markDashboardNotificationRead('${escapeHtml(n.id)}')" class="notice-read-btn"><i class="fa-solid fa-check"></i> Read</button></span>`).join('');
+                        const chars=unread.reduce((a,n)=>a+String(n.title||'').length+String(n.message||'').length+10,0);
+                        track.style.animationDuration=Math.max(15,Math.round(10+chars*0.18))+'s';
+                    }
+                }
+            }
             const sub=document.getElementById('dashboardNotificationSubText');
             if(sub)sub.textContent=unread.length?(unread.length+' New Notification'+(unread.length>1?'s':'')):'View Notifications';
             if(badge){
