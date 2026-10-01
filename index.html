@@ -26,7 +26,7 @@
 
         .toast-notify { position: fixed; bottom: 20px; right: 20px; background-color: #0f2942; color: #ffffff; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; border: 1px solid #0284c7; }
         .toast-notify.show { opacity: 1; transform: translateY(0); }
-        /* Notice ticker: scrolls right -> left until the user clicks Read */
+        /* Notice ticker: enters from the LEFT, runs to the RIGHT, then restarts from the left until the user clicks Read */
         .notice-bar { position:relative; overflow:hidden; display:none; align-items:center; gap:14px; padding:10px 14px 10px 18px; border-radius:18px;
             background: linear-gradient(110deg, rgba(124,58,237,.22) 0%, rgba(19,29,54,.92) 38%, rgba(19,29,54,.92) 100%);
             border:1px solid rgba(167,139,250,.28); box-shadow: 0 8px 30px -12px rgba(124,58,237,.55), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(8px); }
@@ -41,9 +41,9 @@
         .notice-ticker-wrap { overflow:hidden; position:relative; flex:1 1 auto; min-width:0;
             -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
                     mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
-        .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; padding-left:100%; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
+        .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; padding:0 100%; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
         .notice-ticker-wrap:hover .notice-ticker-track { animation-play-state: paused; }
-        @keyframes noticeTickerMove { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        @keyframes noticeTickerMove { 0% { transform: translateX(-100%); } 100% { transform: translateX(0); } }
         .notice-item { display:inline-flex; align-items:center; gap:11px; padding:6px 7px 6px 8px; border-radius:999px; background: rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09); font-size:12px; }
         .notice-item-ico { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(245,158,11,.16); color:#fbbf24; font-size:11px; }
         .notice-item-title { color:#fff; font-weight:800; }
@@ -675,7 +675,7 @@ try {
 </div>
 <!-- NOTICE TICKER (unread notifications scroll until marked Read) -->
 <div class="notice-bar" id="dashboardNoticeTicker">
-<div class="notice-badge"><span class="notice-bell"><i class="fa-solid fa-bell"></i></span><span class="notice-badge-text">Notice</span><span class="notice-count" id="dashboardNoticeTickerCount">0</span></div>
+<div class="notice-badge"><span class="notice-bell"><i class="fa-solid fa-bell"></i></span><span class="notice-badge-text">Notice</span></div>
 <div class="notice-ticker-wrap"><div class="notice-ticker-track" id="dashboardNoticeTickerTrack"></div></div>
 </div>
 <!-- TOP 4 QUICK ACTION CARDS -->
@@ -690,7 +690,6 @@ try {
 </div>
 <div class="relative w-12 h-12 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 text-xl border border-violet-800/40">
 <i class="fa-solid fa-bell"></i>
-<span class="hidden absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black items-center justify-center border-2 border-[#131d36] shadow" id="dashboardNotificationBadge">0</span>
 </div>
 </div>
 <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-amber-800/60 transition-all duration-200 cursor-pointer" onclick="triggerExcelReportImport()" title="Open Performance Checker">
@@ -2845,7 +2844,9 @@ try {
                         track.dataset.sig=sig;
                         track.innerHTML=unread.map(n=>`<span class="notice-item"><span class="notice-item-ico"><i class="fa-solid fa-bullhorn"></i></span><span class="notice-item-title">${escapeHtml(n.title||'Notice')}</span><span class="notice-item-msg">${escapeHtml(String(n.message||'').replace(/\s+/g,' '))}</span>${n.createdAt?`<span class="notice-item-time">${escapeHtml(new Date(n.createdAt).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</span>`:''}<button type="button" onclick="markDashboardNotificationRead('${escapeHtml(n.id)}')" class="notice-read-btn"><i class="fa-solid fa-check"></i> Read</button></span>`).join('');
                         const chars=unread.reduce((a,n)=>a+String(n.title||'').length+String(n.message||'').length+10,0);
-                        track.style.animationDuration=Math.max(15,Math.round(10+chars*0.18))+'s';
+                        const est=Math.max(15,Math.round(10+chars*0.18))+'s';
+                        const setDur=()=>{const w=track.scrollWidth;track.style.animationDuration=w>0?Math.max(12,Math.round(w/90))+'s':est;};
+                        setDur();requestAnimationFrame(setDur);
                     }
                 }
             }
