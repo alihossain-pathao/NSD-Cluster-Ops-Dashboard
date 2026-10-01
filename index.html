@@ -433,7 +433,7 @@
 <button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
-<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-d</p>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-e</p>
 </div>
 </div>
 <!-- SIDEBAR OVERLAY & DRAWER -->
@@ -1914,6 +1914,8 @@
         // first authoritative hubs snapshot arrives, never render stale/default
         // Hub cards from this browser's LocalStorage.
         let hubCloudStateReady = false;
+        // Leftover hook called from a late <script>; it was never defined (harmless ReferenceError).
+        function finishHeaderBoot() { document.documentElement.classList.remove('app-booting'); }
         let hubListenerError = '';
         let authCheckSlow = false;
         let lastJsError = '';
@@ -2438,17 +2440,18 @@
             const loginBtn = document.getElementById('sidebarLoginBtn');
             const logoutBtn = document.getElementById('sidebarLogoutBtn');
             const gate = document.getElementById('authGate');
-            if (!name) return;
+            // NOTE: profileName/profileAvatar may not exist in the page. The login gate below
+            // must work either way, so never return early here.
             if (currentUser || cloudUserCap) {
-                if (!currentUser) { name.textContent = 'Signed in'; gate?.classList.add('hidden'); applyOwnerOnlyUI(); return; }
-                name.textContent = currentUser.displayName || 'Google User';
-                avatar.src = currentUser.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                if (!currentUser) { if (name) name.textContent = 'Signed in'; gate?.classList.add('hidden'); applyOwnerOnlyUI(); return; }
+                if (name) name.textContent = currentUser.displayName || 'Google User';
+                if (avatar) avatar.src = currentUser.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
                 loginBtn?.classList.add('hidden');
                 logoutBtn?.classList.remove('hidden');
                 gate?.classList.add('hidden');
             } else {
-                name.textContent = 'Not signed in';
-                avatar.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                if (name) name.textContent = 'Not signed in';
+                if (avatar) avatar.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
                 loginBtn?.classList.remove('hidden');
                 logoutBtn?.classList.add('hidden');
 
