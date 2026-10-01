@@ -1855,6 +1855,22 @@
         // can never make the dashboard disappear for every user.
         const DEFAULT_HUB_LIST = JSON.parse(JSON.stringify(hubList));
 
+        // Shared hub configuration state. The Owner's current browser list may
+        // contain intentional hub changes that are not part of the original
+        // built-in defaults. In that case the Owner's list is the source to
+        // publish to Firestore; normal users always consume Firestore only.
+        let sharedHubSyncReady = false;
+        let sharedHubSyncInProgress = false;
+
+        function hubListsEqual(a, b) {
+            try { return JSON.stringify(a || []) === JSON.stringify(b || []); }
+            catch (e) { return false; }
+        }
+
+        function hasOwnerCustomHubList() {
+            return Array.isArray(hubList) && hubList.length > 0 && !hubListsEqual(hubList, DEFAULT_HUB_LIST);
+        }
+
         let taskSheets = {
             morning: [
                 { id: 'm1', title: 'Morning Dispatch Sheet', url: 'https://docs.google.com/spreadsheets', desc: 'Daily parcel dispatch and DA distribution tracker' },
@@ -1929,6 +1945,15 @@
         let presenceRefreshTimer = null;
         let authStateResolved = false;
         let presenceSessionToken = 0;
+
+        // Centralized shared-data layer for reports that live outside the main hub/attendance/inventory stores.
+        // Firestore is authoritative; localStorage is only a cache/backup.
+        let agentPerformanceData = {};
+        let ageingSharedData = { rows: [], matrix: {}, ages: [], reportDate: null, updatedAt: 0 };
+        let excelHubSharedData = { rows: [], groups: {}, reportDate: '', updatedAt: 0 };
+        let agentPerformanceListenerReady = false;
+        let sharedExtrasReady = false;
+
 
         // Firebase Auth can take a moment to restore the Google session after
         // Ctrl+R/F5. Cloud writes must wait for that session to be ready;
@@ -2005,7 +2030,8 @@
                 localStorage.setItem(LS_STATE_KEY, JSON.stringify({
                     hubList, hubReportsData, hubReportHistory,
                     previousRatioOverrides,
-                    attendanceReportsData, inventoryReportsData
+                    attendanceReportsData, inventoryReportsData,
+                    agentPerformanceData, ageingSharedData, excelHubSharedData
                 }));
             } catch (e) {}
         }
@@ -2021,9 +2047,87 @@
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
                 if (st.attendanceReportsData) attendanceReportsData = st.attendanceReportsData;
                 if (st.inventoryReportsData) inventoryReportsData = st.inventoryReportsData;
+                if (st.agentPerformanceData) agentPerformanceData = st.agentPerformanceData;
+                if (st.ageingSharedData) ageingSharedData = st.ageingSharedData;
+                if (st.excelHubSharedData) excelHubSharedData = st.excelHubSharedData;
                 return true;
             } catch (e) { return false; }
         }
+
+        /* ---- centralized shared-data writers ---- */
+        const cloudSyncAgentPerformance = debounce(async function (hubId, payload) {
+            if (!cloudDb || !hubId || !payload) return;
+            try {
+                if (!await waitForCloudAuth()) return;
+                await cloudDb.collection('agentPerformanceReports').doc(hubId).set({
+                    masterList: Array.isArray(payload.masterList) ? payload.masterList : [],
+                    agents: Array.isArray(payload.agents) ? payload.agents : [],
+                    updatedAt: Date.now(),
+                    updatedBy: currentUser?.uid || ''
+                });
+            } catch (e) { cloudFail(e); }
+        }, 500);
+
+        const cloudSyncAgeingReport = debounce(async function () {
+            if (!cloudDb) return;
+            try {
+                if (!await waitForCloudAuth()) return;
+                await cloudDb.doc('sharedReports/ageing').set({
+                    rows: Array.isArray(ageingRows) ? ageingRows : [],
+                    matrix: ageingMatrix || {},
+                    ages: Array.isArray(ageingAges) ? ageingAges : [],
+                    reportDate: ageingReportDate ? ageingReportDate.toISOString() : null,
+                    updatedAt: Date.now(),
+                    updatedBy: currentUser?.uid || ''
+                });
+            } catch (e) { cloudFail(e); }
+        }, 700);
+
+        const cloudSyncExcelHubReport = debounce(async function () {
+            if (!cloudDb) return;
+            try {
+                if (!await waitForCloudAuth()) return;
+                await cloudDb.doc('sharedReports/excelHub').set({
+                    rows: Array.isArray(excelHubReportRows) ? excelHubReportRows : [],
+                    groups: excelHubReportGroups || {},
+                    reportDate: excelHubReportDate || '',
+                    updatedAt: Date.now(),
+                    updatedBy: currentUser?.uid || ''
+                });
+            } catch (e) { cloudFail(e); }
+        }, 700);
+
+        function postAgentPerformanceStateToFrame() {
+            const frame = document.getElementById('agentPerformancePageFrame');
+            const hubId = frame?.dataset?.hubId;
+            if (!frame?.contentWindow || !hubId) return;
+            const data = agentPerformanceData[hubId];
+            if (!data) return;
+            try { frame.contentWindow.postMessage({ type:'sharedAgentPerformanceState', hubId, payload:data }, '*'); } catch(e) {}
+        }
+
+        window.addEventListener('message', event => {
+            const msg = event?.data;
+            if (!msg || (msg.type !== 'agentPerformanceReady' && msg.type !== 'agentPerformanceChanged')) return;
+            const hubId = String(msg.hubId || '');
+            if (!hubId || !msg.payload) return;
+
+            // A cloud copy is authoritative. Only migrate the iframe's local copy when
+            // Firestore has no copy for this hub; after that, normal changes are shared live.
+            if (msg.type === 'agentPerformanceReady' && agentPerformanceData[hubId]) {
+                postAgentPerformanceStateToFrame();
+                return;
+            }
+
+            agentPerformanceData[hubId] = {
+                masterList: Array.isArray(msg.payload.masterList) ? msg.payload.masterList : [],
+                agents: Array.isArray(msg.payload.agents) ? msg.payload.agents : [],
+                updatedAt: Date.now(),
+                updatedBy: currentUser?.uid || ''
+            };
+            saveLocalState();
+            cloudSyncAgentPerformance(hubId, agentPerformanceData[hubId]);
+        });
 
         /* ---- cloud writers (debounced) ---- */
         const cloudWriteHubList = debounce(async function () {
@@ -2044,6 +2148,7 @@
             if (!myAccess.isOwner) return;
 
             pendingWrites.hubList++;
+            sharedHubSyncReady = true;
             cloudWriteHubList();
         }
 
@@ -2876,29 +2981,51 @@
             // 2/3/4) hub list, tasks/tabs, notices (shared) — run in PARALLEL instead of one-after-another
             await Promise.all([
                 (async () => {
+                    sharedHubSyncInProgress = true;
                     try {
+                        const localHubsBeforeCloud = Array.isArray(hubList) ? JSON.parse(JSON.stringify(hubList)) : [];
                         const hubDoc = await cloudDb.doc('config/hubList').get();
                         const cloudHubs = hubDoc.exists && Array.isArray(hubDoc.data().hubList)
                             ? hubDoc.data().hubList
                             : [];
 
-                        if (cloudHubs.length > 0) {
-                            // Firestore is the shared source of truth.
-                            hubList = cloudHubs;
-                        } else {
-                            // An empty/missing cloud list is treated as an uninitialized
-                            // configuration, not as a request to show zero hubs. Restore
-                            // the protected built-in list and let the owner seed it.
-                            if (!Array.isArray(hubList) || hubList.length === 0) {
+                        if (myAccess.isOwner) {
+                            // IMPORTANT: if the Owner already has a customized hub list
+                            // on this device, publish that list to Firestore. This fixes
+                            // the case where Firestore still contains an older 3-hub list
+                            // while the Owner has already changed the cluster hubs.
+                            if (localHubsBeforeCloud.length > 0 && !hubListsEqual(localHubsBeforeCloud, DEFAULT_HUB_LIST)) {
+                                hubList = localHubsBeforeCloud;
+                                await cloudDb.doc('config/hubList').set({ hubList });
+                            } else if (cloudHubs.length > 0) {
+                                hubList = cloudHubs;
+                            } else {
                                 hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                            }
-                            if (myAccess.isOwner) {
                                 await cloudDb.doc('config/hubList').set({ hubList });
                             }
+                        } else {
+                            // Normal users NEVER use their own old LocalStorage hub list
+                            // as shared configuration. They consume Firestore only.
+                            if (cloudHubs.length > 0) {
+                                hubList = cloudHubs;
+                            } else if (localHubsBeforeCloud.length > 0) {
+                                // Temporary visual fallback only if the shared document
+                                // has not been initialized yet. Do not write it back.
+                                hubList = localHubsBeforeCloud;
+                            } else {
+                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            }
                         }
+
+                        sharedHubSyncReady = true;
                         saveLocalState();
                         renderDashboard();
-                    } catch (e) {}
+                    } catch (e) {
+                        console.error('Shared hub configuration load failed:', e);
+                        // Keep the local UI available, but do not mark shared sync ready.
+                    } finally {
+                        sharedHubSyncInProgress = false;
+                    }
                 })(),
                 (async () => {
                     try {
@@ -2944,17 +3071,22 @@
             ]);
 
             cloudDb.doc('config/hubList').onSnapshot(snap => {
-                if (pendingWrites.hubList > 0) return;                       // ignore echoes while owner's write is in flight
+                if (pendingWrites.hubList > 0 || sharedHubSyncInProgress) return;
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
                     const cloudHubs = snap.data().hubList;
-                    // Never render an empty shared list. During first-run initialization
-                    // the owner seeds Firestore with the built-in list below.
                     if (cloudHubs.length > 0) {
+                        // Owner may have just changed the list locally; while the write
+                        // settles, do not replace it with an older snapshot.
+                        if (myAccess.isOwner && hasOwnerCustomHubList() && !hubListsEqual(cloudHubs, hubList)) {
+                            return;
+                        }
                         hubList = cloudHubs;
+                        sharedHubSyncReady = true;
                         saveLocalState();
                         rerenderAll();
                     } else if (myAccess.isOwner) {
                         hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                        sharedHubSyncReady = true;
                         saveLocalState();
                         rerenderAll();
                         cloudDb.doc('config/hubList').set({ hubList }).catch(cloudFail);
@@ -3087,6 +3219,29 @@
                 inventorySnap.docs.forEach(d => { inventoryReportsData[d.id] = d.data() || {}; });
                 saveLocalState();
             } catch (e) { cloudFail(e); }
+            try {
+                const [agentSnap, ageingSnap, excelSnap] = await Promise.all([
+                    cloudDb.collection('agentPerformanceReports').get(),
+                    cloudDb.doc('sharedReports/ageing').get(),
+                    cloudDb.doc('sharedReports/excelHub').get()
+                ]);
+                agentSnap.docs.forEach(d => { agentPerformanceData[d.id] = d.data() || {}; });
+                if (ageingSnap.exists) {
+                    const d = ageingSnap.data() || {};
+                    ageingRows = Array.isArray(d.rows) ? d.rows : [];
+                    ageingMatrix = d.matrix || {};
+                    ageingAges = Array.isArray(d.ages) ? d.ages : [];
+                    ageingReportDate = d.reportDate ? new Date(d.reportDate) : null;
+                }
+                if (excelSnap.exists) {
+                    const d = excelSnap.data() || {};
+                    excelHubReportRows = Array.isArray(d.rows) ? d.rows : [];
+                    excelHubReportGroups = d.groups || {};
+                    excelHubReportDate = d.reportDate || '';
+                }
+                saveLocalState();
+            } catch (e) { console.warn('Shared extra-data initial load skipped:', e); }
+
             cloudDb.collection('inventoryReports').onSnapshot(snap => {
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
@@ -3101,6 +3256,40 @@
                 });
                 saveLocalState();
             }, err => { console.warn('Shared inventoryReports listener failed:', err); cloudFail(err); });
+
+            // 8) Agent Performance Report master lists + live numbers (shared, live)
+            cloudDb.collection('agentPerformanceReports').onSnapshot(snap => {
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (ch.type === 'removed') delete agentPerformanceData[id];
+                    else agentPerformanceData[id] = ch.doc.data() || {};
+                });
+                agentPerformanceListenerReady = true;
+                postAgentPerformanceStateToFrame();
+            }, err => { console.error('Shared agentPerformanceReports listener failed:', err); cloudFail(err); });
+
+            // 9) Imported Ageing / Consignment report (shared, live)
+            cloudDb.doc('sharedReports/ageing').onSnapshot(snap => {
+                if (!snap.exists) return;
+                const d = snap.data() || {};
+                ageingRows = Array.isArray(d.rows) ? d.rows : [];
+                ageingMatrix = d.matrix || {};
+                ageingAges = Array.isArray(d.ages) ? d.ages : [];
+                ageingReportDate = d.reportDate ? new Date(d.reportDate) : null;
+                sharedExtrasReady = true;
+                if (!document.getElementById('ageingReportView')?.classList.contains('hidden')) renderAgeingReport();
+            }, err => { console.error('Shared ageing report listener failed:', err); cloudFail(err); });
+
+            // 10) Imported Excel Hub report (shared, live)
+            cloudDb.doc('sharedReports/excelHub').onSnapshot(snap => {
+                if (!snap.exists) return;
+                const d = snap.data() || {};
+                excelHubReportRows = Array.isArray(d.rows) ? d.rows : [];
+                excelHubReportGroups = d.groups || {};
+                excelHubReportDate = d.reportDate || '';
+                sharedExtrasReady = true;
+                if (!document.getElementById('excelImportReportView')?.classList.contains('hidden')) renderExcelHubReport('all');
+            }, err => { console.error('Shared Excel hub report listener failed:', err); cloudFail(err); });
 
             if (dashboardOwnerUid) {
                 cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
@@ -5389,6 +5578,28 @@
                 .replace(/SHIBPUR HUB AGENT PERFORMANCE REPORT/g, hubTitle)
                 .replace(/shibpur_master_agents/g, hubKey + '_master_agents');
 
+            // Bridge the embedded report to the parent Firebase shared-data layer.
+            // This keeps the existing Agent Performance Report UI unchanged while making
+            // its master agent list and live values shared across users/devices.
+            const agentBridge = `<script>(function(){
+                const HUB_ID=${JSON.stringify(String(hubId))};
+                function snapshot(){
+                    try{return {masterList:Array.isArray(window.masterList)?window.masterList:[],agents:Array.isArray(window.agents)?window.agents:[]};}catch(e){return {masterList:[],agents:[]};}
+                }
+                function send(type){try{parent.postMessage({type,hubId:HUB_ID,payload:snapshot()},'*');}catch(e){}}
+                const wrap=(name)=>{const old=window[name];if(typeof old!=='function')return;window[name]=function(){const r=old.apply(this,arguments);send('agentPerformanceChanged');return r;};};
+                ['updateValue','processPasteData','saveAgentSetup','resetDefaultAgents','clearAllData'].forEach(wrap);
+                window.addEventListener('message',function(e){const m=e&&e.data;if(!m||m.type!=='sharedAgentPerformanceState'||m.hubId!==HUB_ID||!m.payload)return;try{
+                    if(Array.isArray(m.payload.masterList)){window.masterList=m.payload.masterList.map(a=>({...a}));localStorage.setItem(HUB_ID.toLowerCase().replace(/[^a-z0-9]+/g,'_')+'_master_agents',JSON.stringify(window.masterList));}
+                    if(Array.isArray(m.payload.agents))window.agents=m.payload.agents.map(a=>({...a}));
+                    if(typeof window.renderTable==='function')window.renderTable();
+                }catch(e){}}
+                );
+                window.addEventListener('load',function(){send('agentPerformanceReady');},{once:true});
+                setTimeout(function(){send('agentPerformanceReady');},300);
+            })();<\/script>`;
+            reportHtml = reportHtml.replace('</body>', agentBridge + '</body>');
+
             // Reuse one modal/iframe so no extra browser page or tab opens.
             let modal = document.getElementById('agentPerformancePageModal');
             if (!modal) {
@@ -5403,6 +5614,11 @@
             }
 
             const frame = document.getElementById('agentPerformancePageFrame');
+            frame.dataset.hubId = String(hubId);
+            frame.onload = () => {
+                const data = agentPerformanceData[String(hubId)];
+                if (data) postAgentPerformanceStateToFrame();
+            };
             frame.srcdoc = reportHtml;
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
@@ -6862,6 +7078,7 @@
                 });
 
                 ageingAges = Array.from(ageSet).sort((a,b) => a-b);
+                cloudSyncAgeingReport();
 
                 const meta = document.getElementById('ageingReportMeta');
                 if (meta) {
@@ -7185,6 +7402,7 @@
                     const g = excelHubReportGroups[k];
                     g.summary = aggregateExcelRows(g.rows, g.label);
                 });
+                cloudSyncExcelHubReport();
 
                 const meta = document.getElementById('excelImportReportMeta');
                 if (meta) {
