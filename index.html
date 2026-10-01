@@ -2049,7 +2049,10 @@
         const hubReportDebouncers = {};
         const cloudSyncUiHide = debounce(async function () {
             if (!cloudDb || !dashboardOwnerUid) return;
-            try { await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() }); } catch (e) { cloudFail(e); }
+            try {
+                if (!await waitForCloudAuth()) return;
+                await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() });
+            } catch (e) { cloudFail(e); }
         }, 400);
 
         function cloudSyncHubReport(hubId) {
@@ -2813,6 +2816,17 @@
                 setupGoogleAuth();
                 // Complete a previous redirect-based Google sign-in when returning to the dashboard.
                 await handleGoogleRedirectResult();
+
+                // IMPORTANT: do not attach Firestore reads/listeners until Firebase Auth
+                // has restored the Google session. If listeners start while request.auth
+                // is still null, Firestore can return permission-denied and permanently
+                // close that listener for this page load.
+                const authReady = await waitForCloudAuth(20000);
+                if (!authReady) {
+                    console.warn('Shared sync delayed: Firebase Auth user is not available yet.');
+                    updateProfileUI();
+                    return;
+                }
             } else {
                 // fallback: Claude artifact runtime (only exists when published inside Claude)
                 try { cloudUserCap = await window.claude?.use?.('user'); } catch (e) { cloudUserCap = null; }
@@ -2900,7 +2914,7 @@
                     saveLocalState();
                     rerenderAll();
                 }
-            }, err => { console.warn('Shared hubList listener failed:', err); });
+            }, err => { console.error('Shared hubList listener failed:', err); cloudFail(err); });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
@@ -2908,7 +2922,7 @@
                     if (snap.data().taskSheets) taskSheets = snap.data().taskSheets;
                     renderTaskTabs();
                 }
-            }, err => { console.warn('Shared taskData listener failed:', err); });
+            }, err => { console.error('Shared taskData listener failed:', err); cloudFail(err); });
 
             cloudDb.doc('config/notices').onSnapshot(snap => {
                 if (noticeWriteInFlight > 0) return;
@@ -2918,7 +2932,7 @@
                     if (Array.isArray(nd.clusterNotices)) clusterNotices = nd.clusterNotices;
                     renderClusterNotices();
                 }
-            }, err => { console.warn('Shared notices listener failed:', err); });
+            }, err => { console.error('Shared notices listener failed:', err); cloudFail(err); });
 
             // 4b) first run only: upload this device's existing reports so nothing is lost first run only: upload this device's existing reports so nothing is lost
             try {
