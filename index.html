@@ -433,7 +433,7 @@
 <button class="mt-5 w-full px-4 py-3 text-xs font-black rounded-xl bg-white text-slate-900 hover:bg-slate-200 transition flex items-center justify-center gap-2" id="authGateLoginBtn" onclick="googleSignIn()">
 <i class="fa-brands fa-google"></i> Sign in with Google
             </button>
-<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-c</p>
+<p class="mt-4 text-[9px] text-slate-600" id="authBuildTag">build 2026-10-01-d</p>
 </div>
 </div>
 <!-- SIDEBAR OVERLAY & DRAWER -->
@@ -2063,6 +2063,8 @@
             if (modal && pending) modal.classList.add('hidden');
         }
 
+        setTimeout(() => { if (!ownerPermissionReady) { try { finishOwnerPermissionCheck(true); } catch (e) {} } }, 10000);
+
         function finishOwnerPermissionCheck(isReady = true) {
             ownerPermissionReady = !!isReady;
             applyOwnerOnlyUI();
@@ -2654,6 +2656,9 @@
                 provider.setCustomParameters({ prompt: 'select_account' });
                 await cloudAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
                 await cloudAuth.signInWithPopup(provider);
+                currentUser = cloudAuth.currentUser || currentUser;
+                authStateResolved = true;
+                try { updateProfileUI(); } catch (_) {}
             } catch (e) {
                 console.error('Google sign-in error:', e);
 
@@ -2855,6 +2860,9 @@
             cloudAuth.onAuthStateChanged(async user => {
                 currentUser = user || null;
                 authStateResolved = true;
+                // Open (or close) the login gate IMMEDIATELY. It must never wait for the
+                // slower owner / notification lookups below, which can hang or fail.
+                try { updateProfileUI(); } catch (e) { console.error(e); }
                 if (currentUser) {
                     setTimeout(() => { flushSharedOutbox().catch(() => {}); }, 0);
                 }
@@ -2862,13 +2870,14 @@
                 // Start the online-user listener immediately after Firebase restores
                 // the session. Owner lookup must not block presence or the dashboard.
                 if (currentUser) {
-                    startPresence();
-                    await refreshGoogleOwnerStatus();
-                    finishOwnerPermissionCheck(true);
+                    // Hubs/tasks/notices load right away, independent of the owner lookup.
                     startSharedListeners().catch(e => console.error('Shared listeners failed', e));
-                    await loadNoticePersonalState();
-                    await loadDashboardNotificationState();
-                    startDashboardNotificationListener();
+                    try { startPresence(); } catch (e) { console.error('Presence failed', e); }
+                    try { await refreshGoogleOwnerStatus(); } catch (e) { console.error('Owner check failed', e); }
+                    finishOwnerPermissionCheck(true);
+                    try { await loadNoticePersonalState(); } catch (e) { console.error(e); }
+                    try { await loadDashboardNotificationState(); } catch (e) { console.error(e); }
+                    try { startDashboardNotificationListener(); } catch (e) { console.error(e); }
                 } else {
                     myAccess.isOwner = false;
                     sharedListenersUid = null;
