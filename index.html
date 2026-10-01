@@ -1966,11 +1966,34 @@
         const pendingWrites = { hubList: 0, reports: {}, attendance: {}, inventory: {} };
 
         function debounce(fn, wait) {
-            let t;
-            return function (...args) {
+            let t = null;
+            let lastArgs = null;
+            let lastThis = null;
+            const wrapped = function (...args) {
+                lastArgs = args;
+                lastThis = this;
                 clearTimeout(t);
-                t = setTimeout(() => fn.apply(this, args), wait);
+                t = setTimeout(() => {
+                    t = null;
+                    const a = lastArgs;
+                    const th = lastThis;
+                    lastArgs = null;
+                    lastThis = null;
+                    fn.apply(th, a || []);
+                }, wait);
             };
+            wrapped.flush = function () {
+                if (t) {
+                    clearTimeout(t);
+                    t = null;
+                    const a = lastArgs;
+                    const th = lastThis;
+                    lastArgs = null;
+                    lastThis = null;
+                    return fn.apply(th, a || []);
+                }
+            };
+            return wrapped;
         }
 
         let lastCloudErrorToast = 0;
@@ -2024,9 +2047,6 @@
         // Previous Ratio is kept separately from the live form so a browser
         // refresh/reload can never erase a manually entered value.
         let previousRatioOverrides = {};
-        // Hub List is Firestore-authoritative. Keep the device copy only as an
-        // offline fallback; never let it overwrite the shared Firestore list.
-        let cachedHubListBackup = null;
 
         function saveLocalState() {
             try {
@@ -2039,15 +2059,12 @@
             } catch (e) {}
         }
 
-        function loadLocalState(includeHubList = true) {
+        function loadLocalState() {
             try {
                 const raw = localStorage.getItem(LS_STATE_KEY);
                 if (!raw) return false;
                 const st = JSON.parse(raw);
-                if (Array.isArray(st.hubList)) {
-                    cachedHubListBackup = JSON.parse(JSON.stringify(st.hubList));
-                    if (includeHubList) hubList = st.hubList;
-                }
+                if (Array.isArray(st.hubList)) hubList = st.hubList;
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
@@ -2102,6 +2119,20 @@
                 });
             } catch (e) { cloudFail(e); }
         }, 700);
+
+        async function flushSharedCloudWrites() {
+            try {
+                cloudWriteHubList?.flush?.();
+                cloudSyncTaskData?.flush?.();
+                cloudSyncNotices?.flush?.();
+                Object.values(hubReportDebouncers || {}).forEach(fn => fn?.flush?.());
+                Object.values(attendanceDebouncers || {}).forEach(fn => fn?.flush?.());
+                Object.values(inventoryDebouncers || {}).forEach(fn => fn?.flush?.());
+                cloudSyncAgentPerformance?.flush?.();
+                cloudSyncAgeingReport?.flush?.();
+                cloudSyncExcelHubReport?.flush?.();
+            } catch (e) { console.warn('Shared cloud flush failed:', e); }
+        }
 
         function postAgentPerformanceStateToFrame() {
             const frame = document.getElementById('agentPerformancePageFrame');
@@ -2160,20 +2191,20 @@
 
         const cloudSyncTaskData = debounce(async function () {
             if (!await waitForCloudAuth()) return;
-            try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets }); } catch (e) { cloudFail(e); }
+            try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
         }, 600);
 
         const cloudSyncNotices = debounce(async function () {
             if (!await waitForCloudAuth()) return;
             noticeWriteInFlight++;
-            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); } catch (e) { cloudFail(e); }
+            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
             finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
         }, 600);
 
         async function writeNoticesNow() {
             if (!await waitForCloudAuth()) return;
             noticeWriteInFlight++;
-            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); } catch (e) { cloudFail(e); }
+            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
             finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
         }
 
@@ -2197,6 +2228,8 @@
                         await cloudDb.collection('hubReports').doc(hubId).set({
                             fields: hubReportsData[hubId] || {},
                             history: hubReportHistory[hubId] || {},
+                            updatedAt: Date.now(),
+                            updatedBy: currentUser?.uid || '',
                             previousRatioOverrides: previousRatioOverrides[hubId] || {}
                         });
                     } catch (e) { cloudFail(e); }
@@ -2216,7 +2249,7 @@
                 attendanceDebouncers[hubId] = debounce(async function () {
                     try {
                         if (!await waitForCloudAuth()) return;
-                        await cloudDb.collection('attendanceReports').doc(hubId).set(attendanceReportsData[hubId] || {});
+                        await cloudDb.collection('attendanceReports').doc(hubId).set({ ...(attendanceReportsData[hubId] || {}), updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
                     } catch (e) { cloudFail(e); }
                     finally { pendingWrites.attendance[hubId] = Math.max(0, (pendingWrites.attendance[hubId] || 1) - 1); }
                 }, 600);
@@ -2234,7 +2267,7 @@
                 inventoryDebouncers[hubId] = debounce(async function () {
                     try {
                         if (!await waitForCloudAuth()) return;
-                        await cloudDb.collection('inventoryReports').doc(hubId).set(inventoryReportsData[hubId] || {});
+                        await cloudDb.collection('inventoryReports').doc(hubId).set({ ...(inventoryReportsData[hubId] || {}), updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
                     } catch (e) { cloudFail(e); }
                     finally { pendingWrites.inventory[hubId] = Math.max(0, (pendingWrites.inventory[hubId] || 1) - 1); }
                 }, 600);
@@ -2668,6 +2701,9 @@
         }
 
         window.addEventListener('pagehide', () => {
+            // Flush debounced shared writes first so a quick Ctrl+R/close does not
+            // leave the latest edit only in LocalStorage.
+            flushSharedCloudWrites();
             // Best-effort cleanup. The 45-second heartbeat timeout is the fallback
             // if the browser terminates the page before this async delete completes.
             removeMyPresence();
@@ -2936,10 +2972,7 @@
 
         async function initCloudSync() {
             // 1) always start from this device's saved copy, so a refresh never resets anything
-            // Do not load the cached Hub List into the live UI. Firestore is the
-            // single source of truth for Hub configuration. Other report caches
-            // are still restored locally.
-            loadLocalState(false);
+            loadLocalState();
             loadTabsAndSheets();
             loadNoticesFromStorage();
 
@@ -2992,33 +3025,34 @@
                 (async () => {
                     sharedHubSyncInProgress = true;
                     try {
+                        const localHubsBeforeCloud = Array.isArray(hubList) ? JSON.parse(JSON.stringify(hubList)) : [];
                         const hubDoc = await cloudDb.doc('config/hubList').get();
                         const cloudHubs = hubDoc.exists && Array.isArray(hubDoc.data().hubList)
                             ? hubDoc.data().hubList
                             : [];
 
-                        // Firestore is authoritative for every signed-in user, including
-                        // the Owner. Never promote an old browser/LocalStorage Hub List
-                        // into Firestore during startup. A browser that previously had
-                        // 2 hubs must therefore adopt the same shared list as a browser
-                        // that has 3 hubs.
-                        if (cloudHubs.length > 0) {
-                            hubList = JSON.parse(JSON.stringify(cloudHubs));
-                        } else if (myAccess.isOwner) {
-                            // Initialize the shared document only when it does not exist
-                            // (or contains an empty list). This is the only startup seed.
-                            hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                            await cloudDb.doc('config/hubList').set({
-                                hubList,
-                                updatedAt: Date.now(),
-                                updatedBy: currentUser?.uid || ''
-                            });
-                        } else if (Array.isArray(cachedHubListBackup) && cachedHubListBackup.length > 0) {
-                            // Offline/read-failure fallback only. This branch never writes
-                            // the cached list back to Firestore.
-                            hubList = JSON.parse(JSON.stringify(cachedHubListBackup));
+                        if (myAccess.isOwner) {
+                            // Firestore is authoritative. Never publish an old LocalStorage
+                            // hub list automatically during startup; only an explicit
+                            // Add/Remove/Import action may call cloudSyncHubList().
+                            if (cloudHubs.length > 0) {
+                                hubList = cloudHubs;
+                            } else {
+                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                                await cloudDb.doc('config/hubList').set({ hubList, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
+                            }
                         } else {
-                            hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            // Normal users NEVER use their own old LocalStorage hub list
+                            // as shared configuration. They consume Firestore only.
+                            if (cloudHubs.length > 0) {
+                                hubList = cloudHubs;
+                            } else if (localHubsBeforeCloud.length > 0) {
+                                // Temporary visual fallback only if the shared document
+                                // has not been initialized yet. Do not write it back.
+                                hubList = localHubsBeforeCloud;
+                            } else {
+                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            }
                         }
 
                         sharedHubSyncReady = true;
@@ -3079,11 +3113,12 @@
                 if (snap.exists && Array.isArray(snap.data().hubList)) {
                     const cloudHubs = snap.data().hubList;
                     if (cloudHubs.length > 0) {
-                        // Firestore snapshot is authoritative for both Owner and users.
-                        // Never keep an older browser-specific list here. Explicit Owner
-                        // Add/Remove actions already write the new list to Firestore, and
-                        // pendingWrites prevents this listener from racing that write.
-                        hubList = JSON.parse(JSON.stringify(cloudHubs));
+                        // Owner may have just changed the list locally; while the write
+                        // settles, do not replace it with an older snapshot.
+                        if (myAccess.isOwner && hasOwnerCustomHubList() && !hubListsEqual(cloudHubs, hubList)) {
+                            return;
+                        }
+                        hubList = cloudHubs;
                         sharedHubSyncReady = true;
                         saveLocalState();
                         rerenderAll();
@@ -3148,7 +3183,7 @@
                 let touchedActive = false;
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
-                    if (pendingWrites.reports[id] > 0) return;
+                    // Always process Firestore snapshots. Firestore is the shared source of truth.
                     if (ch.type === 'removed') {
                         delete hubReportsData[id]; delete hubReportHistory[id];
                     } else {
@@ -3203,7 +3238,7 @@
             cloudDb.collection('attendanceReports').onSnapshot(snap => {
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
-                    if (pendingWrites.attendance[id] > 0) return;
+                    // Always process Firestore snapshots. Firestore is the shared source of truth.
                     if (ch.type === 'removed') delete attendanceReportsData[id];
                     else {
                         attendanceReportsData[id] = ch.doc.data() || {};
@@ -3248,7 +3283,7 @@
             cloudDb.collection('inventoryReports').onSnapshot(snap => {
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
-                    if (pendingWrites.inventory[id] > 0) return;
+                    // Always process Firestore snapshots. Firestore is the shared source of truth.
                     if (ch.type === 'removed') delete inventoryReportsData[id];
                     else {
                         inventoryReportsData[id] = ch.doc.data() || {};
@@ -6557,9 +6592,7 @@
         window.onload = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
-            // Hub List is loaded from Firestore below; only report/cache data is
-            // restored locally during the initial paint.
-            loadLocalState(false);
+            loadLocalState();
             loadTabsAndSheets();
             loadNoticesFromStorage();
             updateProfileUI();
