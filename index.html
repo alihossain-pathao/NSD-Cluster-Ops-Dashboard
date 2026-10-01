@@ -5249,8 +5249,11 @@ try {
             const totalCollection = sum('collection');
             const assignRate = totalParcels > 0 ? Math.round(totalAssign / totalParcels * 100) : 0;
             const attendance = totalDA > 0 ? Math.round(presentDA / totalDA * 100) : 0;
-            const deliveryBase = currentRows.reduce((a, r) => a + r.delivered + r.fieldHold + r.fieldReturn, 0);
+            // Same base as every hub row and the Closing Report: On The Way parcels.
+            const deliveryBase = currentRows.reduce((a, r) => a + Math.max(0, r.onTheWay), 0);
             const deliveryRate = deliveryBase > 0 ? Math.round(totalDelivered / deliveryBase * 100) : 0;
+            const fieldHoldRate = deliveryBase > 0 ? Math.round(totalFieldHold / deliveryBase * 100) : 0;
+            const fieldReturnRate = deliveryBase > 0 ? Math.round(totalFieldReturn / deliveryBase * 100) : 0;
             const parseClockMinutes = value => {
                 const m = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
                 if (!m) return null;
@@ -5350,7 +5353,7 @@ try {
                     <td class="p-2.5 text-center">${cur ? r.collection.toLocaleString() : '-'}</td>
                 </tr>`;
             }).join('');
-            closingFoot.innerHTML = `<tr><td class="p-3 sticky left-0 bg-[#0b1329] z-[5]">ALL ${kpiPreviousDayMode ? 'PREVIOUS-DAY' : 'CURRENT-DAY'} CLOSING TOTAL</td><td class="p-3 text-center">${onWay.toLocaleString()}</td><td class="p-3 text-center text-emerald-300">${totalDelivered.toLocaleString()}</td><td class="p-3 text-center">${deliveryRate}%</td><td class="p-3 text-center text-amber-300">${totalFieldHold.toLocaleString()}</td><td class="p-3 text-center">-</td><td class="p-3 text-center">${totalFieldReturn.toLocaleString()}</td><td class="p-3 text-center">-</td><td class="p-3 text-center">${closingOfficeHold.toLocaleString()}</td><td class="p-3 text-center text-rose-300">${totalHold.toLocaleString()}</td><td class="p-3 text-center">${totalCollection.toLocaleString()}</td></tr>`;
+            closingFoot.innerHTML = `<tr><td class="p-3 sticky left-0 bg-[#0b1329] z-[5]">ALL ${kpiPreviousDayMode ? 'PREVIOUS-DAY' : 'CURRENT-DAY'} CLOSING TOTAL</td><td class="p-3 text-center">${onWay.toLocaleString()}</td><td class="p-3 text-center text-emerald-300">${totalDelivered.toLocaleString()}</td><td class="p-3 text-center">${deliveryRate}%</td><td class="p-3 text-center text-amber-300">${totalFieldHold.toLocaleString()}</td><td class="p-3 text-center">${fieldHoldRate}%</td><td class="p-3 text-center">${totalFieldReturn.toLocaleString()}</td><td class="p-3 text-center">${fieldReturnRate}%</td><td class="p-3 text-center">${closingOfficeHold.toLocaleString()}</td><td class="p-3 text-center text-rose-300">${totalHold.toLocaleString()}</td><td class="p-3 text-center">${totalCollection.toLocaleString()}</td></tr>`;
         }
 
         function toggleKpiPreviousDay() {
