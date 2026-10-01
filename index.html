@@ -1925,6 +1925,14 @@
         let presenceRefreshTimer = null;
         let authStateResolved = false;
         let presenceSessionToken = 0;
+
+        // Firebase Auth can take a moment to restore the Google session after
+        // Ctrl+R/F5. Cloud writes must wait for that session to be ready;
+        // otherwise Firestore rules using request.auth != null can reject a
+        // perfectly valid user's first save.
+        let cloudAuthReadyResolve = null;
+        let cloudAuthReadyPromise = new Promise(resolve => { cloudAuthReadyResolve = resolve; });
+
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {}, inventory: {} };
 
@@ -1938,11 +1946,39 @@
 
         let lastCloudErrorToast = 0;
         function cloudFail(e) {
-            console.error('Cloud save failed', e);
+            console.error('Cloud save failed:', e);
+            const code = e?.code || e?.name || '';
+            const msg = String(e?.message || '');
             if (Date.now() - lastCloudErrorToast > 8000) {
                 lastCloudErrorToast = Date.now();
-                showToast('Could not save to shared database (saved on this device only)');
+
+                // Keep the normal message short, but expose the real Firebase
+                // reason in the console for troubleshooting.
+                if (code === 'permission-denied') {
+                    showToast('Shared database permission denied — check Firestore rules');
+                } else if (code === 'unauthenticated') {
+                    showToast('Google session is not ready — please try Save again');
+                } else if (msg.includes('maximum') || msg.includes('1 MiB')) {
+                    showToast('Shared report is too large for Firestore');
+                } else {
+                    showToast('Could not save to shared database (saved on this device only)');
+                }
             }
+        }
+
+        async function waitForCloudAuth(timeoutMs = 15000) {
+            if (!cloudDb) return false;
+            if (currentUser) return true;
+            if (!cloudAuth) return false;
+
+            try {
+                await Promise.race([
+                    cloudAuthReadyPromise,
+                    new Promise(resolve => setTimeout(resolve, timeoutMs))
+                ]);
+            } catch (e) {}
+
+            return !!currentUser;
         }
 
         /* ---- local cache ---- */
@@ -1977,7 +2013,10 @@
 
         /* ---- cloud writers (debounced) ---- */
         const cloudWriteHubList = debounce(async function () {
-            try { await cloudDb.doc('config/hubList').set({ hubList }); } catch (e) { cloudFail(e); }
+            try {
+                if (!await waitForCloudAuth()) return;
+                await cloudDb.doc('config/hubList').set({ hubList });
+            } catch (e) { cloudFail(e); }
             finally { pendingWrites.hubList = Math.max(0, pendingWrites.hubList - 1); }
         }, 600);
 
@@ -1989,19 +2028,19 @@
         }
 
         const cloudSyncTaskData = debounce(async function () {
-            if (!cloudDb) return;
+            if (!await waitForCloudAuth()) return;
             try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets }); } catch (e) { cloudFail(e); }
         }, 600);
 
         const cloudSyncNotices = debounce(async function () {
-            if (!cloudDb) return;
+            if (!await waitForCloudAuth()) return;
             noticeWriteInFlight++;
             try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); } catch (e) { cloudFail(e); }
             finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
         }, 600);
 
         async function writeNoticesNow() {
-            if (!cloudDb) return;
+            if (!await waitForCloudAuth()) return;
             noticeWriteInFlight++;
             try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); } catch (e) { cloudFail(e); }
             finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
@@ -2020,6 +2059,7 @@
             if (!hubReportDebouncers[hubId]) {
                 hubReportDebouncers[hubId] = debounce(async function () {
                     try {
+                        if (!await waitForCloudAuth()) return;
                         await cloudDb.collection('hubReports').doc(hubId).set({
                             fields: hubReportsData[hubId] || {},
                             history: hubReportHistory[hubId] || {},
@@ -2040,7 +2080,10 @@
             if (!cloudDb) return;
             if (!attendanceDebouncers[hubId]) {
                 attendanceDebouncers[hubId] = debounce(async function () {
-                    try { await cloudDb.collection('attendanceReports').doc(hubId).set(attendanceReportsData[hubId] || {}); } catch (e) { cloudFail(e); }
+                    try {
+                        if (!await waitForCloudAuth()) return;
+                        await cloudDb.collection('attendanceReports').doc(hubId).set(attendanceReportsData[hubId] || {});
+                    } catch (e) { cloudFail(e); }
                     finally { pendingWrites.attendance[hubId] = Math.max(0, (pendingWrites.attendance[hubId] || 1) - 1); }
                 }, 600);
             }
@@ -2055,7 +2098,10 @@
             if (!cloudDb) return;
             if (!inventoryDebouncers[hubId]) {
                 inventoryDebouncers[hubId] = debounce(async function () {
-                    try { await cloudDb.collection('inventoryReports').doc(hubId).set(inventoryReportsData[hubId] || {}); } catch (e) { cloudFail(e); }
+                    try {
+                        if (!await waitForCloudAuth()) return;
+                        await cloudDb.collection('inventoryReports').doc(hubId).set(inventoryReportsData[hubId] || {});
+                    } catch (e) { cloudFail(e); }
                     finally { pendingWrites.inventory[hubId] = Math.max(0, (pendingWrites.inventory[hubId] || 1) - 1); }
                 }, 600);
             }
@@ -2723,6 +2769,13 @@
                 currentUser = user || null;
                 authStateResolved = true;
 
+                // Release all queued cloud writers only after Firebase has
+                // definitely restored the current Google session.
+                if (cloudAuthReadyResolve) {
+                    cloudAuthReadyResolve(currentUser);
+                    cloudAuthReadyResolve = null;
+                }
+
                 // Start the online-user listener immediately after Firebase restores
                 // the session. Owner lookup must not block presence or the dashboard.
                 if (currentUser) {
@@ -2847,7 +2900,7 @@
                     saveLocalState();
                     rerenderAll();
                 }
-            }, () => {});
+            }, err => { console.warn('Shared hubList listener failed:', err); });
 
             cloudDb.doc('config/taskData').onSnapshot(snap => {
                 if (snap.exists) {
@@ -2855,7 +2908,7 @@
                     if (snap.data().taskSheets) taskSheets = snap.data().taskSheets;
                     renderTaskTabs();
                 }
-            }, () => {});
+            }, err => { console.warn('Shared taskData listener failed:', err); });
 
             cloudDb.doc('config/notices').onSnapshot(snap => {
                 if (noticeWriteInFlight > 0) return;
@@ -2865,7 +2918,7 @@
                     if (Array.isArray(nd.clusterNotices)) clusterNotices = nd.clusterNotices;
                     renderClusterNotices();
                 }
-            }, () => {});
+            }, err => { console.warn('Shared notices listener failed:', err); });
 
             // 4b) first run only: upload this device's existing reports so nothing is lost first run only: upload this device's existing reports so nothing is lost
             try {
@@ -2938,7 +2991,7 @@
                     loadHubReportData(currentActiveHubId);
                 }
                 rerenderAll();
-            }, () => {});
+            }, err => { console.warn('Shared hubReports listener failed:', err); cloudFail(err); });
 
             // 6) every hub's D.A. attendance (shared, live)
             try {
@@ -2963,7 +3016,7 @@
                 });
                 saveLocalState();
                 renderDashboard();
-            }, () => {});
+            }, err => { console.warn('Shared attendanceReports listener failed:', err); cloudFail(err); });
 
             // 7) every hub's inventory report (shared, live)
             try {
@@ -2984,7 +3037,7 @@
                     }
                 });
                 saveLocalState();
-            }, () => {});
+            }, err => { console.warn('Shared inventoryReports listener failed:', err); cloudFail(err); });
 
             if (dashboardOwnerUid) {
                 cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
