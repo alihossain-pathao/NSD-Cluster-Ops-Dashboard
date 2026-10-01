@@ -651,11 +651,12 @@ try {
 <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">NOTICE</span>
 <div class="text-3xl font-black text-violet-400 mt-1">Notice</div>
 <span class="text-xs font-semibold text-slate-400 flex items-center gap-1 mt-1">
-<i class="fa-solid fa-bell"></i> View Notifications
+<i class="fa-solid fa-bell"></i> <span id="dashboardNotificationSubText">View Notifications</span>
                     </span>
 </div>
-<div class="w-12 h-12 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 text-xl border border-violet-800/40">
+<div class="relative w-12 h-12 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 text-xl border border-violet-800/40">
 <i class="fa-solid fa-bell"></i>
+<span class="hidden absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black items-center justify-center border-2 border-[#131d36] shadow" id="dashboardNotificationBadge">0</span>
 </div>
 </div>
 <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-amber-800/60 transition-all duration-200 cursor-pointer" onclick="triggerExcelReportImport()" title="Open Performance Checker">
@@ -2794,8 +2795,10 @@ try {
             // the notification list from rendering.
             if(!list)return;
             const unread=getDashboardNotificationUnread();
+            const sub=document.getElementById('dashboardNotificationSubText');
+            if(sub)sub.textContent=unread.length?(unread.length+' New Notification'+(unread.length>1?'s':'')):'View Notifications';
             if(badge){
-                badge.textContent=String(unread.length);
+                badge.textContent=unread.length>99?'99+':String(unread.length);
                 badge.classList.toggle('hidden',!unread.length);
                 badge.classList.toggle('flex',!!unread.length);
             }
