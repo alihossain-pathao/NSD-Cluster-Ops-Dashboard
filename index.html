@@ -2041,7 +2041,10 @@
                 const raw = localStorage.getItem(LS_STATE_KEY);
                 if (!raw) return false;
                 const st = JSON.parse(raw);
-                if (Array.isArray(st.hubList)) hubList = st.hubList;
+                // IMPORTANT: Hub List is NOT restored from LocalStorage.
+                // Firestore is the single source of truth for shared Hub List.
+                // This prevents one browser's old 2-hub/3-hub cache from changing
+                // what that browser displays while other users use the cloud list.
                 if (st.hubReportsData) hubReportsData = st.hubReportsData;
                 if (st.hubReportHistory) hubReportHistory = st.hubReportHistory;
                 if (st.previousRatioOverrides) previousRatioOverrides = st.previousRatioOverrides;
@@ -2991,49 +2994,29 @@
                 (async () => {
                     sharedHubSyncInProgress = true;
                     try {
-                        const localHubsBeforeCloud = Array.isArray(hubList) ? JSON.parse(JSON.stringify(hubList)) : [];
                         const hubDoc = await cloudDb.doc('config/hubList').get();
                         const cloudHubs = hubDoc.exists && Array.isArray(hubDoc.data().hubList)
                             ? hubDoc.data().hubList
                             : [];
 
-                        if (myAccess.isOwner) {
-                            // OWNER RECONCILIATION:
-                            // The Owner's current saved hub list is allowed to publish the
-                            // shared configuration when it differs from the built-in defaults.
-                            // This fixes the exact case where the Owner sees 2 hubs while
-                            // another browser still sees an older 3-hub Firestore list.
-                            //
-                            // Once published, Firestore becomes authoritative for EVERY
-                            // browser. LocalStorage is never used by normal users to replace
-                            // the cloud list.
-                            if (localHubsBeforeCloud.length > 0 && !hubListsEqual(localHubsBeforeCloud, DEFAULT_HUB_LIST)) {
-                                hubList = localHubsBeforeCloud;
-                                await cloudDb.doc('config/hubList').set({
-                                    hubList: JSON.parse(JSON.stringify(hubList)),
-                                    updatedAt: Date.now(),
-                                    updatedBy: currentUser?.uid || '',
-                                    source: 'owner'
-                                });
-                            } else if (cloudHubs.length > 0) {
-                                hubList = cloudHubs;
-                            } else {
-                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                                await cloudDb.doc('config/hubList').set({
-                                    hubList: JSON.parse(JSON.stringify(hubList)),
-                                    updatedAt: Date.now(),
-                                    updatedBy: currentUser?.uid || '',
-                                    source: 'owner'
-                                });
-                            }
+                        // IMPORTANT: Firestore is the ONLY source of truth for the
+                        // shared Hub List. Never publish this browser's LocalStorage
+                        // copy during startup. This was the cause of one browser
+                        // showing 2 hubs while another showed 3 hubs.
+                        if (cloudHubs.length > 0) {
+                            hubList = JSON.parse(JSON.stringify(cloudHubs));
                         } else {
-                            // NORMAL USER:
-                            // Always consume the Firestore Hub List. Never allow an old
-                            // browser LocalStorage copy to overwrite or visually replace it.
-                            if (cloudHubs.length > 0) {
-                                hubList = cloudHubs;
-                            } else {
-                                hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            // If the shared document does not exist yet, initialize it
+                            // once from the built-in default. Normal users only use the
+                            // same fallback until the Owner creates the shared document.
+                            hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                            if (myAccess.isOwner) {
+                                await cloudDb.doc('config/hubList').set({
+                                    hubList: JSON.parse(JSON.stringify(hubList)),
+                                    updatedAt: Date.now(),
+                                    updatedBy: currentUser?.uid || '',
+                                    source: 'owner-init'
+                                });
                             }
                         }
 
@@ -3091,25 +3074,33 @@
             ]);
 
             cloudDb.doc('config/hubList').onSnapshot(snap => {
-                if (pendingWrites.hubList > 0 || sharedHubSyncInProgress) return;
-                if (snap.exists && Array.isArray(snap.data().hubList)) {
+                // NEVER ignore a Hub List snapshot because of local pending writes.
+                // The successful Firestore document is the shared truth and must be
+                // applied identically on every browser, including the Owner browser.
+                if (snap.exists && Array.isArray(snap.data().hubList) && snap.data().hubList.length > 0) {
                     const cloudHubs = snap.data().hubList;
-                    if (cloudHubs.length > 0) {
-                        // IMPORTANT: Firestore is authoritative here.
-                        // Do NOT let the Owner's old LocalStorage state block a newer
-                        // shared snapshot. This is what keeps Owner and normal users
-                        // on the exact same Hub List after refresh/login.
-                        hubList = JSON.parse(JSON.stringify(cloudHubs));
-                        sharedHubSyncReady = true;
-                        saveLocalState();
-                        rerenderAll();
-                    } else if (myAccess.isOwner) {
-                        hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
-                        sharedHubSyncReady = true;
-                        saveLocalState();
-                        rerenderAll();
-                        cloudDb.doc('config/hubList').set({ hubList }).catch(cloudFail);
-                    }
+                    hubList = JSON.parse(JSON.stringify(cloudHubs));
+                    sharedHubSyncReady = true;
+                    saveLocalState();
+                    rerenderAll();
+                } else if (myAccess.isOwner) {
+                    hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                    sharedHubSyncReady = true;
+                    saveLocalState();
+                    rerenderAll();
+                    cloudDb.doc('config/hubList').set({
+                        hubList: JSON.parse(JSON.stringify(hubList)),
+                        updatedAt: Date.now(),
+                        updatedBy: currentUser?.uid || '',
+                        source: 'owner-init'
+                    }).catch(cloudFail);
+                } else {
+                    // No shared document yet. Show the built-in list temporarily;
+                    // do not write it from a normal user browser.
+                    hubList = JSON.parse(JSON.stringify(DEFAULT_HUB_LIST));
+                    sharedHubSyncReady = true;
+                    saveLocalState();
+                    rerenderAll();
                 }
             }, err => {
                 console.error('Shared hubList listener failed:', err);
