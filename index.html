@@ -1914,6 +1914,10 @@
         // Hub cards from this browser's LocalStorage.
         let hubCloudStateReady = false;
         let hubListenerError = '';
+        let authCheckSlow = false;
+        let lastJsError = '';
+        window.addEventListener('error', ev => { if (!lastJsError) lastJsError = String(ev.message || 'script error'); });
+        window.addEventListener('unhandledrejection', ev => { if (!lastJsError) lastJsError = String((ev.reason && (ev.reason.code || ev.reason.message)) || ev.reason || 'promise error'); });
         let cloudUserCap = null;
         let currentUser = null;
         let myAccess = { isOwner: false };
@@ -2451,10 +2455,13 @@
                 gate?.classList.remove('hidden');
                 const gStatus = document.getElementById('authGateStatus');
                 const gBtn = document.getElementById('authGateLoginBtn');
-                if (authStateResolved) {
-                    if (gStatus) gStatus.textContent = cloudAuth
-                        ? 'Please sign in with your Google account to enter the Narsingdi Cluster Operations Center.'
-                        : 'Sign-in service could not load. Check your internet connection and refresh the page.';
+                if (authStateResolved || authCheckSlow) {
+                    if (gStatus) gStatus.textContent = !cloudAuth
+                        ? 'Sign-in service could not load. Check your internet connection and refresh the page.'
+                        : (authStateResolved
+                            ? 'Please sign in with your Google account to enter the Narsingdi Cluster Operations Center.'
+                            : 'Sign-in check is taking long. Click the button below to sign in.')
+                          + (!authStateResolved && lastJsError ? ' (' + lastJsError + ')' : '');
                     gBtn?.classList.toggle('hidden', !cloudAuth);
                 } else {
                     if (gStatus) gStatus.textContent = 'Checking sign-in...';
@@ -6437,23 +6444,32 @@
         window.onload = async function() {
             // Render immediately from local/cached data so the UI shows up right away,
             // instead of waiting for the cloud sync round-trips to finish first.
-            loadLocalState({ useHubList: false });
+            const safeStep = fn => { try { fn(); } catch (e) { console.error('Startup step failed', e); if (!lastJsError) lastJsError = String(e && e.message || e); } };
+            safeStep(() => loadLocalState({ useHubList: false }));
             // Never render the three hard-coded/default Hub cards before the
             // authoritative Firestore Hub snapshot is received.
             hubList = [];
             hubCloudStateReady = false;
-            loadTabsAndSheets();
-            loadNoticesFromStorage();
-            updateProfileUI();
-            renderTaskTabs();
-            renderDashboard();
-            renderConsolidatedMatrix();
-            renderLeaderboard();
-            renderClusterNotices();
-            setInterval(updateLastUpdatedTime, 1000);
+            safeStep(loadTabsAndSheets);
+            safeStep(loadNoticesFromStorage);
+            safeStep(updateProfileUI);
+            safeStep(renderTaskTabs);
+            safeStep(renderDashboard);
+            safeStep(renderConsolidatedMatrix);
+            safeStep(renderLeaderboard);
+            safeStep(renderClusterNotices);
+            safeStep(() => setInterval(updateLastUpdatedTime, 1000));
+
+            // If sign-in check does not finish quickly, still show the login button.
+            setTimeout(() => { if (!authStateResolved) { authCheckSlow = true; try { updateProfileUI(); } catch (e) {} } }, 4000);
 
             // Cloud sync (Firebase) runs in the background; UI re-renders again once it resolves.
-            initCloudSync().then(() => {
+            initCloudSync().catch(e => {
+                console.error('initCloudSync failed', e);
+                if (!lastJsError) lastJsError = String((e && (e.code || e.message)) || e);
+                authCheckSlow = true;
+                try { updateProfileUI(); } catch (_) {}
+            }).then(() => {
                 applyOwnerOnlyUI();
                 renderTaskTabs();
                 renderDashboard();
