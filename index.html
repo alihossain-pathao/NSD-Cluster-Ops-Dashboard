@@ -2034,6 +2034,39 @@
             }
         }
 
+        /* ---- everyone sees every hub (no per-person access rules) ---- */
+        function getVisibleHubs() { return hubList; }
+        function hasHubAccess() { return true; }
+
+        let ownerPermissionReady = false;
+
+        function applyOwnerOnlyUI() {
+            const pending = !ownerPermissionReady;
+            document.body.classList.toggle('owner-permission-pending', pending);
+            document.querySelectorAll('[data-owner-only]').forEach(el => {
+                el.style.display = pending ? 'none' : (myAccess.isOwner ? '' : 'none');
+            });
+            const modal = document.getElementById('visibilityModal');
+            if (modal && pending) modal.classList.add('hidden');
+        }
+
+        function finishOwnerPermissionCheck(isReady = true) {
+            ownerPermissionReady = !!isReady;
+            applyOwnerOnlyUI();
+        }
+
+        function rerenderAll() {
+            renderDashboard();
+            renderConsolidatedMatrix();
+            renderLeaderboard();
+        }
+
+        function isEditingInside(containerId) {
+            const c = document.getElementById(containerId);
+            const ae = document.activeElement;
+            return !!(c && ae && c.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
+        }
+
         function queueSharedDocument(path, payload) {
             if (!path) return Promise.resolve(false);
             rememberSharedWrite(path, payload);
