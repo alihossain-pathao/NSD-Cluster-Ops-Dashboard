@@ -2082,7 +2082,10 @@
             const job = previous.then(async () => {
                 const latest = sharedWriteLatest[path];
                 if (latest === undefined || !cloudDb) return false;
-                if (!(await waitForCloudAuth(15000))) return false;
+                if (!(await waitForCloudAuth(15000))) {
+                    showToast('Please sign in with Google first - this change is NOT saved for other users yet');
+                    return false;
+                }
                 try {
                     await cloudDb.doc(path).set({ ...latest, _syncAt: Date.now(), _syncBy: currentUser?.uid || '' });
                     forgetSharedWrite(path, latest);
@@ -2833,11 +2836,13 @@
                     startPresence();
                     await refreshGoogleOwnerStatus();
                     finishOwnerPermissionCheck(true);
+                    startSharedListeners().catch(e => console.error('Shared listeners failed', e));
                     await loadNoticePersonalState();
                     await loadDashboardNotificationState();
                     startDashboardNotificationListener();
                 } else {
                     myAccess.isOwner = false;
+                    sharedListenersUid = null;
                     finishOwnerPermissionCheck(true);
                     stopPresence();
                     stopDashboardNotificationListener();
@@ -2952,6 +2957,21 @@
                     } catch (e) { cloudFail(e); }
                 })()
             ]);
+
+            await startSharedListeners();
+        }
+
+        /* Shared live listeners (hubs, reports, tasks, notices...).
+           They must start AFTER Google sign-in. Before: if a user was not signed in yet when the
+           page loaded, Firestore rejected the listener (permission-denied) and it never restarted,
+           so that user never saw other people's hub add/edit/remove. */
+        let sharedListenersUid = null;
+        async function startSharedListeners() {
+            if (!cloudDb) return;
+            if (cloudDb.__firebase && !currentUser?.uid) return;
+            const key = currentUser?.uid || 'artifact';
+            if (sharedListenersUid === key) return;
+            sharedListenersUid = key;
 
             // Permanent real-time Hub source of truth: one Firestore document per Hub.
             cloudDb.collection('hubs').onSnapshot(snap => {
