@@ -2077,63 +2077,6 @@
             } catch (e) { return false; }
         }
 
-        /* ---- centralized shared-data writers ---- */
-        const cloudSyncAgentPerformance = debounce(async function (hubId, payload) {
-            if (!cloudDb || !hubId || !payload) return;
-            try {
-                if (!await waitForCloudAuth()) return;
-                await cloudDb.collection('agentPerformanceReports').doc(hubId).set({
-                    masterList: Array.isArray(payload.masterList) ? payload.masterList : [],
-                    agents: Array.isArray(payload.agents) ? payload.agents : [],
-                    updatedAt: Date.now(),
-                    updatedBy: currentUser?.uid || ''
-                });
-            } catch (e) { cloudFail(e); }
-        }, 500);
-
-        const cloudSyncAgeingReport = debounce(async function () {
-            if (!cloudDb) return;
-            try {
-                if (!await waitForCloudAuth()) return;
-                await cloudDb.doc('sharedReports/ageing').set({
-                    rows: Array.isArray(ageingRows) ? ageingRows : [],
-                    matrix: ageingMatrix || {},
-                    ages: Array.isArray(ageingAges) ? ageingAges : [],
-                    reportDate: ageingReportDate ? ageingReportDate.toISOString() : null,
-                    updatedAt: Date.now(),
-                    updatedBy: currentUser?.uid || ''
-                });
-            } catch (e) { cloudFail(e); }
-        }, 700);
-
-        const cloudSyncExcelHubReport = debounce(async function () {
-            if (!cloudDb) return;
-            try {
-                if (!await waitForCloudAuth()) return;
-                await cloudDb.doc('sharedReports/excelHub').set({
-                    rows: Array.isArray(excelHubReportRows) ? excelHubReportRows : [],
-                    groups: excelHubReportGroups || {},
-                    reportDate: excelHubReportDate || '',
-                    updatedAt: Date.now(),
-                    updatedBy: currentUser?.uid || ''
-                });
-            } catch (e) { cloudFail(e); }
-        }, 700);
-
-        async function flushSharedCloudWrites() {
-            try {
-                cloudWriteHubList?.flush?.();
-                cloudSyncTaskData?.flush?.();
-                cloudSyncNotices?.flush?.();
-                Object.values(hubReportDebouncers || {}).forEach(fn => fn?.flush?.());
-                Object.values(attendanceDebouncers || {}).forEach(fn => fn?.flush?.());
-                Object.values(inventoryDebouncers || {}).forEach(fn => fn?.flush?.());
-                cloudSyncAgentPerformance?.flush?.();
-                cloudSyncAgeingReport?.flush?.();
-                cloudSyncExcelHubReport?.flush?.();
-            } catch (e) { console.warn('Shared cloud flush failed:', e); }
-        }
-
         function postAgentPerformanceStateToFrame() {
             const frame = document.getElementById('agentPerformancePageFrame');
             const hubId = frame?.dataset?.hubId;
@@ -2167,113 +2110,189 @@
         });
 
         /* ---- cloud writers (debounced) ---- */
-        const cloudWriteHubList = debounce(async function () {
+        /* ---- CLOUD WRITERS: immediate, serialized, Firestore-authoritative ---- */
+        // The dashboard must never depend on a 400-700ms debounce for shared data.
+        // A debounced write could be cancelled by navigation/refresh and, more
+        // importantly, two rapid edits could leave the other browser behind.
+        const sharedWriteQueues = {};
+        const sharedWriteLatest = {};
+        const SHARED_OUTBOX_KEY = 'narsingdi_shared_cloud_outbox_v2';
+
+        function readSharedOutbox() {
             try {
-                if (!await waitForCloudAuth()) return;
-                await cloudDb.doc('config/hubList').set({ hubList });
-            } catch (e) { cloudFail(e); }
-            finally { pendingWrites.hubList = Math.max(0, pendingWrites.hubList - 1); }
-        }, 600);
+                const raw = localStorage.getItem(SHARED_OUTBOX_KEY);
+                const obj = raw ? JSON.parse(raw) : {};
+                return (obj && typeof obj === 'object') ? obj : {};
+            } catch (e) { return {}; }
+        }
+
+        function writeSharedOutbox(outbox) {
+            try { localStorage.setItem(SHARED_OUTBOX_KEY, JSON.stringify(outbox)); } catch (e) {
+                console.warn('Shared outbox cache failed:', e);
+            }
+        }
+
+        function rememberSharedWrite(path, payload) {
+            const outbox = readSharedOutbox();
+            outbox[path] = { payload, queuedAt: Date.now() };
+            writeSharedOutbox(outbox);
+        }
+
+        function forgetSharedWrite(path, payload) {
+            const outbox = readSharedOutbox();
+            if (!outbox[path]) return;
+            // Only remove if this is still the payload that was successfully written.
+            // A newer edit may have replaced it while the previous write was in flight.
+            if (JSON.stringify(outbox[path].payload) === JSON.stringify(payload)) delete outbox[path];
+            writeSharedOutbox(outbox);
+        }
+
+        async function flushSharedOutbox() {
+            if (!cloudDb) return;
+            if (!await waitForCloudAuth(20000)) return;
+            const outbox = readSharedOutbox();
+            for (const [path, item] of Object.entries(outbox)) {
+                try {
+                    const payload = item?.payload || {};
+                    await cloudDb.doc(path).set({
+                        ...payload,
+                        updatedAt: Date.now(),
+                        updatedBy: currentUser?.uid || ''
+                    });
+                    forgetSharedWrite(path, payload);
+                } catch (e) {
+                    cloudFail(e);
+                    console.error('Shared outbox retry failed:', path, e);
+                }
+            }
+        }
+
+        function queueSharedDocument(path, payload) {
+            if (!path) return Promise.resolve(false);
+            // Always keep the newest shared edit in a durable local outbox until
+            // Firestore confirms the write. LocalStorage is only the retry queue;
+            // Firestore remains the source of truth.
+            rememberSharedWrite(path, payload);
+            sharedWriteLatest[path] = payload;
+
+            if (!cloudDb) return Promise.resolve(false);
+            const previous = sharedWriteQueues[path] || Promise.resolve();
+            const job = previous.then(async () => {
+                const latest = sharedWriteLatest[path];
+                if (latest === undefined) return false;
+                if (!await waitForCloudAuth(20000)) return false;
+                try {
+                    await cloudDb.doc(path).set({
+                        ...latest,
+                        updatedAt: Date.now(),
+                        updatedBy: currentUser?.uid || ''
+                    });
+                    forgetSharedWrite(path, latest);
+                    return true;
+                } catch (e) {
+                    cloudFail(e);
+                    console.error('Shared write failed:', path, e);
+                    return false;
+                }
+            });
+            sharedWriteQueues[path] = job.catch(() => false);
+            return job;
+        }
 
         function cloudSyncHubList() {
             saveLocalState();
-            if (!cloudDb) return;
-
-            // Hub structure is shared cluster configuration. Only the owner may
-            // write the complete hub list; normal users must never overwrite the
-            // owner's list with their older LocalStorage copy.
-            if (!myAccess.isOwner) return;
-
-            pendingWrites.hubList++;
-            sharedHubSyncReady = true;
-            cloudWriteHubList();
+            if (!cloudDb || !myAccess.isOwner) return;
+            queueSharedDocument('config/hubList', { hubList });
         }
 
-        const cloudSyncTaskData = debounce(async function () {
-            if (!await waitForCloudAuth()) return;
-            try { await cloudDb.doc('config/taskData').set({ taskTabs, taskSheets, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
-        }, 600);
+        function cloudSyncTaskData() {
+            queueSharedDocument('config/taskData', { taskTabs, taskSheets });
+        }
 
-        const cloudSyncNotices = debounce(async function () {
-            if (!await waitForCloudAuth()) return;
+        function cloudSyncNotices() {
             noticeWriteInFlight++;
-            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
-            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
-        }, 600);
+            Promise.resolve(queueSharedDocument('config/notices', {
+                clusterNotices,
+                dismissedNoticeIds: cloudDismissedNoticeIds
+            })).finally(() => {
+                noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1);
+            });
+        }
 
         async function writeNoticesNow() {
-            if (!await waitForCloudAuth()) return;
             noticeWriteInFlight++;
-            try { await cloudDb.doc('config/notices').set({ clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds, updatedAt: Date.now(), updatedBy: currentUser?.uid || '' }); } catch (e) { cloudFail(e); }
-            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
+            try {
+                await queueSharedDocument('config/notices', {
+                    clusterNotices,
+                    dismissedNoticeIds: cloudDismissedNoticeIds
+                });
+            } finally {
+                noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1);
+            }
         }
 
-        const hubReportDebouncers = {};
-        const cloudSyncUiHide = debounce(async function () {
+        function cloudSyncUiHide() {
             if (!cloudDb || !dashboardOwnerUid) return;
-            try {
-                if (!await waitForCloudAuth()) return;
-                await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() });
-            } catch (e) { cloudFail(e); }
-        }, 400);
+            queueSharedDocument('ownerSettings/' + dashboardOwnerUid, { uiHide });
+        }
 
         function cloudSyncHubReport(hubId) {
-            if (!hubId) return;
+            if (!hubId || !cloudDb) return;
             saveLocalState();
-            if (!cloudDb) return;
-            if (!hubReportDebouncers[hubId]) {
-                hubReportDebouncers[hubId] = debounce(async function () {
-                    try {
-                        if (!await waitForCloudAuth()) return;
-                        await cloudDb.collection('hubReports').doc(hubId).set({
-                            fields: hubReportsData[hubId] || {},
-                            history: hubReportHistory[hubId] || {},
-                            updatedAt: Date.now(),
-                            updatedBy: currentUser?.uid || '',
-                            previousRatioOverrides: previousRatioOverrides[hubId] || {}
-                        });
-                    } catch (e) { cloudFail(e); }
-                    finally { pendingWrites.reports[hubId] = Math.max(0, (pendingWrites.reports[hubId] || 1) - 1); }
-                }, 600);
-            }
-            pendingWrites.reports[hubId] = (pendingWrites.reports[hubId] || 0) + 1;
-            hubReportDebouncers[hubId]();
+            queueSharedDocument('hubReports/' + hubId, {
+                fields: hubReportsData[hubId] || {},
+                history: hubReportHistory[hubId] || {},
+                previousRatioOverrides: previousRatioOverrides[hubId] || {}
+            });
         }
 
-        const attendanceDebouncers = {};
         function cloudSyncAttendance(hubId) {
-            if (!hubId) return;
+            if (!hubId || !cloudDb) return;
             saveLocalState();
-            if (!cloudDb) return;
-            if (!attendanceDebouncers[hubId]) {
-                attendanceDebouncers[hubId] = debounce(async function () {
-                    try {
-                        if (!await waitForCloudAuth()) return;
-                        await cloudDb.collection('attendanceReports').doc(hubId).set({ ...(attendanceReportsData[hubId] || {}), updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
-                    } catch (e) { cloudFail(e); }
-                    finally { pendingWrites.attendance[hubId] = Math.max(0, (pendingWrites.attendance[hubId] || 1) - 1); }
-                }, 600);
-            }
-            pendingWrites.attendance[hubId] = (pendingWrites.attendance[hubId] || 0) + 1;
-            attendanceDebouncers[hubId]();
+            queueSharedDocument('attendanceReports/' + hubId, {
+                ...(attendanceReportsData[hubId] || {})
+            });
         }
 
-        const inventoryDebouncers = {};
         function cloudSyncInventory(hubId) {
-            if (!hubId) return;
+            if (!hubId || !cloudDb) return;
             saveLocalState();
+            queueSharedDocument('inventoryReports/' + hubId, {
+                ...(inventoryReportsData[hubId] || {})
+            });
+        }
+
+        const cloudSyncAgentPerformance = function (hubId, payload) {
+            if (!hubId || !payload || !cloudDb) return;
+            queueSharedDocument('agentPerformanceReports/' + hubId, {
+                masterList: Array.isArray(payload.masterList) ? payload.masterList : [],
+                agents: Array.isArray(payload.agents) ? payload.agents : []
+            });
+        };
+
+        const cloudSyncAgeingReport = function () {
             if (!cloudDb) return;
-            if (!inventoryDebouncers[hubId]) {
-                inventoryDebouncers[hubId] = debounce(async function () {
-                    try {
-                        if (!await waitForCloudAuth()) return;
-                        await cloudDb.collection('inventoryReports').doc(hubId).set({ ...(inventoryReportsData[hubId] || {}), updatedAt: Date.now(), updatedBy: currentUser?.uid || '' });
-                    } catch (e) { cloudFail(e); }
-                    finally { pendingWrites.inventory[hubId] = Math.max(0, (pendingWrites.inventory[hubId] || 1) - 1); }
-                }, 600);
-            }
-            pendingWrites.inventory[hubId] = (pendingWrites.inventory[hubId] || 0) + 1;
-            inventoryDebouncers[hubId]();
+            queueSharedDocument('sharedReports/ageing', {
+                rows: Array.isArray(ageingRows) ? ageingRows : [],
+                matrix: ageingMatrix || {},
+                ages: Array.isArray(ageingAges) ? ageingAges : [],
+                reportDate: ageingReportDate ? ageingReportDate.toISOString() : null
+            });
+        };
+
+        const cloudSyncExcelHubReport = function () {
+            if (!cloudDb) return;
+            queueSharedDocument('sharedReports/excelHub', {
+                rows: Array.isArray(excelHubReportRows) ? excelHubReportRows : [],
+                groups: excelHubReportGroups || {},
+                reportDate: excelHubReportDate || ''
+            });
+        };
+
+        async function flushSharedCloudWrites() {
+            try {
+                await Promise.all(Object.values(sharedWriteQueues));
+            } catch (e) { console.warn('Shared cloud flush failed:', e); }
         }
 
         /* ---- everyone sees every hub (no per-person access rules) ---- */
@@ -2955,6 +2974,9 @@
                     await loadNoticePersonalState();
                     await loadDashboardNotificationState();
                     startDashboardNotificationListener();
+                    // Firebase may restore Auth after the first render. Retry every
+                    // durable shared write as soon as the signed-in session exists.
+                    try { await flushSharedOutbox(); } catch (e) { console.warn('Auth-ready shared retry failed:', e); }
                 } else {
                     myAccess.isOwner = false;
                     finishOwnerPermissionCheck(true);
@@ -3014,6 +3036,9 @@
             } else {
                 await refreshGoogleOwnerStatus();
             }
+            // Retry any edits that were made while Firebase Auth/Firestore was
+            // temporarily unavailable (including edits made just before refresh).
+            await flushSharedOutbox();
             await loadNoticePersonalState();
             await loadDashboardNotificationState();
             startDashboardNotificationListener();
