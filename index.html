@@ -41,9 +41,9 @@
         .notice-ticker-wrap { overflow:hidden; position:relative; flex:1 1 auto; min-width:0;
             -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
                     mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
-        .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; padding:0 100%; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
+        .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; width:max-content; padding:0; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
         .notice-ticker-wrap:hover .notice-ticker-track { animation-play-state: paused; }
-        @keyframes noticeTickerMove { 0% { transform: translateX(-100%); } 100% { transform: translateX(0); } }
+        @keyframes noticeTickerMove { 0% { transform: translateX(-100%); } 100% { transform: translateX(var(--tk-to, 100vw)); } }
         .notice-item { display:inline-flex; align-items:center; gap:11px; padding:6px 7px 6px 8px; border-radius:999px; background: rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09); font-size:12px; }
         .notice-item-ico { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(245,158,11,.16); color:#fbbf24; font-size:11px; }
         .notice-item-title { color:#fff; font-weight:800; }
@@ -2820,6 +2820,20 @@ try {
             const read = new Set(Array.isArray(dashboardNotificationReadIds) ? dashboardNotificationReadIds : []);
             return (Array.isArray(dashboardNotifications) ? dashboardNotifications : []).filter(n => n && !read.has(n.id));
         }
+        function fitNoticeTickerMotion(){
+            const track=document.getElementById('dashboardNoticeTickerTrack');
+            if(!track||!track.parentElement)return;
+            const c=track.parentElement.clientWidth, w=track.offsetWidth;
+            if(!c||!w)return;
+            // starts fully off the left edge, ends fully off the right edge (no blank wait)
+            const dur=Math.max(6,Math.round((w+c)/130))+'s';
+            if(track.dataset.tkC!==String(c)||track.dataset.tkW!==String(w)){
+                track.dataset.tkC=String(c);track.dataset.tkW=String(w);
+                track.style.setProperty('--tk-to',c+'px');
+                track.style.animationDuration=dur;
+            }
+        }
+        window.addEventListener('resize',fitNoticeTickerMotion);
         function renderDashboardNotificationTab() {
             const badge=document.getElementById('dashboardNotificationBadge');
             const list=document.getElementById('dashboardNotificationList');
@@ -2844,10 +2858,8 @@ try {
                         track.dataset.sig=sig;
                         track.innerHTML=unread.map(n=>`<span class="notice-item"><span class="notice-item-ico"><i class="fa-solid fa-bullhorn"></i></span><span class="notice-item-title">${escapeHtml(n.title||'Notice')}</span><span class="notice-item-msg">${escapeHtml(String(n.message||'').replace(/\s+/g,' '))}</span>${n.createdAt?`<span class="notice-item-time">${escapeHtml(new Date(n.createdAt).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</span>`:''}<button type="button" onclick="markDashboardNotificationRead('${escapeHtml(n.id)}')" class="notice-read-btn"><i class="fa-solid fa-check"></i> Read</button></span>`).join('');
                         const chars=unread.reduce((a,n)=>a+String(n.title||'').length+String(n.message||'').length+10,0);
-                        const est=Math.max(15,Math.round(10+chars*0.18))+'s';
-                        const setDur=()=>{const w=track.scrollWidth;track.style.animationDuration=w>0?Math.max(8,Math.round(w/130))+'s':est;};
-                        setDur();requestAnimationFrame(setDur);
                     }
+                    fitNoticeTickerMotion();
                 }
             }
             const sub=document.getElementById('dashboardNotificationSubText');
