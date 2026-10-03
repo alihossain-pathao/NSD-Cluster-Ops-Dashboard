@@ -73,6 +73,58 @@
         .ageing-table .count-link { color:#0563c1; font-weight:800; text-decoration:none; cursor:pointer; }
         .ageing-table .count-link:hover { text-decoration:underline; }
         .ageing-table .grand-total td { background:#e2f0d9; font-weight:900; }
+        /* ===== Ageing: mode bar + Custom Report builder ===== */
+        .ageing-modebar { max-width:1500px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; }
+        .ageing-mode-btn { border:1px solid #1f4e78; background:#fff; color:#1f4e78; border-radius:6px; padding:7px 14px; font-size:11px; font-weight:900; cursor:pointer; }
+        .ageing-mode-btn.active { background:#1f4e78; color:#fff; }
+        .ageing-builder { max-width:1500px; margin:0 auto 12px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:12px; display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:14px; color:#111827; }
+        @media (max-width:900px) { .ageing-builder { grid-template-columns:1fr; } }
+        .ageing-bsec-title { font-size:11px; font-weight:900; color:#1f4e78; margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px; }
+        .ageing-bsec { border:1px solid #e2e8f0; border-radius:6px; padding:9px; background:#f8fafc; margin-bottom:10px; }
+        .ageing-bsec:last-child { margin-bottom:0; }
+        .ageing-colrow { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+        .ageing-colrow .idx { width:18px; font-size:10px; font-weight:900; color:#64748b; text-align:center; }
+        .ageing-colrow .fname { flex:0 0 32%; font-size:10px; font-weight:800; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .ageing-colrow input[type=text] { flex:1; min-width:0; border:1px solid #cbd5e1; border-radius:5px; padding:4px 6px; font-size:11px; font-weight:700; background:#fff; color:#111827; }
+        .ageing-mini { border:1px solid #cbd5e1; background:#fff; color:#1f4e78; border-radius:5px; width:24px; height:24px; font-size:11px; font-weight:900; cursor:pointer; line-height:1; }
+        .ageing-mini:hover { background:#e0ecf7; }
+        .ageing-mini.del { color:#dc2626; }
+        .ageing-bsec select { border:1px solid #cbd5e1; border-radius:5px; padding:5px 6px; font-size:11px; font-weight:700; background:#fff; color:#111827; max-width:100%; }
+        .ageing-bsec select[multiple] { width:100%; margin-top:5px; }
+        .ageing-brow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; font-size:11px; font-weight:800; color:#334155; }
+        .ageing-brow label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+        .ageing-result-meta { max-width:1500px; margin:0 auto 6px; font-size:11px; font-weight:800; color:#475569; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+        /* ===== Ageing Custom Report: professional themes ===== */
+        .ag-title { padding:12px 14px 9px; border-bottom:3px solid #1f4e78; background:#fff; }
+        .ag-title .t { font-size:15px; font-weight:900; color:#0f172a; letter-spacing:.2px; }
+        .ag-title .st { font-size:10px; font-weight:700; color:#64748b; margin-top:3px; }
+        .ag-theme-blue .ag-title { border-bottom-color:#1f4e78; }
+        .ag-theme-navy .ag-title { border-bottom-color:#0f172a; }
+        .ag-theme-green .ag-title { border-bottom-color:#166534; }
+        .ag-theme-mono .ag-title { border-bottom-color:#94a3b8; }
+        .ag-theme-blue .ageing-table thead th { background:#1f4e78 !important; color:#fff !important; border-color:#1f4e78; }
+        .ag-theme-navy .ageing-table thead th { background:#0f172a !important; color:#fff !important; border-color:#0f172a; }
+        .ag-theme-green .ageing-table thead th { background:#166534 !important; color:#fff !important; border-color:#166534; }
+        .ag-theme-mono .ageing-table thead th { background:#f1f5f9 !important; color:#111827 !important; }
+        .ag-theme-blue .ageing-table .grand-total td { background:#dbeafe; color:#0f2942; }
+        .ag-theme-navy .ageing-table .grand-total td { background:#e2e8f0; color:#0f172a; }
+        .ag-theme-green .ageing-table .grand-total td { background:#dcfce7; color:#14532d; }
+        .ag-theme-mono .ageing-table .grand-total td { background:#f1f5f9; }
+        .ag-zebra .ageing-table tbody tr:nth-child(even) td { background:#f8fafc; }
+        .ag-zebra .ageing-table tbody tr.grand-total td { background:inherit; }
+        .ageing-table td.ag-totcol { font-weight:900; background:#f1f5f9; }
+        .ageing-table td.ag-num { font-variant-numeric:tabular-nums; }
+        .ageing-card.ag-themed { box-shadow:0 2px 10px rgba(15,23,42,.08); border-radius:6px; }
+        /* Auto-fit columns: each column is only as wide as its content */
+        .ageing-card.ag-themed { width:fit-content; min-width:360px; max-width:100%; }
+        .ageing-card.ag-themed .ageing-table { width:auto; min-width:0; table-layout:auto; }
+        .ageing-card.ag-themed .ageing-table th, .ageing-card.ag-themed .ageing-table td { padding:5px 14px; }
+        .ageing-card.ag-themed .ageing-table .row-label { min-width:0; }
+        .ag-presets { max-width:1500px; margin:0 auto 10px; display:flex; gap:7px; flex-wrap:wrap; align-items:center; font-size:10px; font-weight:900; color:#475569; }
+        .ag-presets button { border:1px dashed #1f4e78; background:#f0f6fc; color:#1f4e78; border-radius:999px; padding:5px 12px; font-size:10px; font-weight:900; cursor:pointer; }
+        .ag-presets button:hover { background:#1f4e78; color:#fff; }
+        .ageing-bsec input[type=text].plain { width:100%; border:1px solid #cbd5e1; border-radius:5px; padding:5px 7px; font-size:11px; font-weight:700; background:#fff; color:#111827; margin-bottom:6px; }
+        @media print { .ageing-card, .ageing-card * { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
         .ageing-modal-backdrop {
             position:fixed; inset:0; z-index:300;
             background:rgba(2,8,23,.72);
@@ -175,8 +227,8 @@
             body.print-ageing-report #ageingReportView,
             body.print-ageing-report #ageingReportView * { visibility:visible !important; }
             body.print-ageing-report #ageingReportView { position:absolute; inset:0; padding:0 !important; background:#fff !important; }
-            body.print-ageing-report .ageing-report-toolbar { display:none !important; }
-            body.print-ageing-report .ageing-card { border:none; max-width:none; }
+            body.print-ageing-report .ageing-report-toolbar, body.print-ageing-report .ageing-modebar, body.print-ageing-report .ageing-builder, body.print-ageing-report .ag-presets, body.print-ageing-report .ageing-no-print { display:none !important; }
+            body.print-ageing-report .ageing-card { border:none; max-width:none; box-shadow:none; }
         }
 
         .import-report-wrap { background:#dbe2ef; min-height:100vh; padding:18px; color:#0f172a; }
@@ -309,10 +361,19 @@
         .diff-neutral { color: #d97706; font-weight: 800; font-size: 11px; }
 
         .kpi-container { display: flex; gap: 10px; margin-top: 12px; }
+        /* Highlight: Total Assigned KPI */
+        .kpi-card:has(#kpiTotalParcels) { background:linear-gradient(180deg,#e0f2fe,#ffffff); border:1px solid #0369a1; border-top:4px solid #0369a1; box-shadow:0 4px 12px rgba(3,105,161,.28); }
+        .kpi-card:has(#kpiTotalParcels) .kpi-title { color:#0369a1; }
+        .kpi-card:has(#kpiTotalParcels) .kpi-value { font-size:19px; color:#0369a1; }
         .kpi-card { flex: 1; background: #ffffff; border-radius: 6px; padding: 8px 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.06); border: 1px solid #cbd5e1; border-top: 3px solid #0369a1; }
         .kpi-title { font-size: 9px; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
         .kpi-value { font-size: 15px; font-weight: 800; margin-top: 2px; color: #0f2942; }
 
+        /* Morning report: action buttons sit in their own bar outside the card */
+        .morning-report-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; }
+        .morning-report-col > .report-card { flex:none; }
+        .action-toolbar-bottom.action-toolbar-detached { margin:0; padding:4px 0; background:transparent; border:0; border-top:0; border-radius:0; box-shadow:none; }
+        @media (max-width: 1200px) { .morning-report-col { width:100%; max-width:760px; } }
         .action-toolbar-bottom { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1.5px dashed #cbd5e1; }
         .btn-action { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 10.5px; font-weight: 700; border-radius: 6px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.06); outline: none; }
         .btn-refresh { background-color: #ffffff; color: #0f172a; border-color: #94a3b8; }
@@ -383,13 +444,28 @@
         .inventory-actions { display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin:12px auto 0; padding-top:10px; border-top:1px dashed #cbd5e1; }
         .inventory-action-btn { border:1px solid #94a3b8; background:#fff; color:#0f172a; border-radius:6px; padding:7px 12px; font:800 11px Arial,sans-serif; cursor:pointer; }
         .inventory-action-btn.primary { background:#0f2942; color:#fff; border-color:#0369a1; }
+        /* ===== Bulk Copy panel (separate from report table) ===== */
+        .inv-bulk-panel { margin-top:12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; overflow:hidden; font-family:Arial,sans-serif; }
+        .inv-bulk-panel .inv-bulk-title { background:#595959; color:#fff; font-weight:900; font-size:11px; padding:7px 10px; text-align:center; }
+        .inv-bulk-panel .inv-bulk-date { display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #e2e8f0; font-size:11px; font-weight:800; color:#334155; }
+        .inv-bulk-panel .inv-bulk-date select { flex:1; border:1px solid #cbd5e1; border-radius:6px; padding:4px 6px; font-size:11px; font-weight:700; color:#0f172a; background:#fff; }
+        .inv-bulk-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; border-bottom:1px solid #f1f5f9; font-size:11px; font-weight:700; color:#0f172a; }
+        .inv-bulk-row:last-child { border-bottom:0; }
+        .inv-bulk-row .inv-bulk-cnt { color:#64748b; font-weight:800; margin-left:4px; }
+        .inv-bulk-btn { border:0; cursor:pointer; background:#0284c7; color:#fff; font-size:10px; font-weight:900; padding:5px 10px; border-radius:6px; white-space:nowrap; }
+        .inv-bulk-btn:hover { filter:brightness(1.1); }
+        .inv-bulk-row label { display:flex; align-items:center; gap:7px; cursor:pointer; flex:1; }
+        .inv-bulk-row input[type=checkbox] { width:14px; height:14px; accent-color:#dc2626; cursor:pointer; }
+        .inv-bulk-foot { padding:8px 10px; border-top:1px solid #e2e8f0; text-align:center; }
+        .inv-bulk-btn.danger { background:#dc2626; }
+        .inv-bulk-btn:disabled { background:#cbd5e1; cursor:not-allowed; }
         .inventory-note { font:700 10px Arial,sans-serif; color:#64748b; text-align:center; margin-top:7px; }
         @media (max-width:1050px) { .inventory-main-grid { grid-template-columns:1fr; } .inventory-summary-wrap { width:423px; max-width:423px; } }
         @media print {
             body.print-inventory-report * { visibility:hidden !important; }
             body.print-inventory-report #inventoryReportView, body.print-inventory-report #inventoryReportView * { visibility:visible !important; }
             body.print-inventory-report #inventoryReportView { position:absolute; inset:0; background:#fff !important; padding:0 !important; }
-            body.print-inventory-report .inventory-actions, body.print-inventory-report .inventory-note { display:none !important; }
+            body.print-inventory-report .inventory-actions, body.print-inventory-report .inventory-note, body.print-inventory-report .inv-bulk-panel { display:none !important; }
             body.print-inventory-report .inventory-main-grid { grid-template-columns:minmax(0,1fr) 385px; gap:18px; }
             body.print-inventory-report .inventory-table { min-width:0; }
         }
@@ -1085,6 +1161,7 @@ try {
 <!-- COMBINED REPORT VIEW -->
 <div class="hidden report-body-bg min-h-screen" id="hubReportView">
 <div class="dashboard-wrapper pt-4" id="captureContainer">
+<div class="morning-report-col">
 <div class="report-card" id="morningReportCard">
 <div class="header-title">
 <h2 id="morningHeaderTitle">NARSINGDI HUB - MORNING DISPATCH REPORT</h2>
@@ -1206,7 +1283,7 @@ try {
 </table>
 <div class="kpi-container">
 <div class="kpi-card">
-<div class="kpi-title">Total Parcels</div>
+<div class="kpi-title">Total Assigned</div>
 <div class="kpi-value" id="kpiTotalParcels">0</div>
 </div>
 <div class="kpi-card">
@@ -1218,7 +1295,8 @@ try {
 <div class="kpi-value" id="kpiDaAttendance">0%</div>
 </div>
 </div>
-<div class="action-toolbar-bottom" data-html2canvas-ignore="true">
+</div>
+<div class="action-toolbar-bottom action-toolbar-detached" data-html2canvas-ignore="true">
 <button class="btn-action btn-back-dashboard" onclick="closeReportView()" type="button">
 <i class="fa-solid fa-arrow-left"></i>
 <span>Back to Dashboard</span>
@@ -1463,6 +1541,11 @@ try {
 <button class="ageing-btn light" onclick="closeAgeingReportView()"><i class="fa-solid fa-arrow-left mr-1"></i> Dashboard</button>
 </div>
 </div>
+<div class="ageing-modebar hidden" id="ageingModeBar">
+<button class="ageing-mode-btn active" id="ageingModePivotBtn" onclick="ageingSetMode('pivot')" type="button"><i class="fa-solid fa-table-cells mr-1"></i> Pivot Table</button>
+<button class="ageing-mode-btn" id="ageingModeCustomBtn" onclick="ageingSetMode('custom')" type="button"><i class="fa-solid fa-table-list mr-1"></i> Custom Report</button>
+</div>
+<div class="hidden" id="ageingCustomContent"></div>
 <div id="ageingReportContent">
 <div class="ageing-card" style="margin-top:18px;">
 <div style="padding:45px 25px;text-align:center;">
@@ -1624,6 +1707,11 @@ try {
 <button class="inventory-action-btn" onclick="printInventoryReport()" type="button"><i class="fa-solid fa-print"></i> Print</button>
 </div>
 <div class="inventory-note" data-html2canvas-ignore="true">Tip: Paste multiple rows directly into the table. Matching CID dates use the same highlight color.</div>
+<div class="inv-bulk-panel" data-html2canvas-ignore="true" id="invBulkPanel">
+<div class="inv-bulk-title"><i class="fa-solid fa-copy"></i> Bulk Copy / Clear Column</div>
+<div id="invBulkRows"></div>
+<div class="inv-bulk-foot"><button type="button" class="inv-bulk-btn danger" id="invBulkClearBtn" onclick="clearInventoryColumns()" disabled><i class="fa-solid fa-trash"></i> Clear Selected Columns</button></div>
+</div>
 </div>
 </div>
 </div>
@@ -3965,6 +4053,151 @@ try {
             const vals={invTotalParcels:total,invAssignedParcels:assigned,invOfficeHoldParcels:officeHold,invAreaChangeParcels:areaChange,invMismatchParcels:mismatch,invMismatchSolved:solved,invMismatchPending:pending,invCountTotal:total,invCountAssigned:assigned,invCountOfficeHold:officeHold,invCountAreaChange:areaChange,invCountMismatch:mismatch,invCountStatus:statusCount,invCountRemarks:rows.filter(r => String(r.remarks || '').trim()).length};
             Object.entries(vals).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.textContent=val; });
         }
+
+        /* =================== BULK COPY / CLEAR COLUMN =================== */
+        const INV_BULK_COLS = [
+            {key:'cid', label:'CID from Hermes', copy:true},
+            {key:'assigned', label:'Assigned', copy:true},
+            {key:'officeHold', label:'Office Hold', copy:true},
+            {key:'areaChange', label:'Area Change', copy:true},
+            {key:'mismatch', label:'Mismatch/Missing', copy:true},
+            {key:'status', label:'Status', copy:false},
+            {key:'remarks', label:'Remarks If Any', copy:false}
+        ];
+        const invBulkChecked = new Set();
+
+        function invBulkValues(key) {
+            const out = [];
+            (currentInventoryRows || []).forEach(row => {
+                const raw = key === 'mismatch'
+                    ? [row.mismatch, row.autoMismatch].filter(Boolean).join('\n')
+                    : String(row[key] ?? '');
+                raw.split(/[\n\t,;]+/).map(v => v.trim()).filter(Boolean).forEach(v => out.push(v));
+            });
+            return out;
+        }
+
+        function renderInventoryBulkCopy() {
+            const rowsEl = document.getElementById('invBulkRows');
+            if (!rowsEl) return;
+            rowsEl.innerHTML = INV_BULK_COLS.map(c => {
+                const n = invBulkValues(c.key).length;
+                const chk = invBulkChecked.has(c.key) ? 'checked' : '';
+                const btn = c.copy
+                    ? `<button type="button" class="inv-bulk-btn" ${n ? '' : 'disabled'} onclick="copyInventoryBulk('${c.key}')"><i class="fa-solid fa-copy"></i> Copy</button>`
+                    : '';
+                return `<div class="inv-bulk-row"><label><input type="checkbox" ${chk} onchange="toggleInvBulkColumn('${c.key}', this.checked)"><span>${c.label}<span class="inv-bulk-cnt">(${n})</span></span></label>${btn}</div>`;
+            }).join('');
+            const clr = document.getElementById('invBulkClearBtn');
+            if (clr) clr.disabled = invBulkChecked.size === 0;
+        }
+
+        function toggleInvBulkColumn(key, on) {
+            if (on) invBulkChecked.add(key); else invBulkChecked.delete(key);
+            const clr = document.getElementById('invBulkClearBtn');
+            if (clr) clr.disabled = invBulkChecked.size === 0;
+        }
+
+        function copyInventoryBulk(key) {
+            const list = invBulkValues(key);
+            if (!list.length) return;
+            const text = list.join('\n');
+            const label = (INV_BULK_COLS.find(c => c.key === key) || {}).label || key;
+            const done = () => { try { showToast(`${list.length} CID copied (${label})`); } catch (e) {} };
+            const fallback = () => {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(ta);
+            };
+            if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
+            else fallback();
+        }
+
+        /* ---- Smart confirm modal (replaces the browser confirm box) ---- */
+        const invConfirmStyle = document.createElement('style');
+        invConfirmStyle.textContent = `
+            .inv-cf-back { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:16px;
+                background:rgba(2,6,23,.62); backdrop-filter:blur(4px); opacity:0; transition:opacity .18s ease; }
+            .inv-cf-back.show { opacity:1; }
+            .inv-cf-card { width:100%; max-width:380px; background:linear-gradient(160deg,#131d36,#0b1329); color:#f8fafc; border:1px solid rgba(248,113,113,.35);
+                border-radius:18px; padding:22px 22px 18px; box-shadow:0 24px 60px -12px rgba(0,0,0,.7); transform:translateY(12px) scale(.96); transition:transform .2s cubic-bezier(.2,.8,.2,1); font-family:'Inter',system-ui,sans-serif; }
+            .inv-cf-back.show .inv-cf-card { transform:none; }
+            .inv-cf-ico { width:46px; height:46px; border-radius:999px; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fca5a5; background:rgba(239,68,68,.16); box-shadow:0 0 0 6px rgba(239,68,68,.08); }
+            .inv-cf-title { text-align:center; font-size:16px; font-weight:800; margin-bottom:4px; }
+            .inv-cf-sub { text-align:center; font-size:12px; color:#94a3b8; margin-bottom:14px; }
+            .inv-cf-list { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:16px; }
+            .inv-cf-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:11px; font-weight:700; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:#e2e8f0; }
+            .inv-cf-chip b { background:#ef4444; color:#fff; border-radius:999px; padding:1px 7px; font-size:10px; font-weight:800; }
+            .inv-cf-actions { display:flex; gap:10px; }
+            .inv-cf-actions button { flex:1; border:0; cursor:pointer; padding:10px 12px; border-radius:12px; font-size:12px; font-weight:800; transition:transform .12s ease, filter .12s ease; }
+            .inv-cf-actions button:hover { transform:translateY(-1px); filter:brightness(1.1); }
+            .inv-cf-cancel { background:rgba(255,255,255,.08); color:#e2e8f0; }
+            .inv-cf-ok { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; box-shadow:0 6px 16px -6px rgba(239,68,68,.7); }
+        `;
+        document.head.appendChild(invConfirmStyle);
+
+        function invSmartConfirm(chips, total, onOk) {
+            const back = document.createElement('div');
+            back.className = 'inv-cf-back';
+            back.innerHTML = `
+                <div class="inv-cf-card" role="dialog" aria-modal="true">
+                    <div class="inv-cf-ico"><i class="fa-solid fa-trash-can"></i></div>
+                    <div class="inv-cf-title">Clear selected columns?</div>
+                    <div class="inv-cf-sub">${total} ${total === 1 ? 'entry' : 'entries'} will be removed. This cannot be undone.</div>
+                    <div class="inv-cf-list">${chips.map(c => `<span class="inv-cf-chip">${escapeInventoryHtml(c.label)} <b>${c.n}</b></span>`).join('')}</div>
+                    <div class="inv-cf-actions">
+                        <button type="button" class="inv-cf-cancel">Cancel</button>
+                        <button type="button" class="inv-cf-ok"><i class="fa-solid fa-trash"></i> Clear</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(back);
+            requestAnimationFrame(() => back.classList.add('show'));
+            const close = () => {
+                document.removeEventListener('keydown', onKey);
+                back.classList.remove('show');
+                setTimeout(() => back.remove(), 180);
+            };
+            const onKey = e => { if (e.key === 'Escape') close(); else if (e.key === 'Enter') { close(); onOk(); } };
+            document.addEventListener('keydown', onKey);
+            back.addEventListener('click', e => { if (e.target === back) close(); });
+            back.querySelector('.inv-cf-cancel').onclick = close;
+            back.querySelector('.inv-cf-ok').onclick = () => { close(); onOk(); };
+            back.querySelector('.inv-cf-cancel').focus();
+        }
+
+        function clearInventoryColumns() {
+            const keys = INV_BULK_COLS.filter(c => invBulkChecked.has(c.key));
+            if (!keys.length) return;
+            const chips = keys.map(c => ({label: c.label, n: invBulkValues(c.key).length}));
+            const total = chips.reduce((n, c) => n + c.n, 0);
+            const names = keys.map(c => c.label).join(', ');
+            invSmartConfirm(chips, total, () => {
+                (currentInventoryRows || []).forEach(row => {
+                    keys.forEach(c => {
+                        row[c.key] = '';
+                        if (c.key === 'mismatch') row.autoMismatch = '';
+                    });
+                });
+                invBulkChecked.clear();
+                calculateInventoryReport();
+                renderInventoryRows();
+                updateInventoryDuplicateColors();
+                saveCurrentInventoryData();
+                try { showToast(`Cleared: ${names}`); } catch (e) {}
+            });
+        }
+
+        // Keep the panel in sync every time the report recalculates.
+        (function () {
+            const _calc = calculateInventoryReport;
+            calculateInventoryReport = function () {
+                const r = _calc.apply(this, arguments);
+                try { renderInventoryBulkCopy(); } catch (e) { console.error(e); }
+                return r;
+            };
+        })();
 
         function saveCurrentInventoryData() {
             if (!currentActiveInventoryHubId) return;
@@ -6392,8 +6625,7 @@ try {
             
             const totPar = Math.max(0, (pHold + rReq + rPar) - aCha);
             document.getElementById('m_totalParcels').innerText = totPar;
-            document.getElementById('kpiTotalParcels').innerText = totPar;
-            
+                        
             document.getElementById('m_totalParcelsPct').innerText = totPar > 0 ? '100%' : '0%';
 
             m_setCellPct('m_prevHoldPct', pHold, totPar);
@@ -6405,6 +6637,7 @@ try {
             const cSho = pVal('m_capShort');
             const totAssign = Math.max(0, totPar - (oHold + cSho));
             document.getElementById('m_totalAssign').innerText = totAssign;
+            document.getElementById('kpiTotalParcels').innerText = totAssign;
 
             m_setCellPct('m_officeHoldPct', oHold, totPar);
             m_setCellPct('m_capShortPct', cSho, totPar);
@@ -6427,10 +6660,9 @@ try {
             let h = Number(m[1]);
             const min = Number(m[2]);
             let ap = m[3] ? m[3].toUpperCase() : '';
+            // No auto AM/PM: if the user did not type AM/PM, keep the time exactly as typed.
             if (!ap) {
-                ap = h >= 12 ? 'PM' : 'AM';
-                if (h === 0) h = 12;
-                else if (h > 12) h -= 12;
+                return raw;
             } else if (h === 0) {
                 h = 12;
             }
@@ -6731,10 +6963,9 @@ try {
                 let h = Number(m[1]);
                 const min = Number(m[2]);
                 let ap = m[3] ? m[3].toUpperCase() : '';
+                // No auto AM/PM: if the user did not type AM/PM, keep the time exactly as typed.
                 if (!ap) {
-                    ap = h >= 12 ? 'PM' : 'AM';
-                    if (h === 0) h = 12;
-                    else if (h > 12) h -= 12;
+                    return raw;
                 } else {
                     if (h === 0) h = 12;
                 }
@@ -7133,6 +7364,423 @@ try {
             document.getElementById('ageingConsignmentModal')?.classList.add('hidden');
         }
 
+        /* =================== AGEING: CUSTOM REPORT BUILDER =================== */
+        const AGEING_CFG_KEY = 'narsingdi_ageing_custom_cfg_v2';
+        const AGEING_BUCKETS = ['Age 0', 'Age 1', 'Age 2', 'Age 3', 'Age 4-7', 'Age 8+'];
+        const AGEING_THEMES = [
+            { id: 'blue', label: 'Professional Blue' },
+            { id: 'navy', label: 'Dark Navy' },
+            { id: 'green', label: 'Corporate Green' },
+            { id: 'mono', label: 'Minimal Grey' }
+        ];
+        let ageingMode = 'pivot';
+        let ageingFields = [];
+        let ageingCustom = null;
+        let ageingCustomOut = { head: [], body: [], note: '' };
+
+        function ageingDefaultCustom(hubKey) {
+            return {
+                cols: [], filterField: '', filterVals: [], sortField: '', sortDir: 'asc',
+                output: 'list', groupField: hubKey, crossRow: hubKey, crossCol: '__age',
+                title: 'Consignment Ageing Report', theme: 'blue', showTitle: true, zebra: true
+            };
+        }
+
+        function ageingBuildFields() {
+            const seen = new Set(), keys = [];
+            ageingRows.slice(0, 300).forEach(r => Object.keys(r).forEach(k => { if (!seen.has(k)) { seen.add(k); keys.push(k); } }));
+            ageingFields = keys.map(k => ({ key: k, label: k }));
+            ageingFields.push({ key: '__age', label: 'Age (Days)' });
+            ageingFields.push({ key: '__bucket', label: 'Age Bucket' });
+        }
+        function ageingFieldLabel(key) {
+            const f = ageingFields.find(x => x.key === key);
+            return f ? f.label : key;
+        }
+        function ageingAgeOf(row) {
+            const d = ageingParseDate(ageingSortedAt(row));
+            if (!d || !ageingReportDate) return null;
+            return Math.floor((ageingReportDate.getTime() - d.getTime()) / 86400000);
+        }
+        function ageingFieldValue(row, key) {
+            if (key === '__age') { const a = ageingAgeOf(row); return a === null ? '' : a; }
+            if (key === '__bucket') {
+                const a = ageingAgeOf(row);
+                if (a === null) return '';
+                if (a <= 3) return `Age ${Math.max(0, a)}`;
+                return a <= 7 ? 'Age 4-7' : 'Age 8+';
+            }
+            return row[key];
+        }
+        function ageingCellVal(v) {
+            if (typeof v === 'number') return v;
+            if (v instanceof Date && !isNaN(v.getTime())) {
+                const base = ageingDateText(new Date(v.getFullYear(), v.getMonth(), v.getDate()));
+                const hasTime = v.getHours() || v.getMinutes() || v.getSeconds();
+                return hasTime ? `${base} ${String(v.getHours()).padStart(2,'0')}:${String(v.getMinutes()).padStart(2,'0')}` : base;
+            }
+            return String(v ?? '');
+        }
+        function ageingCmp(a, b) {
+            if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
+            const na = Number(a), nb = Number(b);
+            if (a !== '' && b !== '' && !(a instanceof Date) && !(b instanceof Date) && !isNaN(na) && !isNaN(nb)) return na - nb;
+            return String(ageingCellVal(a)).localeCompare(String(ageingCellVal(b)), undefined, { numeric: true, sensitivity: 'base' });
+        }
+        function ageingSortKeys(keys, field) {
+            if (field === '__bucket') return keys.sort((a, b) => AGEING_BUCKETS.indexOf(a) - AGEING_BUCKETS.indexOf(b));
+            return keys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        }
+        function ageingFindKey(names) {
+            const wanted = names.map(ageingNormalizeKey);
+            const f = ageingFields.find(x => wanted.includes(ageingNormalizeKey(x.key)));
+            return f ? f.key : '';
+        }
+        function ageingHubKey() { return ageingFindKey(['DeliveryHub', 'Delivery Hub', 'Region_Hub', 'Region Hub', 'Hub']); }
+
+        function ageingCustomLoad() {
+            ageingBuildFields();
+            const valid = new Set(ageingFields.map(f => f.key));
+            const hubKey = ageingHubKey();
+            const base = ageingDefaultCustom(hubKey);
+            let cfg = null;
+            try { cfg = JSON.parse(localStorage.getItem(AGEING_CFG_KEY) || 'null'); } catch (e) {}
+            const pick = (k, fallback) => (cfg && valid.has(cfg[k])) ? cfg[k] : fallback;
+            const cols = (cfg && Array.isArray(cfg.cols) ? cfg.cols : []).filter(c => c && valid.has(c.key));
+            if (cols.length) {
+                base.cols = cols.map(c => ({ key: c.key, label: String(c.label || ageingFieldLabel(c.key)) }));
+                base.filterField = pick('filterField', '');
+                base.sortField = pick('sortField', '');
+                base.sortDir = cfg.sortDir === 'desc' ? 'desc' : 'asc';
+                base.output = ['list', 'group', 'cross'].includes(cfg.output) ? cfg.output : 'list';
+                base.groupField = pick('groupField', hubKey);
+                base.crossRow = pick('crossRow', hubKey);
+                base.crossCol = pick('crossCol', '__age');
+                base.title = typeof cfg.title === 'string' ? cfg.title : base.title;
+                base.theme = AGEING_THEMES.some(t => t.id === cfg.theme) ? cfg.theme : 'blue';
+                base.showTitle = cfg.showTitle !== false;
+                base.zebra = cfg.zebra !== false;
+            } else {
+                const defKeys = [
+                    ageingFindKey(['ConsignmentId', 'Consignment ID']), hubKey,
+                    ageingFindKey(['SortedAt', 'Sorted At', 'SortDate']), '__age'
+                ].filter(Boolean);
+                base.cols = defKeys.map(k => ({ key: k, label: ageingFieldLabel(k) }));
+            }
+            if (!base.groupField) base.groupField = (ageingFields[0] || {}).key || '';
+            if (!base.crossRow) base.crossRow = base.groupField;
+            ageingCustom = base;
+        }
+        function ageingCustomSave() {
+            try { localStorage.setItem(AGEING_CFG_KEY, JSON.stringify(ageingCustom)); } catch (e) {}
+        }
+
+        function ageingInitModes() {
+            ageingCustomLoad();
+            document.getElementById('ageingModeBar')?.classList.remove('hidden');
+            ageingSetMode('pivot');
+        }
+
+        function ageingSetMode(mode) {
+            ageingMode = mode === 'custom' ? 'custom' : 'pivot';
+            document.getElementById('ageingReportContent')?.classList.toggle('hidden', ageingMode !== 'pivot');
+            document.getElementById('ageingCustomContent')?.classList.toggle('hidden', ageingMode !== 'custom');
+            document.getElementById('ageingModePivotBtn')?.classList.toggle('active', ageingMode === 'pivot');
+            document.getElementById('ageingModeCustomBtn')?.classList.toggle('active', ageingMode === 'custom');
+            if (ageingMode === 'custom') renderAgeingCustom();
+        }
+
+        function ageingUniqueValues(key) {
+            const set = new Set();
+            for (const r of ageingRows) { set.add(String(ageingCellVal(ageingFieldValue(r, key)))); if (set.size > 1000) break; }
+            return ageingSortKeys([...set], key);
+        }
+
+        function ageingFilteredRows() {
+            const c = ageingCustom;
+            if (c.filterField && c.filterVals.length) {
+                const set = new Set(c.filterVals);
+                return ageingRows.filter(r => set.has(String(ageingCellVal(ageingFieldValue(r, c.filterField)))));
+            }
+            return ageingRows;
+        }
+
+        function ageingCustomCompute() {
+            const c = ageingCustom;
+            let rows = ageingFilteredRows();
+
+            if (c.output === 'group' && c.groupField) {
+                const map = new Map();
+                rows.forEach(r => {
+                    const k = String(ageingCellVal(ageingFieldValue(r, c.groupField)));
+                    map.set(k, (map.get(k) || 0) + 1);
+                });
+                const body = ageingSortKeys([...map.keys()], c.groupField).map(k => [k, map.get(k)]);
+                body.push(['Grand Total', rows.length]);
+                return { head: [ageingFieldLabel(c.groupField), 'Count'], body, note: `${map.size} groups | ${rows.length} rows`, grand: true, totCol: true };
+            }
+
+            if (c.output === 'cross' && c.crossRow && c.crossCol) {
+                const cell = new Map(), rowSet = new Set(), colSet = new Set();
+                rows.forEach(r => {
+                    const rk = String(ageingCellVal(ageingFieldValue(r, c.crossRow)));
+                    const ck = String(ageingCellVal(ageingFieldValue(r, c.crossCol)));
+                    rowSet.add(rk); colSet.add(ck);
+                    const key = rk + '\u0001' + ck;
+                    cell.set(key, (cell.get(key) || 0) + 1);
+                });
+                const rks = ageingSortKeys([...rowSet], c.crossRow);
+                const cks = ageingSortKeys([...colSet], c.crossCol);
+                const colTotals = cks.map(() => 0);
+                const body = rks.map(rk => {
+                    let tot = 0;
+                    const line = cks.map((ck, i) => {
+                        const n = cell.get(rk + '\u0001' + ck) || 0;
+                        tot += n; colTotals[i] += n;
+                        return n || '';
+                    });
+                    return [rk, ...line, tot];
+                });
+                body.push(['Grand Total', ...colTotals.map(n => n || ''), rows.length]);
+                return { head: [`${ageingFieldLabel(c.crossRow)} \\ ${ageingFieldLabel(c.crossCol)}`, ...cks, 'Grand Total'], body, note: `${rks.length} rows × ${cks.length} columns | ${rows.length} records`, grand: true, totCol: true };
+            }
+
+            if (c.sortField) {
+                const dir = c.sortDir === 'desc' ? -1 : 1;
+                rows = rows.slice().sort((a, b) => ageingCmp(ageingFieldValue(a, c.sortField), ageingFieldValue(b, c.sortField)) * dir);
+            }
+            const body = rows.map(r => c.cols.map(col => ageingCellVal(ageingFieldValue(r, col.key))));
+            return { head: c.cols.map(col => col.label), body, note: `${rows.length} rows`, grand: false, totCol: false };
+        }
+
+        function ageingFilterText() {
+            const c = ageingCustom;
+            return (c.filterField && c.filterVals.length) ? `Filter: ${ageingFieldLabel(c.filterField)} = ${c.filterVals.join(', ')}` : '';
+        }
+        function ageingSubtitle() {
+            const parts = [`Report date: ${ageingDateText(ageingReportDate || new Date())}`, ageingCustomOut.note, ageingFilterText()].filter(Boolean);
+            return parts.join('  |  ');
+        }
+
+        function ageingCustomPreset(name) {
+            const c = ageingCustom, hub = ageingHubKey() || (ageingFields[0] || {}).key || '';
+            if (name === 'detail') { c.output = 'list'; c.title = 'Consignment Detail Report'; }
+            else if (name === 'hubcount') { c.output = 'group'; c.groupField = hub; c.title = 'Hub-wise Consignment Count'; }
+            else if (name === 'hubage') { c.output = 'cross'; c.crossRow = hub; c.crossCol = '__age'; c.title = 'Hub × Age (Days) Summary'; }
+            else if (name === 'hubbucket') { c.output = 'cross'; c.crossRow = hub; c.crossCol = '__bucket'; c.title = 'Hub-wise Ageing Bucket Summary'; }
+            ageingCustomChanged(true);
+        }
+
+        function renderAgeingCustom() {
+            const host = document.getElementById('ageingCustomContent');
+            if (!host || !ageingCustom) return;
+            const c = ageingCustom;
+            const fieldOpts = (sel, withBlank) => (withBlank ? `<option value="">— none —</option>` : '') +
+                ageingFields.map(f => `<option value="${ageingSafe(f.key)}" ${f.key === sel ? 'selected' : ''}>${ageingSafe(f.label)}</option>`).join('');
+            const unused = ageingFields.filter(f => !c.cols.some(col => col.key === f.key));
+            const listOnly = c.output === 'list';
+
+            const colRows = c.cols.map((col, i) => `
+                <div class="ageing-colrow">
+                    <span class="idx">${i + 1}</span>
+                    <span class="fname" title="${ageingSafe(ageingFieldLabel(col.key))}">${ageingSafe(ageingFieldLabel(col.key))}</span>
+                    <input type="text" value="${ageingSafe(col.label)}" oninput="ageingCustomSetLabel(${i}, this.value)" title="Header name in the report">
+                    <button type="button" class="ageing-mini" onclick="ageingCustomMoveCol(${i}, -1)" title="Move up">↑</button>
+                    <button type="button" class="ageing-mini" onclick="ageingCustomMoveCol(${i}, 1)" title="Move down">↓</button>
+                    <button type="button" class="ageing-mini del" onclick="ageingCustomRemoveCol(${i})" title="Remove">✕</button>
+                </div>`).join('') || '<div style="font-size:11px;color:#94a3b8;font-weight:700;">No column selected.</div>';
+
+            let filterVals = '';
+            if (c.filterField) {
+                const vals = ageingUniqueValues(c.filterField);
+                filterVals = `<select multiple size="6" onchange="ageingCustomSetFilterVals(this)">` +
+                    vals.map(v => `<option value="${ageingSafe(v)}" ${c.filterVals.includes(v) ? 'selected' : ''}>${ageingSafe(v === '' ? '(blank)' : v)}</option>`).join('') +
+                    `</select><div style="font-size:10px;color:#64748b;font-weight:700;margin-top:3px;">Ctrl / Cmd + click দিয়ে একাধিক value select করুন। কিছু select না করলে সব row আসবে।</div>`;
+            }
+
+            host.innerHTML = `
+                <div class="ag-presets">
+                    <span>Quick formats:</span>
+                    <button type="button" onclick="ageingCustomPreset('hubage')">Hub × Age (Days)</button>
+                    <button type="button" onclick="ageingCustomPreset('hubbucket')">Hub × Age Bucket</button>
+                    <button type="button" onclick="ageingCustomPreset('hubcount')">Hub-wise Count</button>
+                    <button type="button" onclick="ageingCustomPreset('detail')">Detail List</button>
+                </div>
+                <div class="ageing-builder">
+                    <div>
+                        <div class="ageing-bsec" style="${listOnly ? '' : 'opacity:.45;'}">
+                            <div class="ageing-bsec-title">Columns (order &amp; header name) — Detail list</div>
+                            ${colRows}
+                            <div class="ageing-brow" style="margin-top:6px;">
+                                <select onchange="ageingCustomAddCol(this.value)">
+                                    <option value="">+ Add column…</option>
+                                    ${unused.map(f => `<option value="${ageingSafe(f.key)}">${ageingSafe(f.label)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="ageing-bsec">
+                            <div class="ageing-bsec-title">Report Style</div>
+                            <input type="text" class="plain" value="${ageingSafe(c.title)}" oninput="ageingCustomSetTitle(this.value)" placeholder="Report title">
+                            <div class="ageing-brow">
+                                Theme
+                                <select onchange="ageingCustomSetTheme(this.value)">${AGEING_THEMES.map(t => `<option value="${t.id}" ${t.id === c.theme ? 'selected' : ''}>${t.label}</option>`).join('')}</select>
+                                <label><input type="checkbox" ${c.showTitle ? 'checked' : ''} onchange="ageingCustomSetFlag('showTitle', this.checked)"> Title &amp; date header</label>
+                                <label><input type="checkbox" ${c.zebra ? 'checked' : ''} onchange="ageingCustomSetFlag('zebra', this.checked)"> Striped rows</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="ageing-bsec">
+                            <div class="ageing-bsec-title">Output</div>
+                            <div class="ageing-brow">
+                                <label><input type="radio" name="ageingOut" ${c.output === 'list' ? 'checked' : ''} onchange="ageingCustomSetOutput('list')"> Detail list</label>
+                                <label><input type="radio" name="ageingOut" ${c.output === 'group' ? 'checked' : ''} onchange="ageingCustomSetOutput('group')"> Group count</label>
+                                <label><input type="radio" name="ageingOut" ${c.output === 'cross' ? 'checked' : ''} onchange="ageingCustomSetOutput('cross')"> Cross-tab</label>
+                            </div>
+                            <div class="ageing-brow" style="${c.output === 'group' ? '' : 'display:none;'}">
+                                Group by <select onchange="ageingCustomSetField('groupField', this.value)">${fieldOpts(c.groupField, false)}</select>
+                            </div>
+                            <div class="ageing-brow" style="${c.output === 'cross' ? '' : 'display:none;'}">
+                                Rows <select onchange="ageingCustomSetField('crossRow', this.value)">${fieldOpts(c.crossRow, false)}</select>
+                                Columns <select onchange="ageingCustomSetField('crossCol', this.value)">${fieldOpts(c.crossCol, false)}</select>
+                            </div>
+                        </div>
+                        <div class="ageing-bsec">
+                            <div class="ageing-bsec-title">Filter</div>
+                            <select onchange="ageingCustomSetFilterField(this.value)">${fieldOpts(c.filterField, true)}</select>
+                            ${filterVals}
+                        </div>
+                        <div class="ageing-bsec" style="${listOnly ? '' : 'opacity:.45;'}">
+                            <div class="ageing-bsec-title">Sort (Detail list)</div>
+                            <div class="ageing-brow">
+                                <select onchange="ageingCustomSetField('sortField', this.value)">${fieldOpts(c.sortField, true)}</select>
+                                <select onchange="ageingCustomSetField('sortDir', this.value)">
+                                    <option value="asc" ${c.sortDir === 'asc' ? 'selected' : ''}>A → Z / Small → Big</option>
+                                    <option value="desc" ${c.sortDir === 'desc' ? 'selected' : ''}>Z → A / Big → Small</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ageing-result-meta">
+                    <span>Preview</span>
+                    <span class="ageing-no-print" style="display:inline-flex;gap:7px;flex-wrap:wrap;">
+                        <button type="button" class="ageing-mode-btn" onclick="ageingCustomCopy()"><i class="fa-solid fa-copy mr-1"></i> Copy Table</button>
+                        <button type="button" class="ageing-mode-btn" onclick="ageingCustomDownload('xlsx')"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+                        <button type="button" class="ageing-mode-btn" onclick="ageingCustomDownload('csv')"><i class="fa-solid fa-file-csv mr-1"></i> CSV</button>
+                        <button type="button" class="ageing-mode-btn" onclick="printAgeingReport()"><i class="fa-solid fa-print mr-1"></i> Print / PDF</button>
+                    </span>
+                </div>
+                <div class="ageing-card ag-themed" id="ageingCustomResult"></div>`;
+            renderAgeingCustomResult();
+        }
+
+        function renderAgeingCustomResult() {
+            const c = ageingCustom;
+            const out = ageingCustomOut = ageingCustomCompute();
+            const box = document.getElementById('ageingCustomResult');
+            if (!box) return;
+            box.className = `ageing-card ag-themed ag-theme-${c.theme}${c.zebra ? ' ag-zebra' : ''}`;
+            const LIMIT = 5000;
+            const shown = out.body.slice(0, LIMIT);
+            const titleHtml = c.showTitle
+                ? `<div class="ag-title"><div class="t">${ageingSafe(c.title || 'Report')}</div><div class="st">${ageingSafe(ageingSubtitle())}${out.body.length > LIMIT ? ` | Showing first ${LIMIT} rows` : ''}</div></div>`
+                : '';
+            if (!out.head.length) { box.innerHTML = titleHtml + '<div style="padding:30px;text-align:center;color:#64748b;font-weight:800;">Add at least one column.</div>'; return; }
+            if (!out.body.length) { box.innerHTML = titleHtml + '<div style="padding:30px;text-align:center;color:#64748b;font-weight:800;">No data matches this format / filter.</div>'; return; }
+            const lastRow = shown.length - 1, lastCol = out.head.length - 1;
+            box.innerHTML = titleHtml + `<table class="ageing-table">
+                <thead><tr>${out.head.map(h => `<th>${ageingSafe(h)}</th>`).join('')}</tr></thead>
+                <tbody>${shown.map((r, ri) => `<tr class="${out.grand && ri === lastRow ? 'grand-total' : ''}">${r.map((v, ci) => {
+                    const cls = [ci === 0 ? 'row-label' : '', typeof v === 'number' ? 'ag-num' : '', out.totCol && ci === lastCol && !(out.grand && ri === lastRow) ? 'ag-totcol' : ''].filter(Boolean).join(' ');
+                    return `<td ${cls ? `class="${cls}"` : ''}>${ageingSafe(v)}</td>`;
+                }).join('')}</tr>`).join('')}</tbody>
+            </table>`;
+        }
+
+        function ageingCustomChanged(rebuild) {
+            ageingCustomSave();
+            if (rebuild) renderAgeingCustom(); else renderAgeingCustomResult();
+        }
+        function ageingCustomAddCol(key) {
+            if (!key) return;
+            ageingCustom.cols.push({ key, label: ageingFieldLabel(key) });
+            ageingCustomChanged(true);
+        }
+        function ageingCustomRemoveCol(i) { ageingCustom.cols.splice(i, 1); ageingCustomChanged(true); }
+        function ageingCustomMoveCol(i, d) {
+            const j = i + d, cols = ageingCustom.cols;
+            if (j < 0 || j >= cols.length) return;
+            [cols[i], cols[j]] = [cols[j], cols[i]];
+            ageingCustomChanged(true);
+        }
+        function ageingCustomSetLabel(i, v) {
+            if (ageingCustom.cols[i]) ageingCustom.cols[i].label = v;
+            ageingCustomChanged(false);
+        }
+        function ageingCustomSetOutput(v) { ageingCustom.output = v; ageingCustomChanged(true); }
+        function ageingCustomSetField(name, v) { ageingCustom[name] = v; ageingCustomChanged(false); }
+        function ageingCustomSetFlag(name, v) { ageingCustom[name] = !!v; ageingCustomChanged(false); }
+        function ageingCustomSetTitle(v) { ageingCustom.title = v; ageingCustomChanged(false); }
+        function ageingCustomSetTheme(v) { ageingCustom.theme = v; ageingCustomChanged(false); }
+        function ageingCustomSetFilterField(v) { ageingCustom.filterField = v; ageingCustom.filterVals = []; ageingCustomChanged(true); }
+        function ageingCustomSetFilterVals(sel) {
+            ageingCustom.filterVals = [...sel.selectedOptions].map(o => o.value);
+            ageingCustomChanged(false);
+        }
+
+        function ageingExportMatrix() {
+            const out = ageingCustomOut, c = ageingCustom;
+            const rows = [];
+            if (c.showTitle) { rows.push([c.title || 'Report']); rows.push([ageingSubtitle()]); rows.push([]); }
+            rows.push(out.head);
+            out.body.forEach(r => rows.push(r));
+            return { rows, offset: c.showTitle ? 3 : 0 };
+        }
+
+        function ageingCustomCopy() {
+            const out = ageingCustomOut;
+            if (!out.body.length) return;
+            const text = [out.head, ...out.body].map(r => r.map(v => String(v).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+            const done = () => { try { showToast('Table copied — paste into Excel'); } catch (e) {} };
+            const fallback = () => {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(ta);
+            };
+            if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+        }
+
+        function ageingCustomDownload(type) {
+            const out = ageingCustomOut;
+            if (!out.body.length) return;
+            const stamp = ageingDateText(ageingReportDate || new Date());
+            const { rows } = ageingExportMatrix();
+            if (type === 'csv') {
+                const csv = '\ufeff' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+                a.download = `Ageing_Custom_Report_${stamp}.csv`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+                return;
+            }
+            if (typeof XLSX === 'undefined') { try { showToast('Excel library is not loaded'); } catch (e) {} return; }
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const widths = [];
+            rows.forEach(r => r.forEach((v, i) => { widths[i] = Math.max(widths[i] || 8, Math.min(40, String(v ?? '').length + 2)); }));
+            if (ageingCustom.showTitle) { widths[0] = Math.max(widths[0] || 8, 18); }
+            ws['!cols'] = widths.map(w => ({ wch: w }));
+            if (ageingCustom.showTitle && out.head.length > 1) {
+                ws['!merges'] = [0, 1].map(r => ({ s: { r, c: 0 }, e: { r, c: out.head.length - 1 } }));
+            }
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Report');
+            XLSX.writeFile(wb, `Ageing_Custom_Report_${stamp}.xlsx`);
+        }
+
         function openAgeingReportView() {
             document.getElementById('hubDashboardView')?.classList.add('hidden');
             document.getElementById('hubReportView')?.classList.add('hidden');
@@ -7237,6 +7885,7 @@ try {
 
                 openAgeingReportView();
                 renderAgeingReport();
+                ageingInitModes();
 
             } catch (err) {
                 console.error('Ageing import error:', err);
