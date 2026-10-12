@@ -26,7 +26,7 @@
 
         .toast-notify { position: fixed; bottom: 20px; right: 20px; background-color: #0f2942; color: #ffffff; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; border: 1px solid #0284c7; }
         .toast-notify.show { opacity: 1; transform: translateY(0); }
-        /* Notice ticker: enters from the LEFT, runs to the RIGHT, then restarts from the left until the user clicks Read */
+        /* Notice ticker: enters from the RIGHT, runs to the LEFT, then restarts from the right until the user clicks Read */
         .notice-bar { position:relative; overflow:hidden; display:none; align-items:center; gap:14px; padding:10px 14px 10px 18px; border-radius:18px;
             background: linear-gradient(110deg, rgba(124,58,237,.22) 0%, rgba(19,29,54,.92) 38%, rgba(19,29,54,.92) 100%);
             border:1px solid rgba(167,139,250,.28); box-shadow: 0 8px 30px -12px rgba(124,58,237,.55), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(8px); }
@@ -43,7 +43,7 @@
                     mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
         .notice-ticker-track { display:inline-flex; align-items:center; gap:28px; white-space:nowrap; width:max-content; padding:0; animation: noticeTickerMove 20s linear infinite; will-change: transform; }
         .notice-ticker-wrap:hover .notice-ticker-track { animation-play-state: paused; }
-        @keyframes noticeTickerMove { 0% { transform: translateX(-100%); } 100% { transform: translateX(var(--tk-to, 100vw)); } }
+        @keyframes noticeTickerMove { 0% { transform: translateX(var(--tk-to, 100vw)); } 100% { transform: translateX(-100%); } }
         .notice-item { display:inline-flex; align-items:center; gap:11px; padding:6px 7px 6px 8px; border-radius:999px; background: rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09); font-size:12px; }
         .notice-item-ico { width:24px; height:24px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(245,158,11,.16); color:#fbbf24; font-size:11px; }
         .notice-item-title { color:#fff; font-weight:800; }
@@ -120,6 +120,24 @@
         .ageing-card.ag-themed .ageing-table { width:auto; min-width:0; table-layout:auto; }
         .ageing-card.ag-themed .ageing-table th, .ageing-card.ag-themed .ageing-table td { padding:5px 14px; }
         .ageing-card.ag-themed .ageing-table .row-label { min-width:0; }
+        /* ===== Ageing: Delivery Summary & Parcel Receive Age (Excel pivot look) ===== */
+        .ag-pv-table td, .ageing-table td { user-select:none; cursor:cell; }
+        .ag-sel { background:#2563eb !important; color:#fff !important; }
+        .ag-sel .count-link { color:#fff !important; }
+        #ageingSelBar { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:99999; display:none; align-items:center; gap:16px; background:#0f172a; color:#fff; padding:8px 16px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); font-family:Calibri,Arial,sans-serif; font-size:13px; font-weight:700; flex-wrap:wrap; justify-content:center; max-width:95vw; }
+        #ageingSelBar b { color:#86efac; }
+        #ageingSelBar button { background:#334155; color:#fff; border:0; border-radius:6px; padding:2px 10px; cursor:pointer; font-weight:700; }
+        .ag-pv-card { max-width:1500px; margin:0 auto; width:fit-content; min-width:320px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; overflow:auto; box-shadow:0 2px 10px rgba(15,23,42,.08); }
+        .ag-pv-table { border-collapse:collapse; font-family:Calibri,Arial,sans-serif; font-size:13px; color:#111827; background:#fff; width:100%; }
+        .ag-pv-table th, .ag-pv-table td { padding:4px 14px; white-space:nowrap; border:0; text-align:right; font-variant-numeric:tabular-nums; }
+        .ag-pv-table thead th { background:#b9def2; font-weight:900; }
+        .ag-pv-table th.l, .ag-pv-table td.l { text-align:left; }
+        .ag-pv-table tbody td.gc { font-weight:800; }
+        .ag-pv-table tr.gt td { background:#b9def2; font-weight:900; }
+        .ag-pv-table .count-link { background:none; border:0; padding:0; cursor:pointer; color:#0563c1; font:inherit; font-weight:700; }
+        .ag-pv-table .count-link:hover { text-decoration:underline; }
+        .ag-pv-total { display:flex; justify-content:space-between; align-items:center; gap:34px; padding:9px 14px; background:#e2f0d9; border-top:2px solid #166534; font-family:Calibri,Arial,sans-serif; font-size:14px; font-weight:900; color:#14532d; }
+        .ag-pv-empty { padding:30px; text-align:center; color:#64748b; font-weight:800; font-size:12px; max-width:520px; line-height:1.6; }
         .ag-presets { max-width:1500px; margin:0 auto 10px; display:flex; gap:7px; flex-wrap:wrap; align-items:center; font-size:10px; font-weight:900; color:#475569; }
         .ag-presets button { border:1px dashed #1f4e78; background:#f0f6fc; color:#1f4e78; border-radius:999px; padding:5px 12px; font-size:10px; font-weight:900; cursor:pointer; }
         .ag-presets button:hover { background:#1f4e78; color:#fff; }
@@ -599,27 +617,6 @@ try {
 <i class="fa-solid fa-plus"></i> Add / Manage Tabs
                     </button>
 </div>
-<div class="space-y-1.5" data-hide-key="navAnalytics">
-<p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Analytics</p>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" onclick="openHubOverviewModal(); toggleSidebar();">
-<span class="w-8 h-8 rounded-lg bg-sky-950/60 border border-sky-800/40 flex items-center justify-center flex-shrink-0 text-sky-400 text-sm">
-<i class="fa-solid fa-table-list"></i>
-</span>
-<span class="truncate">Cluster Hubs Overview</span>
-</button>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" id="sideBtnMatrix" onclick="switchDashboardTab('matrix'); toggleSidebar();">
-<span class="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-800/40 flex items-center justify-center flex-shrink-0 text-cyan-400 text-sm">
-<i class="fa-solid fa-chart-simple"></i>
-</span>
-<span class="truncate">All-Hub Comparison Matrix</span>
-</button>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" id="sideBtnLeaderboard" onclick="switchDashboardTab('leaderboard'); toggleSidebar();">
-<span class="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center flex-shrink-0 text-amber-400 text-sm">
-<i class="fa-solid fa-trophy"></i>
-</span>
-<span class="truncate">Performance Leaderboard</span>
-</button>
-</div>
 <div class="space-y-1.5">
 <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Hub Management</p>
 <button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-hide-key="hubSummary" onclick="openClusterSummaryModal(); toggleSidebar();">
@@ -651,18 +648,12 @@ try {
 </div>
 <div class="space-y-1.5">
 <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Display</p>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-owner-only="" id="sideBtnHideMode" onclick="toggleHideMode()">
+<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-owner-only="" id="sideBtnHideMode" onclick="openVisibilityModal(); toggleSidebar();">
 <span class="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center flex-shrink-0 text-amber-400 text-sm">
 <i class="fa-solid fa-eye" id="sideHideModeIcon"></i>
 </span>
-<span class="truncate flex-1 text-left">Hide Selected Sections</span>
+<span class="truncate flex-1 text-left">Hide From Users</span>
 <span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-800 text-slate-400" id="sideHideModePill">OFF</span>
-</button>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-owner-only="" onclick="openVisibilityModal(); toggleSidebar();">
-<span class="w-8 h-8 rounded-lg bg-violet-950/60 border border-violet-800/40 flex items-center justify-center flex-shrink-0 text-violet-400 text-sm">
-<i class="fa-solid fa-list-check"></i>
-</span>
-<span class="truncate">Choose What To Hide</span>
 </button>
 </div>
 <div class="space-y-1.5">
@@ -679,13 +670,13 @@ try {
 </span>
 <span class="truncate">Import Data</span>
 </button>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" onclick="triggerExcelReportImport(); toggleSidebar();">
+<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-hide-key="cardPerformance" onclick="triggerExcelReportImport(); toggleSidebar();">
 <span class="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center flex-shrink-0 text-amber-400 text-sm">
 <i class="fa-solid fa-file-excel"></i>
 </span>
 <span class="truncate">Performance Checker</span>
 </button>
-<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" onclick="triggerAgeingReportImport(); toggleSidebar();">
+<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-hide-key="cardAgeing" onclick="triggerAgeingReportImport(); toggleSidebar();">
 <span class="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-800/40 flex items-center justify-center flex-shrink-0 text-cyan-400 text-sm">
 <i class="fa-solid fa-table"></i>
 </span>
@@ -750,13 +741,13 @@ try {
 <input accept=".xlsx,.xls,.csv" class="hidden" id="ageingReportInput" onchange="importAgeingReport(event)" type="file"/>
 </div>
 <!-- NOTICE TICKER (unread notifications scroll until marked Read) -->
-<div class="notice-bar" id="dashboardNoticeTicker">
+<div class="notice-bar" data-hide-key="noticeTicker" id="dashboardNoticeTicker">
 <div class="notice-badge"><span class="notice-bell"><i class="fa-solid fa-bell"></i></span><span class="notice-badge-text">Notice</span></div>
 <div class="notice-ticker-wrap"><div class="notice-ticker-track" id="dashboardNoticeTickerTrack"></div></div>
 </div>
 <!-- TOP 4 QUICK ACTION CARDS -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-hide-key="kpiCards">
-<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-violet-800/60 transition-all duration-200 cursor-pointer" onclick="toggleDashboardNotificationPanel()" title="Open Notice">
+<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-violet-800/60 transition-all duration-200 cursor-pointer" onclick="toggleDashboardNotificationPanel()" title="Open Notice" data-hide-key="cardNotice">
 <div>
 <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">NOTICE</span>
 <div class="text-3xl font-black text-violet-400 mt-1">Notice</div>
@@ -768,7 +759,7 @@ try {
 <i class="fa-solid fa-bell"></i>
 </div>
 </div>
-<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-amber-800/60 transition-all duration-200 cursor-pointer" onclick="triggerExcelReportImport()" title="Open Performance Checker">
+<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-amber-800/60 transition-all duration-200 cursor-pointer" onclick="triggerExcelReportImport()" title="Open Performance Checker" data-hide-key="cardPerformance">
 <div>
 <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">PERFORMANCE CHECKER</span>
 <div class="text-3xl font-black text-amber-400 mt-1">Performance</div>
@@ -780,19 +771,7 @@ try {
 <i class="fa-solid fa-file-excel"></i>
 </div>
 </div>
-<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-emerald-800/60 transition-all duration-200 cursor-pointer" onclick="openCurrentDayKpiReport()" title="Open KPI Report">
-<div>
-<span class="text-xs uppercase font-bold text-slate-400 tracking-wider">KPI REPORT</span>
-<div class="text-3xl font-black text-emerald-400 mt-1">KPI Report</div>
-<span class="text-xs font-semibold text-slate-400 flex items-center gap-1 mt-1">
-<i class="fa-solid fa-chart-pie"></i> View Hub KPI
-                    </span>
-</div>
-<div class="w-12 h-12 bg-emerald-950/60 rounded-xl flex items-center justify-center text-emerald-400 text-xl border border-emerald-800/40">
-<i class="fa-solid fa-chart-pie"></i>
-</div>
-</div>
-<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-cyan-800/60 transition-all duration-200 cursor-pointer" onclick="triggerAgeingReportImport()" title="Open Ageing Report">
+<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-cyan-800/60 transition-all duration-200 cursor-pointer" onclick="triggerAgeingReportImport()" title="Open Ageing Report" data-hide-key="cardAgeing">
 <div>
 <span class="text-xs uppercase font-bold text-slate-400 tracking-wider">AGEING REPORT</span>
 <div class="text-3xl font-black text-cyan-400 mt-1">Ageing Report</div>
@@ -804,6 +783,18 @@ try {
 <i class="fa-solid fa-table"></i>
 </div>
 </div>
+<div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-lg hover:-translate-y-1 hover:border-emerald-800/60 transition-all duration-200 cursor-pointer" onclick="openCurrentDayKpiReport()" title="Open KPI Report" data-hide-key="cardKpi">
+<div>
+<span class="text-xs uppercase font-bold text-slate-400 tracking-wider">KPI REPORT</span>
+<div class="text-3xl font-black text-emerald-400 mt-1">KPI Report</div>
+<span class="text-xs font-semibold text-slate-400 flex items-center gap-1 mt-1">
+<i class="fa-solid fa-chart-pie"></i> View Hub KPI
+                    </span>
+</div>
+<div class="w-12 h-12 bg-emerald-950/60 rounded-xl flex items-center justify-center text-emerald-400 text-xl border border-emerald-800/40">
+<i class="fa-solid fa-chart-pie"></i>
+</div>
+</div>
 </div>
 <!-- NAVIGATION MENU TRIGGER & TASK TABS BAR -->
 <div class="flex flex-wrap items-center justify-between bg-[#131d36] p-2.5 rounded-xl border border-slate-800 gap-3">
@@ -811,11 +802,8 @@ try {
 <button class="px-4 py-2 text-xs font-bold rounded-lg transition bg-sky-600 text-white shadow-sm flex items-center gap-2" onclick="toggleSidebar()">
 <i class="fa-solid fa-bars"></i> Navigation Menu
                 </button>
-<button class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700" data-owner-only="" id="topBtnHideMode" onclick="toggleHideMode()" title="Hide / show the sections you selected">
+<button class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700" data-owner-only="" id="topBtnHideMode" onclick="openVisibilityModal()" title="Choose what to hide from users (you always see everything)">
 <i class="fa-solid fa-eye" id="topHideModeIcon"></i> <span id="topHideModeLabel">Hide</span>
-</button>
-<button class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700" data-owner-only="" onclick="openVisibilityModal()" title="Choose what to hide">
-<i class="fa-solid fa-list-check"></i>
 </button>
 </div>
 <!-- TASK TABS (dynamic) -->
@@ -1014,29 +1002,32 @@ try {
 </div>
 </div>
 </div>
-<!-- SHOW / HIDE SECTIONS MODAL -->
+<!-- HIDE FROM USERS MODAL -->
 <div class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4" id="visibilityModal">
 <div class="bg-[#131d36] border border-slate-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 shadow-2xl">
 <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
 <h3 class="text-sm font-black text-white flex items-center gap-2">
-<i class="fa-solid fa-eye-slash text-amber-400"></i> Choose What To Hide
+<i class="fa-solid fa-eye-slash text-amber-400"></i> Hide From Users
                 </h3>
 <button class="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition" onclick="closeVisibilityModal()">
 <i class="fa-solid fa-xmark text-lg"></i>
 </button>
 </div>
-<button class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-700 bg-[#0b1329] text-xs font-bold text-slate-300 transition mb-3" id="visMasterBtn" onclick="toggleHideMode()">
-<span class="flex items-center gap-2"><i class="fa-solid fa-eye" id="visMasterIcon"></i> <span id="visMasterText">Hidden mode is OFF (everything visible)</span></span>
-<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-800 text-slate-400" id="visMasterPill">OFF</span>
-</button>
-<div class="flex flex-wrap gap-2 mb-4">
-<button class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" onclick="setHidePreset('controls')">Only edit / add / remove buttons</button>
-<button class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" onclick="setHidePreset('all')">Everything</button>
-<button class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" onclick="setHidePreset('none')">Clear</button>
+<div class="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] font-semibold text-amber-200 leading-relaxed mb-3">
+<i class="fa-solid fa-user-shield mt-0.5"></i>
+<span>Switch ON anything you want to hide from other users. <b>You (owner) will always see everything.</b> Hidden items look normal on your screen (no marker).</span>
 </div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-black text-slate-300" id="visCount">Nothing is hidden - all users see everything</span>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition" onclick="setHidePreset('all')">Hide all</button>
+<button class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" onclick="setHidePreset('none')">Show all</button>
+</div>
+</div>
+<input autocomplete="off" class="w-full bg-[#0b1329] text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-700/60 focus:outline-none focus:border-amber-500 transition mb-4" id="visSearch" oninput="renderVisibilityList()" placeholder="Search a feature..." type="text"/>
 <div class="space-y-4" id="visibilityList"></div>
 <p class="text-[10px] text-slate-500 font-semibold mt-4 leading-relaxed">
-<i class="fa-solid fa-circle-info"></i> Ticked items get hidden when Hidden mode is ON. Only the owner account can change these settings. Other signed-in users will see the shared Hidden/Visible state. This does not delete any data.
+<i class="fa-solid fa-circle-info"></i> Changes save automatically and apply to all other users in real time. Any new tab, hub or sheet you add appears here automatically (marked AUTO) - it is visible to users until you switch it ON. This only hides things on screen; it does not delete any data.
             </p>
 </div>
 </div>
@@ -1543,8 +1534,19 @@ try {
 </div>
 <div class="ageing-modebar hidden" id="ageingModeBar">
 <button class="ageing-mode-btn active" id="ageingModePivotBtn" onclick="ageingSetMode('pivot')" type="button"><i class="fa-solid fa-table-cells mr-1"></i> Pivot Table</button>
+<button class="ageing-mode-btn" id="ageingModeDeliveryBtn" onclick="ageingSetMode('delivery')" type="button"><i class="fa-solid fa-truck-ramp-box mr-1"></i> Delivery Summary</button>
+<button class="ageing-mode-btn" id="ageingModeReceiveBtn" onclick="ageingSetMode('receive')" type="button"><i class="fa-solid fa-calendar-day mr-1"></i> Parcel Receive Age</button>
 <button class="ageing-mode-btn" id="ageingModeCustomBtn" onclick="ageingSetMode('custom')" type="button"><i class="fa-solid fa-table-list mr-1"></i> Custom Report</button>
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;">
+<label for="ageingRefInput" style="font-weight:600;">Age 0 date:</label>
+<input type="date" id="ageingRefInput" onchange="ageingSetRefDate(this.value)" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;">
+<button class="ageing-mode-btn" type="button" onclick="ageingRefAuto()">Auto</button>
+<button class="ageing-mode-btn" type="button" onclick="ageingRefToday()">Today</button>
+<span id="ageingRefNote" style="color:#64748b;"></span>
+</span>
 </div>
+<div class="hidden" id="ageingDeliveryContent"></div>
+<div class="hidden" id="ageingReceiveContent"></div>
 <div class="hidden" id="ageingCustomContent"></div>
 <div id="ageingReportContent">
 <div class="ageing-card" style="margin-top:18px;">
@@ -2223,6 +2225,7 @@ try {
             });
             const modal = document.getElementById('visibilityModal');
             if (modal && pending) modal.classList.add('hidden');
+            try { applyUiHide(); } catch (e) {}
         }
 
         setTimeout(() => { if (!ownerPermissionReady) { try { finishOwnerPermissionCheck(true); } catch (e) {} } }, 10000);
@@ -2395,8 +2398,7 @@ try {
         }
         function pushAgentSetupToOpenReport(hubId) {
             try {
-                if (window.__agentReportHubId !== hubId) return;
-                const f = document.getElementById('agentPerformancePageFrame');
+                const f = (window.__agentFrames || {})[hubId];
                 if (f && f.contentWindow && f.contentWindow.__applyAgentSetup) {
                     f.contentWindow.__applyAgentSetup(getHubAgentSetup(hubId));
                 }
@@ -2913,7 +2915,7 @@ try {
             if(!track||!track.parentElement)return;
             const c=track.parentElement.clientWidth, w=track.offsetWidth;
             if(!c||!w)return;
-            // starts fully off the left edge, ends fully off the right edge (no blank wait)
+            // starts fully off the right edge, ends fully off the left edge (no blank wait)
             const dur=Math.max(6,Math.round((w+c)/130))+'s';
             if(track.dataset.tkC!==String(c)||track.dataset.tkW!==String(w)){
                 track.dataset.tkC=String(c);track.dataset.tkW=String(w);
@@ -3230,7 +3232,7 @@ try {
                         if (!dashboardOwnerUid) return;
                         const hideDoc = await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).get();
                         if (hideDoc.exists && hideDoc.data().uiHide && Array.isArray(hideDoc.data().uiHide.keys)) {
-                            uiHide = hideDoc.data().uiHide;
+                            uiHide = normalizeUiHide(hideDoc.data().uiHide);
                             try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
                         } else if (myAccess.isOwner) {
                             await cloudDb.doc('ownerSettings/' + dashboardOwnerUid).set({ uiHide, updatedAt: Date.now() });
@@ -3421,7 +3423,7 @@ try {
             if (dashboardOwnerUid) {
                 cloudDb.doc('ownerSettings/' + dashboardOwnerUid).onSnapshot(snap => {
                     if (snap.exists && snap.data().uiHide && Array.isArray(snap.data().uiHide.keys)) {
-                        uiHide = snap.data().uiHide;
+                        uiHide = normalizeUiHide(snap.data().uiHide);
                         try { localStorage.setItem(UI_HIDE_LS, JSON.stringify(uiHide)); } catch (e) {}
                         applyUiHide();
                         renderVisibilityList();
@@ -4896,7 +4898,7 @@ try {
                 const cls = isActive
                     ? `px-4 py-2 text-xs font-bold rounded-lg transition ${colorParts(t.color).topActive}`
                     : `px-4 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700`;
-                return `<button onclick="switchDashboardTab('${t.type}')" class="${cls}">
+                return `<button data-hide-key="${hideKeyOf('tab_', t.type)}" data-hide-label="${escapeHtml(t.label)} (tab)" data-hide-group="tabs" data-hide-icon="${escapeHtml(t.icon)}" onclick="switchDashboardTab('${t.type}')" class="${cls}">
                             <i class="fa-solid ${t.icon} text-${t.color}-400"></i> ${t.label}
                         </button>`;
             }).join('');
@@ -4906,13 +4908,14 @@ try {
 
             sideContainer.innerHTML = taskTabs.map(t => {
                 const isActive = currentGenericTabType === t.type;
-                return `<button onclick="switchDashboardTab('${t.type}'); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${isActive ? activeClass : inactiveClass}">
+                return `<button data-hide-key="${hideKeyOf('tab_', t.type)}" data-hide-label="${escapeHtml(t.label)} (tab)" data-hide-group="tabs" data-hide-icon="${escapeHtml(t.icon)}" onclick="switchDashboardTab('${t.type}'); toggleSidebar();" class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${isActive ? activeClass : inactiveClass}">
                             <span class="w-8 h-8 rounded-lg ${colorParts(t.color).sideIcon} flex items-center justify-center flex-shrink-0 text-sm">
                                 <i class="fa-solid ${t.icon}"></i>
                             </span>
                             <span class="truncate">${t.label}</span>
                         </button>`;
             }).join('');
+            try { applyUiHide(); } catch (e) {}
         }
 
         function switchDashboardTab(tab) {
@@ -4998,7 +5001,7 @@ try {
             const shiftLabel = tabDef ? tabDef.label : type;
 
             grid.innerHTML = list.map(item => `
-                <div class="bg-[#0b1329] border border-slate-800 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition shadow-lg relative group">
+                <div data-hide-key="${hideKeyOf('sheet_', item.id)}" data-hide-label="${escapeHtml(shiftLabel)} › ${escapeHtml(item.title)}" data-hide-group="sheets" data-hide-icon="fa-file-excel" class="bg-[#0b1329] border border-slate-800 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition shadow-lg relative group">
                     <div>
                         <div class="flex items-start justify-between gap-3 mb-2">
                             <div class="flex items-center gap-2.5">
@@ -5787,7 +5790,7 @@ try {
                 : '';
 
             grid.innerHTML = filteredHubs.map(hub => `
-                <div class="bg-[#131d36] border border-slate-800 rounded-xl p-5 hover:border-sky-800/60 hover:-translate-y-1 hover:shadow-2xl transition-all duration-200 shadow-xl flex flex-col justify-between relative group">
+                <div data-hide-key="${hideKeyOf('hub_', hub.id)}" data-hide-label="${escapeHtml(hub.name)} (hub card)" data-hide-group="hubs" data-hide-icon="fa-warehouse" class="bg-[#131d36] border border-slate-800 rounded-xl p-5 hover:border-sky-800/60 hover:-translate-y-1 hover:shadow-2xl transition-all duration-200 shadow-xl flex flex-col justify-between relative group">
                     <div>
                         <div class="flex items-start justify-between gap-3 mb-4">
                             <div class="flex items-start gap-3">
@@ -5829,25 +5832,20 @@ try {
                             html += `<div class="grid grid-cols-2 gap-2">`;
                             if (hasReport || hasSummary) {
                                 if (hasReport) {
-                                    html += `<button onclick="generateReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full flex-1 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                                    html += `<button data-hide-key="hubBtnReport" onclick="generateReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full flex-1 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
                                         <i class="fa-solid fa-file-lines text-sm"></i> Morning & Closing Report
-                                    </button>`;
-                                }
-                                if (hasSummary) {
-                                    html += `<button onclick="openHubSummaryModal('${hub.id}', '${hub.name}')" class="h-[46px] w-full flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2.5 px-3 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-chart-line text-sm"></i> Summary
                                     </button>`;
                                 }
                             }
                             if (hasAttendance) {
-                                html += `<button onclick="generateAttendanceReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#0d9488] hover:bg-[#0f766e] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                                html += `<button data-hide-key="hubBtnAttendance" onclick="generateAttendanceReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#0d9488] hover:bg-[#0f766e] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-user-check text-sm"></i> D.A. Attendance Report
                                 </button>`;
                             }
-                            html += `<button onclick="generateInventoryReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#c27ba0] hover:bg-[#ad668b] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                            html += `<button data-hide-key="hubBtnInventory" onclick="generateInventoryReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#c27ba0] hover:bg-[#ad668b] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-boxes-stacked text-sm"></i> Inventory Report
                             </button>`;
-                            html += `<button onclick="openAgentPerformanceReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                            html += `<button data-hide-key="hubBtnAgentPerf" onclick="openAgentPerformanceReport('${hub.id}', '${hub.name}')" class="h-[46px] w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-user-chart text-sm"></i> Agent Performance Report
                             </button>`;
                             html += `</div>`;
@@ -5859,12 +5857,7 @@ try {
         }
 
         /* AGENT PERFORMANCE REPORT - opens inside the dashboard page */
-        function openAgentPerformanceReport(hubId, hubName) {
-            if (!hasHubAccess(hubId)) {
-                showToast('You do not have access to this hub');
-                return;
-            }
-
+        function buildAgentReportHtml(hubId, hubName) {
             // The complete Agent Performance Report is embedded here so GitHub Pages
             // does not depend on a second HTML file. It is shown inside the current page.
             const reportBase64 = 'PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImJuIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEuMCI+CiAgICA8dGl0bGU+U2hpYnB1ciBIdWIgQWdlbnQgUGVyZm9ybWFuY2UgUmVwb3J0PC90aXRsZT4KICAgIDwhLS0gVGFpbHdpbmQgQ1NTIENETiAtLT4KICAgIDxzY3JpcHQgc3JjPSJodHRwczovL2Nkbi50YWlsd2luZGNzcy5jb20iPjwvc2NyaXB0PgogICAgPHN0eWxlPgogICAgICAgIC8qIEltcG9ydCBPc3dhbGQgJiBJbnRlciBmb250cyAqLwogICAgICAgIEBpbXBvcnQgdXJsKCdodHRwczovL2ZvbnRzLmdvb2dsZWFwaXMuY29tL2NzczI/ZmFtaWx5PU9zd2FsZDp3Z2h0QDQwMDs1MDA7NjAwOzcwMCZkaXNwbGF5PXN3YXAnKTsKICAgICAgICBAaW1wb3J0IHVybCgnaHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1JbnRlcjp3Z2h0QDQwMDs1MDA7NjAwOzcwMCZkaXNwbGF5PXN3YXAnKTsKCiAgICAgICAgYm9keSB7CiAgICAgICAgICAgIGZvbnQtZmFtaWx5OiAnT3N3YWxkJywgc2Fucy1zZXJpZjsKICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogIzBmMTcyYTsKICAgICAgICB9CgogICAgICAgIC5zYW5zLWZvbnQgewogICAgICAgICAgICBmb250LWZhbWlseTogJ0ludGVyJywgc2Fucy1zZXJpZjsKICAgICAgICB9CgogICAgICAgIC8qIEN1c3RvbSBUYWJsZSBTdHlsaW5nICovCiAgICAgICAgLnJlcG9ydC10YWJsZSB7CiAgICAgICAgICAgIGJvcmRlci1jb2xsYXBzZTogY29sbGFwc2U7CiAgICAgICAgICAgIHdpZHRoOiAxMDAlOwogICAgICAgICAgICB0YWJsZS1sYXlvdXQ6IGF1dG87CiAgICAgICAgfQoKICAgICAgICAvKiBUb3AgVGl0bGUgUm93IENvbG9yICovCiAgICAgICAgLnJlcG9ydC10aXRsZS1oZWFkZXIgewogICAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMGIxMzI5ICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIGNvbG9yOiAjZmZmZmZmICFpbXBvcnRhbnQ7CiAgICAgICAgfQoKICAgICAgICAvKiBDb2x1bW4gSGVhZGVycyBSb3cgKi8KICAgICAgICAucmVwb3J0LXRhYmxlIHRoLmNvbC1oZWFkZXIgewogICAgICAgICAgICBib3JkZXI6IDFweCBzb2xpZCAjMDAwMDAwOwogICAgICAgICAgICBwYWRkaW5nOiA2cHggM3B4OwogICAgICAgICAgICBmb250LXNpemU6IDEzcHg7CiAgICAgICAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgICAgICAgICAgZm9udC13ZWlnaHQ6IDcwMDsKICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogIzMzNDE1NSAhaW1wb3J0YW50OwogICAgICAgICAgICBjb2xvcjogI2ZmZmZmZiAhaW1wb3J0YW50OwogICAgICAgIH0KCiAgICAgICAgLyogQ29tcGFjdCBBZ2VudCBEYXRhIENlbGxzICovCiAgICAgICAgLnJlcG9ydC10YWJsZSB0ZCB7CiAgICAgICAgICAgIGJvcmRlcjogMXB4IHNvbGlkICMwMDAwMDA7CiAgICAgICAgICAgIHBhZGRpbmc6IDA7CiAgICAgICAgICAgIGhlaWdodDogMjBweDsKICAgICAgICAgICAgZm9udC1zaXplOiAxMnB4OwogICAgICAgICAgICB0ZXh0LWFsaWduOiBjZW50ZXI7CiAgICAgICAgICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7CiAgICAgICAgfQoKICAgICAgICAvKiBSYXRpbyBjZWxscyBmb3JtYXR0aW5nIG1hdGNoaW5nIGV4YWN0IGltYWdlIHN0eWxlIHdpdGggYmxhY2sgYm9yZGVyICovCiAgICAgICAgLnJhdGlvLWNlbGwgewogICAgICAgICAgICBmb250LXdlaWdodDogNzAwOwogICAgICAgICAgICBjb2xvcjogIzAwMDAwMCAhaW1wb3J0YW50OwogICAgICAgICAgICBib3JkZXI6IDFweCBzb2xpZCAjMDAwMDAwICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIGRpc3BsYXk6IHRhYmxlLWNlbGw7CiAgICAgICAgICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7CiAgICAgICAgICAgIHRyYW5zaXRpb246IGJhY2tncm91bmQtY29sb3IgMC4ycyBlYXNlOwogICAgICAgIH0KCiAgICAgICAgLyogQ29tcGFjdCBpbnB1dCBzdHlsaW5nIGluc2lkZSBhZ2VudCBkYXRhIGNlbGxzICovCiAgICAgICAgLmNlbGwtaW5wdXQgewogICAgICAgICAgICB3aWR0aDogMTAwJTsKICAgICAgICAgICAgaGVpZ2h0OiAxMDAlOwogICAgICAgICAgICBtaW4taGVpZ2h0OiAyMHB4OwogICAgICAgICAgICBsaW5lLWhlaWdodDogMjBweDsKICAgICAgICAgICAgYmFja2dyb3VuZDogdHJhbnNwYXJlbnQ7CiAgICAgICAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgICAgICAgICAgYm9yZGVyOiBub25lOwogICAgICAgICAgICBvdXRsaW5lOiBub25lOwogICAgICAgICAgICBmb250LWZhbWlseTogaW5oZXJpdDsKICAgICAgICAgICAgZm9udC1zaXplOiAxMnB4OwogICAgICAgICAgICBmb250LXdlaWdodDogYm9sZDsKICAgICAgICAgICAgZGlzcGxheTogYmxvY2s7CiAgICAgICAgICAgIG1hcmdpbjogMDsKICAgICAgICAgICAgcGFkZGluZzogMDsKICAgICAgICAgICAgY29sb3I6ICMwZjE3MmE7CiAgICAgICAgfQoKICAgICAgICAuY2VsbC1pbnB1dDpmb2N1cyB7CiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6ICNlMGYyZmU7CiAgICAgICAgfQoKICAgICAgICAvKiBOYXJyb3cgV2lkdGggUnVsZXMgKi8KICAgICAgICAuY29sLW5hbWUgewogICAgICAgICAgICB3aGl0ZS1zcGFjZTogbm93cmFwOwogICAgICAgICAgICBwYWRkaW5nLWxlZnQ6IDRweCAhaW1wb3J0YW50OwogICAgICAgICAgICBwYWRkaW5nLXJpZ2h0OiA0cHggIWltcG9ydGFudDsKICAgICAgICAgICAgd2lkdGg6IDElOwogICAgICAgICAgICBjb2xvcjogIzBmMTcyYTsKICAgICAgICB9CgogICAgICAgIC5jb2wtZWlkIHsKICAgICAgICAgICAgbWluLXdpZHRoOiA1MHB4OwogICAgICAgICAgICB3aWR0aDogMSU7CiAgICAgICAgICAgIGNvbG9yOiAjMGYxNzJhOwogICAgICAgIH0KCiAgICAgICAgLmNvbC1kYXRhIHsKICAgICAgICAgICAgbWluLXdpZHRoOiAzMHB4OwogICAgICAgICAgICB3aWR0aDogMSU7CiAgICAgICAgfQoKICAgICAgICAuY29sLXJhdGlvIHsKICAgICAgICAgICAgbWluLXdpZHRoOiAyOHB4OwogICAgICAgICAgICB3aWR0aDogMSU7CiAgICAgICAgICAgIGNvbG9yOiAjMDAwMDAwOwogICAgICAgIH0KCiAgICAgICAgLyogR3JhbmQgVG90YWwgUm93IENvbG9yICovCiAgICAgICAgLmd0LXRlYWwtY2VsbCB7CiAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6ICMwZDk0ODggIWltcG9ydGFudDsKICAgICAgICAgICAgY29sb3I6ICNmZmZmZmYgIWltcG9ydGFudDsKICAgICAgICAgICAgZm9udC13ZWlnaHQ6IDcwMCAhaW1wb3J0YW50OwogICAgICAgICAgICBmb250LXNpemU6IDEzcHggIWltcG9ydGFudDsKICAgICAgICAgICAgaGVpZ2h0OiAyOHB4ICFpbXBvcnRhbnQ7CiAgICAgICAgICAgIHBhZGRpbmc6IDJweCAhaW1wb3J0YW50OwogICAgICAgICAgICBib3JkZXI6IDFweCBzb2xpZCAjMDAwMDAwICFpbXBvcnRhbnQ7CiAgICAgICAgfQoKICAgICAgICAvKiBIaWRlIG51bWJlciBzcGlubmVyIGNvbnRyb2xzICovCiAgICAgICAgaW5wdXRbdHlwZT0ibnVtYmVyIl06Oi13ZWJraXQtaW5uZXItc3Bpbi1idXR0b24sCiAgICAgICAgaW5wdXRbdHlwZT0ibnVtYmVyIl06Oi13ZWJraXQtb3V0ZXItc3Bpbi1idXR0b24gewogICAgICAgICAgICAtd2Via2l0LWFwcGVhcmFuY2U6IG5vbmU7CiAgICAgICAgICAgIG1hcmdpbjogMDsKICAgICAgICB9CiAgICAgICAgaW5wdXRbdHlwZT0ibnVtYmVyIl0gewogICAgICAgICAgICAtbW96LWFwcGVhcmFuY2U6IHRleHRmaWVsZDsKICAgICAgICB9CgogICAgICAgIC8qIEFjdGlvbiBCdXR0b25zIEhvdmVyIEVmZmVjdHMgKi8KICAgICAgICAuYWN0aW9uLWJ0biB7CiAgICAgICAgICAgIHRyYW5zaXRpb246IGFsbCAwLjJzIGN1YmljLWJlemllcigwLjQsIDAsIDAuMiwgMSk7CiAgICAgICAgfQogICAgICAgIAogICAgICAgIC5hY3Rpb24tYnRuOmhvdmVyIHsKICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0ycHgpOwogICAgICAgIH0KCiAgICAgICAgLmFjdGlvbi1idG46YWN0aXZlIHsKICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApIHNjYWxlKDAuOTYpOwogICAgICAgIH0KCiAgICAgICAgLyogVG9hc3QgQW5pbWF0aW9uICovCiAgICAgICAgQGtleWZyYW1lcyBzbGlkZVVwIHsKICAgICAgICAgICAgZnJvbSB7CiAgICAgICAgICAgICAgICBvcGFjaXR5OiAwOwogICAgICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDIwcHgpIHNjYWxlKDAuOTUpOwogICAgICAgICAgICB9CiAgICAgICAgICAgIHRvIHsKICAgICAgICAgICAgICAgIG9wYWNpdHk6IDE7CiAgICAgICAgICAgICAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoMCkgc2NhbGUoMSk7CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIC50b2FzdC1hbmltYXRlIHsKICAgICAgICAgICAgYW5pbWF0aW9uOiBzbGlkZVVwIDAuM3MgY3ViaWMtYmV6aWVyKDAuMTYsIDEsIDAuMywgMSkgZm9yd2FyZHM7CiAgICAgICAgfQogICAgPC9zdHlsZT4KPC9oZWFkPgo8Ym9keSBjbGFzcz0icC0xIHNtOnAtMiBtZDpwLTQgbWluLWgtc2NyZWVuIj4KCiAgICA8ZGl2IGNsYXNzPSJtYXgtdy0zeGwgbXgtYXV0byI+CiAgICAgICAgCiAgICAgICAgPCEtLSBNYWluIFJlcG9ydCBUYWJsZSBDb250YWluZXIgKFB1cmUgUmVwb3J0IENhcmQpIC0tPgogICAgICAgIDxkaXYgY2xhc3M9ImJnLXdoaXRlIHNoYWRvdy0yeGwgcm91bmRlZC0yeGwgb3ZlcmZsb3ctaGlkZGVuIGJvcmRlciBib3JkZXItc2xhdGUtNzAwIj4KICAgICAgICAgICAgPGRpdiBjbGFzcz0ib3ZlcmZsb3cteC1hdXRvIj4KICAgICAgICAgICAgICAgIDx0YWJsZSBjbGFzcz0icmVwb3J0LXRhYmxlIj4KICAgICAgICAgICAgICAgICAgICA8dGhlYWQ+CiAgICAgICAgICAgICAgICAgICAgICAgIDwhLS0gVGFibGUgVGl0bGUgSGVhZGVyIC0tPgogICAgICAgICAgICAgICAgICAgICAgICA8dHI+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY29sc3Bhbj0iOSIgY2xhc3M9InJlcG9ydC10aXRsZS1oZWFkZXIgZm9udC1ib2xkIHB5LTIgdHJhY2tpbmctd2lkZSB1cHBlcmNhc2UgdGV4dC1jZW50ZXIgYm9yZGVyLWIgYm9yZGVyLWJsYWNrIiBzdHlsZT0iZm9udC1zaXplOiAxNnB4ICFpbXBvcnRhbnQ7Ij4KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBTSElCUFVSIEhVQiBBR0VOVCBQRVJGT1JNQU5DRSBSRVBPUlQKICAgICAgICAgICAgICAgICAgICAgICAgICAgIDwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgIDwvdHI+CiAgICAgICAgICAgICAgICAgICAgICAgIDwhLS0gQ29sdW1uIGhlYWRlcnMgLS0+CiAgICAgICAgICAgICAgICAgICAgICAgIDx0ciBjbGFzcz0idGV4dC1jZW50ZXIgYm9yZGVyLWIgYm9yZGVyLWJsYWNrIj4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0aCBjbGFzcz0iY29sLWhlYWRlciIgc3R5bGU9Im1pbi13aWR0aDogNTBweDsgd2lkdGg6IDElOyI+RUlEPC90aD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0aCBjbGFzcz0iY29sLWhlYWRlciBjb2wtbmFtZSI+TmFtZTwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY2xhc3M9ImNvbC1oZWFkZXIgY29sLWRhdGEiPkFzc2lnbjwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY2xhc3M9ImNvbC1oZWFkZXIgY29sLWRhdGEiPkRlbGl2ZXJ5PC90aD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0aCBjbGFzcz0iY29sLWhlYWRlciBjb2wtcmF0aW8iPlJhdGlvPC90aD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0aCBjbGFzcz0iY29sLWhlYWRlciBjb2wtZGF0YSI+SG9sZDwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY2xhc3M9ImNvbC1oZWFkZXIgY29sLXJhdGlvIj5SYXRpbzwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY2xhc3M9ImNvbC1oZWFkZXIgY29sLWRhdGEiPlJldHVybjwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGggY2xhc3M9ImNvbC1oZWFkZXIgY29sLXJhdGlvIj5SYXRpbzwvdGg+CiAgICAgICAgICAgICAgICAgICAgICAgIDwvdHI+CiAgICAgICAgICAgICAgICAgICAgPC90aGVhZD4KICAgICAgICAgICAgICAgICAgICA8dGJvZHkgaWQ9ImFnZW50VGFibGVCb2R5Ij4KICAgICAgICAgICAgICAgICAgICAgICAgPCEtLSBEeW5hbWljIGFnZW50IHJvd3MgZ2VuZXJhdGVkIHZpYSBKUyAtLT4KICAgICAgICAgICAgICAgICAgICA8L3Rib2R5PgogICAgICAgICAgICAgICAgICAgIDx0Zm9vdD4KICAgICAgICAgICAgICAgICAgICAgICAgPCEtLSBHcmFuZCBUb3RhbCBSb3cgLS0+CiAgICAgICAgICAgICAgICAgICAgICAgIDx0ciBjbGFzcz0iZm9udC1ib2xkIHRleHQtY2VudGVyIj4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjb2xzcGFuPSIyIiBjbGFzcz0iZ3QtdGVhbC1jZWxsIHRleHQtY2VudGVyIj5HcmFuZCBUb3RhbDwvdGQ+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGQgaWQ9Imd0LWFzc2lnbiIgY2xhc3M9Imd0LXRlYWwtY2VsbCI+MDwvdGQ+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICA8dGQgaWQ9Imd0LWRlbGl2ZXJ5IiBjbGFzcz0iZ3QtdGVhbC1jZWxsIj4wPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBpZD0iZ3QtZGVsLXJhdGlvIiBjbGFzcz0iZ3QtdGVhbC1jZWxsIHJhdGlvLWNlbGwiIHN0eWxlPSJjb2xvcjogI2ZmZmZmZiAhaW1wb3J0YW50OyI+MCU8L3RkPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGlkPSJndC1ob2xkIiBjbGFzcz0iZ3QtdGVhbC1jZWxsIj4wPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBpZD0iZ3QtaG9sZC1yYXRpbyIgY2xhc3M9Imd0LXRlYWwtY2VsbCByYXRpby1jZWxsIiBzdHlsZT0iY29sb3I6ICNmZmZmZmYgIWltcG9ydGFudDsiPjAlPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBpZD0iZ3QtcmV0dXJuIiBjbGFzcz0iZ3QtdGVhbC1jZWxsIj4wPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBpZD0iZ3QtcmV0LXJhdGlvIiBjbGFzcz0iZ3QtdGVhbC1jZWxsIHJhdGlvLWNlbGwiIHN0eWxlPSJjb2xvcjogI2ZmZmZmZiAhaW1wb3J0YW50OyI+MCU8L3RkPgogICAgICAgICAgICAgICAgICAgICAgICA8L3RyPgogICAgICAgICAgICAgICAgICAgIDwvdGZvb3Q+CiAgICAgICAgICAgICAgICA8L3RhYmxlPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KCiAgICAgICAgPCEtLSBBY3Rpb24gVG9vbGJhciAoQ29tcGxldGVseSBPdXRzaWRlIHRoZSBSZXBvcnQgQ2FyZCkgLS0+CiAgICAgICAgPGRpdiBjbGFzcz0ibXQtNCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMyI+CiAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0id2luZG93LnBhcmVudC5jbG9zZUFnZW50UGVyZm9ybWFuY2VSZXBvcnQoKSIgY2xhc3M9ImFjdGlvbi1idG4gcHgtNCBweS0yIGJnLXNsYXRlLTgwMCBob3ZlcjpiZy1zbGF0ZS03MDAgdGV4dC13aGl0ZSByb3VuZGVkLXhsIHNoYWRvdy1tZCBib3JkZXIgYm9yZGVyLXNsYXRlLTcwMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXhzIHNhbnMtZm9udCBmb250LXNlbWlib2xkIj4KICAgICAgICAgICAgICAgIDxzdmcgY2xhc3M9InctNCBoLTQgdGV4dC13aGl0ZSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHZpZXdCb3g9IjAgMCAyNCAyNCI+CiAgICAgICAgICAgICAgICAgICAgPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xMCAxOWwtNy03bTAgMGw3LTdtLTcgN2gxOCI+PC9wYXRoPgogICAgICAgICAgICAgICAgPC9zdmc+CiAgICAgICAgICAgICAgICA8c3Bhbj5CYWNrIHRvIERhc2hib2FyZDwvc3Bhbj4KICAgICAgICAgICAgPC9idXR0b24+CgogICAgICAgICAgICA8YnV0dG9uIG9uY2xpY2s9Im9wZW5QYXN0ZU1vZGFsKCkiIGNsYXNzPSJhY3Rpb24tYnRuIHB4LTQgcHktMiBiZy1ncmFkaWVudC10by1yIGZyb20tYmx1ZS02MDAgdG8taW5kaWdvLTYwMCBob3Zlcjpmcm9tLWJsdWUtNTAwIGhvdmVyOnRvLWluZGlnby01MDAgdGV4dC13aGl0ZSByb3VuZGVkLXhsIHNoYWRvdy1sZyBzaGFkb3ctYmx1ZS05MDAvNTAgYm9yZGVyIGJvcmRlci1ibHVlLTQwMC8zMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiB0ZXh0LXhzIHNhbnMtZm9udCBmb250LXNlbWlib2xkIj4KICAgICAgICAgICAgICAgIDxzdmcgY2xhc3M9InctNCBoLTQgdGV4dC13aGl0ZSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHZpZXdCb3g9IjAgMCAyNCAyNCI+CiAgICAgICAgICAgICAgICAgICAgPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik05IDVIN2EyIDIgMCAwMC0yIDJ2MTJhMiAyIDAgMDAyIDJoMTBhMiAyIDAgMDAyLTJWN2EyIDIgMCAwMC0yLTJoLTJNOSA1YTIgMiAwIDAwMiAyaDJhMiAyIDAgMDAyLTJNOSA1YTIgMiAwIDAxMi0yaDJhMiAyIDAgMDEyIDJtLTMgN2gzbS0zIDRoM20tNi00aC4wMU05IDE2aC4wMSI+PC9wYXRoPgogICAgICAgICAgICAgICAgPC9zdmc+CiAgICAgICAgICAgICAgICA8c3Bhbj5CdWxrIFBhc3RlPC9zcGFuPgogICAgICAgICAgICA8L2J1dHRvbj4KCiAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0ib3BlbkFnZW50TW9kYWwoKSIgY2xhc3M9ImFjdGlvbi1idG4gcHgtNCBweS0yIGJnLWdyYWRpZW50LXRvLXIgZnJvbS1wdXJwbGUtNjAwIHRvLWluZGlnby03MDAgaG92ZXI6ZnJvbS1wdXJwbGUtNTAwIGhvdmVyOnRvLWluZGlnby02MDAgdGV4dC13aGl0ZSByb3VuZGVkLXhsIHNoYWRvdy1sZyBzaGFkb3ctcHVycGxlLTk1MC81MCBib3JkZXIgYm9yZGVyLXB1cnBsZS00MDAvMzAgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgdGV4dC14cyBzYW5zLWZvbnQgZm9udC1zZW1pYm9sZCI+CiAgICAgICAgICAgICAgICA8c3ZnIGNsYXNzPSJ3LTQgaC00IHRleHQtd2hpdGUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiB2aWV3Qm94PSIwIDAgMjQgMjQiPgogICAgICAgICAgICAgICAgICAgIDxwYXRoIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTAuMzI1IDQuMzE3Yy40MjYtMS43NTYgMi45MjQtMS43NTYgMy4zNSAwYTEuNzI0IDEuNzI0IDAgMDAyLjU3MyAxLjA2NmMxLjU0My0uOTQgMy4zMS44MjYgMi4zNyAyLjM3YTEuNzI0IDEuNzI0IDAgMDAxLjA2NSAyLjU3MmMxLjc1Ni40MjYgMS43NTYgMi45MjQgMCAzLjM1YTEuNzI0IDEuNzI0IDAgMDAtMS4wNjYgMi41NzNjLjk0IDEuNTQzLS44MjYgMy4zMS0yLjM3IDIuMzdhMS43MjQgMS43MjQgMCAwMC0yLjU3MiAxLjA2NWMtLjQyNiAxLjc1Ni0yLjkyNCAxLjc1Ni0zLjM1IDBhMS43MjQgMS43MjQgMCAwMC0yLjU3My0xLjA2NmMtMS41NDMuOTQtMy4zMS0uODI2LTIuMzctMi4zN2ExLjcyNCAxLjcyNCAwIDAwLTEuMDY1LTIuNTcyYy0xLjc1Ni0uNDI2LTEuNzU2LTIuOTI0IDAtMy4zNWExLjcyNCAxLjcyNCAwIDAwMS4wNjYtMi41NzNjLS45NC0xLjU0My44MjYtMy4zMSAyLjM3LTIuMzcuOTk2LjYwOCAyLjI5Ni4wNyAyLjU3Mi0xLjA2NXoiPjwvcGF0aD4KICAgICAgICAgICAgICAgICAgICA8cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTE1IDEyYTMgMyAwIDExLTYgMCAzIDMgMCAwMTYgMHoiPjwvcGF0aD4KICAgICAgICAgICAgICAgIDwvc3ZnPgogICAgICAgICAgICAgICAgPHNwYW4+QWdlbnQgU2V0dXA8L3NwYW4+CiAgICAgICAgICAgIDwvYnV0dG9uPgoKICAgICAgICAgICAgPGJ1dHRvbiBvbmNsaWNrPSJjbGVhckFsbERhdGEoKSIgY2xhc3M9ImFjdGlvbi1idG4gcHgtNCBweS0yIGJnLXNsYXRlLTgwMCBob3ZlcjpiZy1yb3NlLTYwMCB0ZXh0LXJvc2UtMzAwIGhvdmVyOnRleHQtd2hpdGUgcm91bmRlZC14bCBib3JkZXIgYm9yZGVyLXNsYXRlLTcwMCBob3Zlcjpib3JkZXItcm9zZS01MDAgc2hhZG93LW1kIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yIHRleHQteHMgc2Fucy1mb250IGZvbnQtbWVkaXVtIHRyYW5zaXRpb24tY29sb3JzIj4KICAgICAgICAgICAgICAgIDxzdmcgY2xhc3M9InctNCBoLTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiB2aWV3Qm94PSIwIDAgMjQgMjQiPgogICAgICAgICAgICAgICAgICAgIDxwYXRoIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTkgN2wtLjg2NyAxMi4xNDJBMiAyIDAgMDExNi4xMzggMjFINy44NjJhMiAyIDAgMDEtMS45OTUtMS44NThMNSA3bTUgNHY2bTQtNnY2bTEtMTBWNGExIDEgMCAwMC0xLTFoLTRhMSAxIDAgMDAtMSAxdjNNNCA3aDE2Ij48L3BhdGg+CiAgICAgICAgICAgICAgICA8L3N2Zz4KICAgICAgICAgICAgICAgIDxzcGFuPkNsZWFyIERhdGE8L3NwYW4+CiAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgIDwvZGl2PgoKICAgIDwvZGl2PgoKICAgIDwhLS0gQnVsayBQYXN0ZSBNb2RhbCAtLT4KICAgIDxkaXYgaWQ9InBhc3RlTW9kYWwiIGNsYXNzPSJmaXhlZCBpbnNldC0wIGJnLXNsYXRlLTk1MC83MCBiYWNrZHJvcC1ibHVyLW1kIGhpZGRlbiBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTQgei01MCI+CiAgICAgICAgPGRpdiBjbGFzcz0iYmctd2hpdGUgcm91bmRlZC0yeGwgc2hhZG93LTJ4bCBtYXgtdy1sZyB3LWZ1bGwgcC02IHNhbnMtZm9udCBib3JkZXIgYm9yZGVyLXNsYXRlLTEwMCI+CiAgICAgICAgICAgIDxkaXYgY2xhc3M9ImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBtYi0yIj4KICAgICAgICAgICAgICAgIDxoMyBjbGFzcz0idGV4dC1sZyBmb250LWJvbGQgdGV4dC1zbGF0ZS05MDAgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIiPgogICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzPSJwLTEuNSBiZy1ibHVlLTEwMCB0ZXh0LWJsdWUtNjAwIHJvdW5kZWQtbGciPvCfk4s8L3NwYW4+CiAgICAgICAgICAgICAgICAgICAgPHNwYW4+UXVpY2sgRGF0YSBCdWxrIFBhc3RlPC9zcGFuPgogICAgICAgICAgICAgICAgPC9oMz4KICAgICAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0iY2xvc2VQYXN0ZU1vZGFsKCkiIGNsYXNzPSJ0ZXh0LXNsYXRlLTQwMCBob3Zlcjp0ZXh0LXNsYXRlLTYwMCBwLTEiPuKclTwvYnV0dG9uPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgPHAgY2xhc3M9InRleHQteHMgdGV4dC1zbGF0ZS01MDAgbWItNCI+CiAgICAgICAgICAgICAgICBFeGNlbCB0aGVrZSBhcG5hciBtb250aGx5IGZpeGVkIHNlcmlhbC1lIDxiPkFzc2lnbiwgRGVsaXZlcnksIEhvbGQsIFJldHVybjwvYj4gcGFzdGUga29ybGVpIG1hdGNoIGhveWUgamFiZS4KICAgICAgICAgICAgPC9wPgoKICAgICAgICAgICAgPGRpdiBjbGFzcz0ibWItMyI+CiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3M9ImJsb2NrIHRleHQteHMgZm9udC1zZW1pYm9sZCB0ZXh0LXNsYXRlLTcwMCBtYi0xIj5UYXJnZXQgQ29sdW1uIENob29zZSBLb3J1bjo8L2xhYmVsPgogICAgICAgICAgICAgICAgPHNlbGVjdCBpZD0icGFzdGVUYXJnZXQiIGNsYXNzPSJ3LWZ1bGwgYm9yZGVyIGJvcmRlci1zbGF0ZS0zMDAgcm91bmRlZC14bCBwLTIuNSB0ZXh0LXNtIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLWJsdWUtNTAwIG91dGxpbmUtbm9uZSBmb250LW1lZGl1bSB0ZXh0LXNsYXRlLTcwMCI+CiAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iYWxsIj5Bc3NpZ24sIERlbGl2ZXJ5LCBIb2xkLCBSZXR1cm4gKEFsbCA0IENvbHVtbnMgVG9nZXRoZXIpPC9vcHRpb24+CiAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iYXNzaWduIj5Bc3NpZ24gT25seTwvb3B0aW9uPgogICAgICAgICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9ImRlbGl2ZXJ5Ij5EZWxpdmVyeSBPbmx5PC9vcHRpb24+CiAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iaG9sZCI+SG9sZCBPbmx5PC9vcHRpb24+CiAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0icmV0dXJuIj5SZXR1cm4gT25seTwvb3B0aW9uPgogICAgICAgICAgICAgICAgPC9zZWxlY3Q+CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgPGRpdiBjbGFzcz0ibWItMyI+CiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3M9ImJsb2NrIHRleHQteHMgZm9udC1zZW1pYm9sZCB0ZXh0LXNsYXRlLTcwMCBtYi0xIj5EYXRhIFBhc3RlIEJveDo8L2xhYmVsPgogICAgICAgICAgICAgICAgPHRleHRhcmVhIGlkPSJwYXN0ZUlucHV0IiByb3dzPSI1IiBjbGFzcz0idy1mdWxsIGJvcmRlciBib3JkZXItc2xhdGUtMzAwIHJvdW5kZWQteGwgcC0zIHRleHQteHMgZm9udC1tb25vIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLWJsdWUtNTAwIG91dGxpbmUtbm9uZSBiZy1zbGF0ZS01MCIgcGxhY2Vob2xkZXI9IkV4Y2VsIHJvdyB2YWx1ZXMgZWtoYW5lIFBhc3RlIChDdHJsK1YpIGtvcnVuLi4uIj48L3RleHRhcmVhPgogICAgICAgICAgICA8L2Rpdj4KCiAgICAgICAgICAgIDxkaXYgY2xhc3M9Im1iLTUgYmctc2xhdGUtNTAgYm9yZGVyIGJvcmRlci1zbGF0ZS0yMDAgcC0zIHJvdW5kZWQteGwgbWF4LWgtMjggb3ZlcmZsb3cteS1hdXRvIj4KICAgICAgICAgICAgICAgIDxkaXYgY2xhc3M9InRleHQtWzExcHhdIGZvbnQtYm9sZCB0ZXh0LXNsYXRlLTQwMCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgbWItMSI+Q3VycmVudCBGaXhlZCBBZ2VudCBTZXJpYWwgKE1vbnRobHkgTGlzdCk6PC9kaXY+CiAgICAgICAgICAgICAgICA8b2wgaWQ9Im9yZGVyUHJldmlldyIgY2xhc3M9InRleHQteHMgdGV4dC1zbGF0ZS03MDAgbGlzdC1kZWNpbWFsIGxpc3QtaW5zaWRlIHNwYWNlLXktMC41Ij4KICAgICAgICAgICAgICAgIDwvb2w+CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgPGRpdiBjbGFzcz0iZmxleCBqdXN0aWZ5LWVuZCBnYXAtMi41Ij4KICAgICAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0iY2xvc2VQYXN0ZU1vZGFsKCkiIGNsYXNzPSJweC00IHB5LTIgYmctc2xhdGUtMTAwIHRleHQtc2xhdGUtNzAwIHJvdW5kZWQteGwgdGV4dC1zbSBmb250LXNlbWlib2xkIGhvdmVyOmJnLXNsYXRlLTIwMCB0cmFuc2l0aW9uIj4KICAgICAgICAgICAgICAgICAgICBDYW5jZWwKICAgICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICAgICAgPGJ1dHRvbiBvbmNsaWNrPSJwcm9jZXNzUGFzdGVEYXRhKCkiIGNsYXNzPSJweC01IHB5LTIgYmctYmx1ZS02MDAgaG92ZXI6YmctYmx1ZS03MDAgdGV4dC13aGl0ZSByb3VuZGVkLXhsIHRleHQtc20gZm9udC1zZW1pYm9sZCBzaGFkb3ctbWQgc2hhZG93LWJsdWUtNTAwLzIwIHRyYW5zaXRpb24iPgogICAgICAgICAgICAgICAgICAgIEFwcGx5IERhdGEKICAgICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgIDwvZGl2PgoKICAgIDwhLS0gTW9udGhseSBBZ2VudCBTZXR1cCBNb2RhbCAtLT4KICAgIDxkaXYgaWQ9ImFnZW50TW9kYWwiIGNsYXNzPSJmaXhlZCBpbnNldC0wIGJnLXNsYXRlLTk1MC83MCBiYWNrZHJvcC1ibHVyLW1kIGhpZGRlbiBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBwLTQgei01MCI+CiAgICAgICAgPGRpdiBjbGFzcz0iYmctd2hpdGUgcm91bmRlZC0yeGwgc2hhZG93LTJ4bCBtYXgtdy14bCB3LWZ1bGwgcC02IHNhbnMtZm9udCBib3JkZXIgYm9yZGVyLXNsYXRlLTEwMCI+CiAgICAgICAgICAgIDxkaXYgY2xhc3M9ImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktYmV0d2VlbiBtYi0yIj4KICAgICAgICAgICAgICAgIDxoMyBjbGFzcz0idGV4dC1sZyBmb250LWJvbGQgdGV4dC1zbGF0ZS05MDAgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIiPgogICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzPSJwLTEuNSBiZy1wdXJwbGUtMTAwIHRleHQtcHVycGxlLTYwMCByb3VuZGVkLWxnIj7impk8L3NwYW4+CiAgICAgICAgICAgICAgICAgICAgPHNwYW4+TW9udGhseSBBZ2VudCBMaXN0IFNldHVwPC9zcGFuPgogICAgICAgICAgICAgICAgPC9oMz4KICAgICAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0iY2xvc2VBZ2VudE1vZGFsKCkiIGNsYXNzPSJ0ZXh0LXNsYXRlLTQwMCBob3Zlcjp0ZXh0LXNsYXRlLTYwMCBwLTEiPuKclTwvYnV0dG9uPgogICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgPHAgY2xhc3M9InRleHQteHMgdGV4dC1zbGF0ZS01MDAgbWItNCI+CiAgICAgICAgICAgICAgICBNYXNlciBzaHVydXRlIGVraGFuZSBFSUQgZWJvbmcgTmFtZSBzZXJpYWwgb251amF5aSBib3NoaXllIFNhdmUga29ydW4uCiAgICAgICAgICAgIDwvcD4KCiAgICAgICAgICAgIDxkaXYgY2xhc3M9Im1iLTQiPgogICAgICAgICAgICAgICAgPHRleHRhcmVhIGlkPSJhZ2VudFNldHVwSW5wdXQiIHJvd3M9IjEwIiBjbGFzcz0idy1mdWxsIGJvcmRlciBib3JkZXItc2xhdGUtMzAwIHJvdW5kZWQteGwgcC0zIHRleHQteHMgZm9udC1tb25vIGZvY3VzOnJpbmctMiBmb2N1czpyaW5nLXB1cnBsZS01MDAgb3V0bGluZS1ub25lIGJnLXNsYXRlLTUwIiBwbGFjZWhvbGRlcj0iRUlEIFtUQUJdIE5hbWUgKFByb3RpIGxpbmUgZSBla2pvbiBhZ2VudCkiPjwvdGV4dGFyZWE+CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgPGRpdiBjbGFzcz0iZmxleCBqdXN0aWZ5LWJldHdlZW4gaXRlbXMtY2VudGVyIj4KICAgICAgICAgICAgICAgIDxidXR0b24gb25jbGljaz0icmVzZXREZWZhdWx0QWdlbnRzKCkiIGNsYXNzPSJweC0zIHB5LTEuNSBiZy1hbWJlci01MCB0ZXh0LWFtYmVyLTcwMCBib3JkZXIgYm9yZGVyLWFtYmVyLTIwMCByb3VuZGVkLWxnIHRleHQteHMgZm9udC1zZW1pYm9sZCBob3ZlcjpiZy1hbWJlci0xMDAgdHJhbnNpdGlvbiI+CiAgICAgICAgICAgICAgICAgICAgUmVzZXQgRGVmYXVsdCBMaXN0CiAgICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgICAgIDxkaXYgY2xhc3M9ImZsZXggZ2FwLTIuNSI+CiAgICAgICAgICAgICAgICAgICAgPGJ1dHRvbiBvbmNsaWNrPSJjbG9zZUFnZW50TW9kYWwoKSIgY2xhc3M9InB4LTQgcHktMiBiZy1zbGF0ZS0xMDAgdGV4dC1zbGF0ZS03MDAgcm91bmRlZC14bCB0ZXh0LXNtIGZvbnQtc2VtaWJvbGQgaG92ZXI6Ymctc2xhdGUtMjAwIHRyYW5zaXRpb24iPgogICAgICAgICAgICAgICAgICAgICAgICBDYW5jZWwKICAgICAgICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgICAgICAgICA8YnV0dG9uIG9uY2xpY2s9InNhdmVBZ2VudFNldHVwKCkiIGNsYXNzPSJweC01IHB5LTIgYmctcHVycGxlLTYwMCBob3ZlcjpiZy1wdXJwbGUtNzAwIHRleHQtd2hpdGUgcm91bmRlZC14bCB0ZXh0LXNtIGZvbnQtc2VtaWJvbGQgc2hhZG93LW1kIHNoYWRvdy1wdXJwbGUtNTAwLzIwIHRyYW5zaXRpb24iPgogICAgICAgICAgICAgICAgICAgICAgICBTYXZlIE1vbnRobHkgTGlzdAogICAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvZGl2PgogICAgPC9kaXY+CgogICAgPCEtLSBDdXN0b20gTW9kZXJuIFRvYXN0IE5vdGlmaWNhdGlvbiBDb250YWluZXIgLS0+CiAgICA8ZGl2IGlkPSJ0b2FzdENvbnRhaW5lciIgY2xhc3M9ImZpeGVkIGJvdHRvbS02IHJpZ2h0LTYgei01MCBmbGV4IGZsZXgtY29sIGdhcC0yIHNhbnMtZm9udCI+PC9kaXY+CgogICAgPCEtLSBKYXZhU2NyaXB0IExvZ2ljIC0tPgogICAgPHNjcmlwdD4KICAgICAgICBmdW5jdGlvbiBzaG93VG9hc3QobWVzc2FnZSwgdHlwZSA9ICdzdWNjZXNzJykgewogICAgICAgICAgICBjb25zdCBjb250YWluZXIgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndG9hc3RDb250YWluZXInKTsKICAgICAgICAgICAgY29uc3QgdG9hc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTsKICAgICAgICAgICAgCiAgICAgICAgICAgIGNvbnN0IGlzU3VjY2VzcyA9IHR5cGUgPT09ICdzdWNjZXNzJzsKICAgICAgICAgICAgY29uc3QgYmdDb2xvciA9ICdiZy1zbGF0ZS05MDAnOwogICAgICAgICAgICBjb25zdCBpY29uQmcgPSBpc1N1Y2Nlc3MgPyAnYmctZW1lcmFsZC01MDAvMjAgdGV4dC1lbWVyYWxkLTQwMCcgOiAnYmctcm9zZS01MDAvMjAgdGV4dC1yb3NlLTQwMCc7CiAgICAgICAgICAgIGNvbnN0IGJvcmRlckNvbG9yID0gaXNTdWNjZXNzID8gJ2JvcmRlci1lbWVyYWxkLTUwMC8zMCcgOiAnYm9yZGVyLXJvc2UtNTAwLzMwJzsKICAgICAgICAgICAgY29uc3QgaWNvbiA9IGlzU3VjY2VzcyA/ICfinJMnIDogJ+KclSc7CgogICAgICAgICAgICB0b2FzdC5jbGFzc05hbWUgPSBgdG9hc3QtYW5pbWF0ZSBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMyAke2JnQ29sb3J9IHRleHQtd2hpdGUgcHgtNCBweS0zIHJvdW5kZWQtMnhsIHNoYWRvdy0yeGwgYm9yZGVyICR7Ym9yZGVyQ29sb3J9IHRleHQtc20gZm9udC1tZWRpdW1gOwogICAgICAgICAgICB0b2FzdC5pbm5lckhUTUwgPSBgCiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzPSJ3LTYgaC02IHJvdW5kZWQtZnVsbCAke2ljb25CZ30gZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgdGV4dC14cyBmb250LWJvbGQiPgogICAgICAgICAgICAgICAgICAgICR7aWNvbn0KICAgICAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgICAgICAgPHNwYW4+JHttZXNzYWdlfTwvc3Bhbj4KICAgICAgICAgICAgYDsKCiAgICAgICAgICAgIGNvbnRhaW5lci5hcHBlbmRDaGlsZCh0b2FzdCk7CgogICAgICAgICAgICBzZXRUaW1lb3V0KCgpID0+IHsKICAgICAgICAgICAgICAgIHRvYXN0LnN0eWxlLm9wYWNpdHkgPSAnMCc7CiAgICAgICAgICAgICAgICB0b2FzdC5zdHlsZS50cmFuc2Zvcm0gPSAndHJhbnNsYXRlWSgxMHB4KSc7CiAgICAgICAgICAgICAgICB0b2FzdC5zdHlsZS50cmFuc2l0aW9uID0gJ2FsbCAwLjNzIGVhc2UnOwogICAgICAgICAgICAgICAgc2V0VGltZW91dCgoKSA9PiB0b2FzdC5yZW1vdmUoKSwgMzAwKTsKICAgICAgICAgICAgfSwgMzAwMCk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBnZXRSYXRpb0JnQ29sb3IocGVyY2VudGFnZSwgdHlwZSA9ICdkZWxpdmVyeScpIHsKICAgICAgICAgICAgaWYgKHR5cGUgPT09ICdkZWxpdmVyeScpIHsKICAgICAgICAgICAgICAgIGlmIChwZXJjZW50YWdlID49IDgwKSByZXR1cm4gJyM1MmJlODAnOwogICAgICAgICAgICAgICAgaWYgKHBlcmNlbnRhZ2UgPj0gNzApIHJldHVybiAnI2E5ZGZiZic7CiAgICAgICAgICAgICAgICBpZiAocGVyY2VudGFnZSA+PSA2NSkgcmV0dXJuICcjZjdkYzZmJzsKICAgICAgICAgICAgICAgIGlmIChwZXJjZW50YWdlID49IDU1KSByZXR1cm4gJyNmOGM0NzEnOwogICAgICAgICAgICAgICAgcmV0dXJuICcjZWM3MDYzJzsKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIGlmIChwZXJjZW50YWdlIDw9IDUpIHJldHVybiAnIzUyYmU4MCc7CiAgICAgICAgICAgICAgICBpZiAocGVyY2VudGFnZSA8PSAxNSkgcmV0dXJuICcjYTlkZmJmJzsKICAgICAgICAgICAgICAgIGlmIChwZXJjZW50YWdlIDw9IDI1KSByZXR1cm4gJyNmN2RjNmYnOwogICAgICAgICAgICAgICAgaWYgKHBlcmNlbnRhZ2UgPD0gMzUpIHJldHVybiAnI2Y4YzQ3MSc7CiAgICAgICAgICAgICAgICByZXR1cm4gJyNlYzcwNjMnOwogICAgICAgICAgICB9CiAgICAgICAgfQoKICAgICAgICBjb25zdCBkZWZhdWx0QWdlbnRzID0gWwogICAgICAgICAgICB7IGlkOiAxLCBlaWQ6ICJTIDE1MDUwIiwgbmFtZTogIkphaGlydWwgSXNsYW0gUm9iaW4iIH0sCiAgICAgICAgICAgIHsgaWQ6IDIsIGVpZDogIlMgMjA3MjUiLCBuYW1lOiAiTW9yYWQgTXJpZGhhIiB9LAogICAgICAgICAgICB7IGlkOiAzLCBlaWQ6ICJTIDI5NjQ0IiwgbmFtZTogIk1EIEFrcmFtIEhvc3NhaW4iIH0sCiAgICAgICAgICAgIHsgaWQ6IDQsIGVpZDogIlMgMzA4MDciLCBuYW1lOiAiQXJpZnVsIElzbGFtIiB9LAogICAgICAgICAgICB7IGlkOiA1LCBlaWQ6ICJTIDMwODA5IiwgbmFtZTogIk1kIE9tYXIgRmFydWsiIH0sCiAgICAgICAgICAgIHsgaWQ6IDYsIGVpZDogIlMgMzEzNjEiLCBuYW1lOiAiTWQgU2hhbW9sIE1pYSIgfSwKICAgICAgICAgICAgeyBpZDogNywgZWlkOiAiUyAzMTY1MyIsIG5hbWU6ICJTaGFudG8gTWlhIiB9LAogICAgICAgICAgICB7IGlkOiA4LCBlaWQ6ICJTIDMxNjU0IiwgbmFtZTogIlNhamliIEhvc3NhbiIgfSwKICAgICAgICAgICAgeyBpZDogOSwgZWlkOiAiUyAzNDYzOSIsIG5hbWU6ICJNZCBQaWFsIEhhc2FuIiB9LAogICAgICAgICAgICB7IGlkOiAxMCwgZWlkOiAiUyAzNDc3NSIsIG5hbWU6ICJSYWZpcXVsIElzbGFtIiB9LAogICAgICAgICAgICB7IGlkOiAxMSwgZWlkOiAiUyAzNjE2OSIsIG5hbWU6ICJNZCBLYWJpciBIb3NzYW4iIH0sCiAgICAgICAgICAgIHsgaWQ6IDEyLCBlaWQ6ICJTIDM3Mjc5IiwgbmFtZTogIlNoYWhhZGF0IEhvc3NhaW4iIH0sCiAgICAgICAgICAgIHsgaWQ6IDEzLCBlaWQ6ICJTIDM3MjgwIiwgbmFtZTogIlNoYW1pbSBNaWEiIH0sCiAgICAgICAgICAgIHsgaWQ6IDE0LCBlaWQ6ICJTIDM3NDQxIiwgbmFtZTogIk1vc3RhZmEgTWlhIiB9LAogICAgICAgICAgICB7IGlkOiAxNSwgZWlkOiAiUyAzOTA1OSIsIG5hbWU6ICJJc21heWVsIEhvc2VuIiB9LAogICAgICAgICAgICB7IGlkOiAxNiwgZWlkOiAiTmV3IiwgbmFtZTogIlNheWVkIFJheWhhbiIgfSwKICAgICAgICAgICAgeyBpZDogMTcsIGVpZDogIlMgMzU4NzMiLCBuYW1lOiAiSm9iYXllciBBbGFtIEtoYW4iIH0KICAgICAgICBdOwoKICAgICAgICBsZXQgbWFzdGVyTGlzdCA9IEpTT04ucGFyc2UobG9jYWxTdG9yYWdlLmdldEl0ZW0oJ3NoaWJwdXJfbWFzdGVyX2FnZW50cycpKSB8fCBkZWZhdWx0QWdlbnRzOwogICAgICAgIGxldCBhZ2VudHMgPSBtYXN0ZXJMaXN0Lm1hcChhID0+ICh7IC4uLmEsIGFzc2lnbjogMCwgZGVsaXZlcnk6IDAsIGhvbGQ6IDAsIHJldHVybkNvdW50OiAwIH0pKTsKCiAgICAgICAgZnVuY3Rpb24gcmVuZGVyVGFibGUoKSB7CiAgICAgICAgICAgIGNvbnN0IHRib2R5ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2FnZW50VGFibGVCb2R5Jyk7CiAgICAgICAgICAgIHRib2R5LmlubmVySFRNTCA9ICcnOwoKICAgICAgICAgICAgbGV0IGFjdGl2ZUFnZW50cyA9IGFnZW50cy5maWx0ZXIoYWdlbnQgPT4gYWdlbnQuYXNzaWduID4gMCk7CgogICAgICAgICAgICBhY3RpdmVBZ2VudHMuc29ydCgoYSwgYikgPT4gewogICAgICAgICAgICAgICAgbGV0IHJhdGlvQSA9IGEuYXNzaWduID4gMCA/IChhLmRlbGl2ZXJ5IC8gYS5hc3NpZ24pIDogMDsKICAgICAgICAgICAgICAgIGxldCByYXRpb0IgPSBiLmFzc2lnbiA+IDAgPyAoYi5kZWxpdmVyeSAvIGIuYXNzaWduKSA6IDA7CiAgICAgICAgICAgICAgICByZXR1cm4gcmF0aW9CIC0gcmF0aW9BOwogICAgICAgICAgICB9KTsKCiAgICAgICAgICAgIGlmIChhY3RpdmVBZ2VudHMubGVuZ3RoID09PSAwKSB7CiAgICAgICAgICAgICAgICB0Ym9keS5pbm5lckhUTUwgPSBgCiAgICAgICAgICAgICAgICAgICAgPHRyIGlkPSJuby1kYXRhLXJvdyI+CiAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjb2xzcGFuPSI5IiBjbGFzcz0idGV4dC1jZW50ZXIgcHktNCB0ZXh0LXNsYXRlLTUwMCBzYW5zLWZvbnQgdGV4dC14cyBpdGFsaWMgYmctc2xhdGUtNTAiPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgUGFzdGUgZGF0YSB1c2luZyAiQnVsayBQYXN0ZSBEYXRhIiBvciBlbnRlciBudW1lcmljIHZhbHVlcyBpbiBBc3NpZ24gY29sdW1uLiBSb3dzIHdpdGggMCBhc3NpZ24gd2lsbCBhdXRvLWhpZGUuCiAgICAgICAgICAgICAgICAgICAgICAgIDwvdGQ+CiAgICAgICAgICAgICAgICAgICAgPC90cj4KICAgICAgICAgICAgICAgIGA7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICBhY3RpdmVBZ2VudHMuZm9yRWFjaCgoYWdlbnQsIGluZGV4KSA9PiB7CiAgICAgICAgICAgICAgICAgICAgY29uc3QgZGVsUmF0aW8gPSBhZ2VudC5hc3NpZ24gPiAwID8gTWF0aC5yb3VuZCgoYWdlbnQuZGVsaXZlcnkgLyBhZ2VudC5hc3NpZ24pICogMTAwKSA6IDA7CiAgICAgICAgICAgICAgICAgICAgY29uc3QgaG9sZFJhdGlvID0gYWdlbnQuYXNzaWduID4gMCA/IE1hdGgucm91bmQoKGFnZW50LmhvbGQgLyBhZ2VudC5hc3NpZ24pICogMTAwKSA6IDA7CiAgICAgICAgICAgICAgICAgICAgY29uc3QgcmV0UmF0aW8gPSBhZ2VudC5hc3NpZ24gPiAwID8gTWF0aC5yb3VuZCgoYWdlbnQucmV0dXJuQ291bnQgLyBhZ2VudC5hc3NpZ24pICogMTAwKSA6IDA7CgogICAgICAgICAgICAgICAgICAgIGNvbnN0IGRlbEJnID0gZ2V0UmF0aW9CZ0NvbG9yKGRlbFJhdGlvLCAnZGVsaXZlcnknKTsKICAgICAgICAgICAgICAgICAgICBjb25zdCBob2xkQmcgPSBnZXRSYXRpb0JnQ29sb3IoaG9sZFJhdGlvLCAnaG9sZCcpOwogICAgICAgICAgICAgICAgICAgIGNvbnN0IHJldEJnID0gZ2V0UmF0aW9CZ0NvbG9yKHJldFJhdGlvLCAncmV0dXJuJyk7CgogICAgICAgICAgICAgICAgICAgIGNvbnN0IHJvd0JnID0gaW5kZXggJSAyID09PSAwID8gJ2JnLXdoaXRlJyA6ICdiZy1zbGF0ZS01MCc7CgogICAgICAgICAgICAgICAgICAgIGNvbnN0IHRyID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgndHInKTsKICAgICAgICAgICAgICAgICAgICB0ci5jbGFzc05hbWUgPSBgJHtyb3dCZ30gdGV4dC1jZW50ZXIgaG92ZXI6Ymctc2t5LTUwIHRyYW5zaXRpb24tY29sb3JzYDsKCiAgICAgICAgICAgICAgICAgICAgdHIuaW5uZXJIVE1MID0gYAogICAgICAgICAgICAgICAgICAgICAgICA8dGQgY2xhc3M9InRleHQtY2VudGVyIGZvbnQtYm9sZCBjb2wtZWlkIHdoaXRlc3BhY2Utbm93cmFwIHB4LTEgcHktMCI+JHthZ2VudC5laWR9PC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJ0ZXh0LWNlbnRlciBmb250LWJvbGQgY29sLW5hbWUgc2Fucy1mb250IHB5LTAiIHN0eWxlPSJmb250LXNpemU6IDEycHg7Ij4ke2FnZW50Lm5hbWV9PC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJwLTAiPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgPGlucHV0IHR5cGU9Im51bWJlciIgbWluPSIwIiB2YWx1ZT0iJHthZ2VudC5hc3NpZ24gfHwgJyd9IiBvbmlucHV0PSJ1cGRhdGVWYWx1ZSgke2FnZW50LmlkfSwgJ2Fzc2lnbicsIHRoaXMudmFsdWUpIiBjbGFzcz0iY2VsbC1pbnB1dCBmb250LWJvbGQiIHBsYWNlaG9sZGVyPSIwIj4KICAgICAgICAgICAgICAgICAgICAgICAgPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJwLTAiPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgPGlucHV0IHR5cGU9Im51bWJlciIgbWluPSIwIiB2YWx1ZT0iJHthZ2VudC5kZWxpdmVyeSB8fCAnJ30iIG9uaW5wdXQ9InVwZGF0ZVZhbHVlKCR7YWdlbnQuaWR9LCAnZGVsaXZlcnknLCB0aGlzLnZhbHVlKSIgY2xhc3M9ImNlbGwtaW5wdXQgZm9udC1ib2xkIiBwbGFjZWhvbGRlcj0iMCI+CiAgICAgICAgICAgICAgICAgICAgICAgIDwvdGQ+CiAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzcz0icmF0aW8tY2VsbCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6ICR7ZGVsQmd9OyI+JHtkZWxSYXRpb30lPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJwLTAiPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgPGlucHV0IHR5cGU9Im51bWJlciIgbWluPSIwIiB2YWx1ZT0iJHthZ2VudC5ob2xkIHx8ICcnfSIgb25pbnB1dD0idXBkYXRlVmFsdWUoJHthZ2VudC5pZH0sICdob2xkJywgdGhpcy52YWx1ZSkiIGNsYXNzPSJjZWxsLWlucHV0IGZvbnQtYm9sZCIgcGxhY2Vob2xkZXI9IjAiPgogICAgICAgICAgICAgICAgICAgICAgICA8L3RkPgogICAgICAgICAgICAgICAgICAgICAgICA8dGQgY2xhc3M9InJhdGlvLWNlbGwiIHN0eWxlPSJiYWNrZ3JvdW5kLWNvbG9yOiAke2hvbGRCZ307Ij4ke2hvbGRSYXRpb30lPC90ZD4KICAgICAgICAgICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJwLTAiPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgPGlucHV0IHR5cGU9Im51bWJlciIgbWluPSIwIiB2YWx1ZT0iJHthZ2VudC5yZXR1cm5Db3VudCB8fCAnJ30iIG9uaW5wdXQ9InVwZGF0ZVZhbHVlKCR7YWdlbnQuaWR9LCAncmV0dXJuQ291bnQnLCB0aGlzLnZhbHVlKSIgY2xhc3M9ImNlbGwtaW5wdXQgZm9udC1ib2xkIiBwbGFjZWhvbGRlcj0iMCI+CiAgICAgICAgICAgICAgICAgICAgICAgIDwvdGQ+CiAgICAgICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzcz0icmF0aW8tY2VsbCIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6ICR7cmV0Qmd9OyI+JHtyZXRSYXRpb30lPC90ZD4KICAgICAgICAgICAgICAgICAgICBgOwogICAgICAgICAgICAgICAgICAgIHRib2R5LmFwcGVuZENoaWxkKHRyKTsKICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICB9CgogICAgICAgICAgICBjYWxjdWxhdGVHcmFuZFRvdGFscygpOwogICAgICAgIH0KCiAgICAgICAgZnVuY3Rpb24gdXBkYXRlVmFsdWUoaWQsIGZpZWxkLCB2YWx1ZSkgewogICAgICAgICAgICBjb25zdCBhZ2VudCA9IGFnZW50cy5maW5kKGEgPT4gYS5pZCA9PT0gaWQpOwogICAgICAgICAgICBpZiAoYWdlbnQpIHsKICAgICAgICAgICAgICAgIGFnZW50W2ZpZWxkXSA9IHBhcnNlRmxvYXQodmFsdWUpIHx8IDA7CiAgICAgICAgICAgICAgICByZW5kZXJUYWJsZSgpOwogICAgICAgICAgICB9CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBjYWxjdWxhdGVHcmFuZFRvdGFscygpIHsKICAgICAgICAgICAgbGV0IHRvdGFsQXNzaWduID0gMDsKICAgICAgICAgICAgbGV0IHRvdGFsRGVsaXZlcnkgPSAwOwogICAgICAgICAgICBsZXQgdG90YWxIb2xkID0gMDsKICAgICAgICAgICAgbGV0IHRvdGFsUmV0dXJuID0gMDsKCiAgICAgICAgICAgIGFnZW50cy5mb3JFYWNoKGFnZW50ID0+IHsKICAgICAgICAgICAgICAgIGlmIChhZ2VudC5hc3NpZ24gPiAwKSB7CiAgICAgICAgICAgICAgICAgICAgdG90YWxBc3NpZ24gKz0gYWdlbnQuYXNzaWduOwogICAgICAgICAgICAgICAgICAgIHRvdGFsRGVsaXZlcnkgKz0gYWdlbnQuZGVsaXZlcnk7CiAgICAgICAgICAgICAgICAgICAgdG90YWxIb2xkICs9IGFnZW50LmhvbGQ7CiAgICAgICAgICAgICAgICAgICAgdG90YWxSZXR1cm4gKz0gYWdlbnQucmV0dXJuQ291bnQ7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0pOwoKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2d0LWFzc2lnbicpLmlubmVyVGV4dCA9IHRvdGFsQXNzaWduOwogICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3QtZGVsaXZlcnknKS5pbm5lclRleHQgPSB0b3RhbERlbGl2ZXJ5OwogICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3QtaG9sZCcpLmlubmVyVGV4dCA9IHRvdGFsSG9sZDsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2d0LXJldHVybicpLmlubmVyVGV4dCA9IHRvdGFsUmV0dXJuOwoKICAgICAgICAgICAgY29uc3QgdG90YWxEZWxSYXRpbyA9IHRvdGFsQXNzaWduID4gMCA/IE1hdGgucm91bmQoKHRvdGFsRGVsaXZlcnkgLyB0b3RhbEFzc2lnbikgKiAxMDApIDogMDsKICAgICAgICAgICAgY29uc3QgdG90YWxIb2xkUmF0aW8gPSB0b3RhbEFzc2lnbiA+IDAgPyBNYXRoLnJvdW5kKCh0b3RhbEhvbGQgLyB0b3RhbEFzc2lnbikgKiAxMDApIDogMDsKICAgICAgICAgICAgY29uc3QgdG90YWxSZXRSYXRpbyA9IHRvdGFsQXNzaWduID4gMCA/IE1hdGgucm91bmQoKHRvdGFsUmV0dXJuIC8gdG90YWxBc3NpZ24pICogMTAwKSA6IDA7CgogICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZ3QtZGVsLXJhdGlvJykuaW5uZXJUZXh0ID0gYCR7dG90YWxEZWxSYXRpb30lYDsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2d0LWhvbGQtcmF0aW8nKS5pbm5lclRleHQgPSBgJHt0b3RhbEhvbGRSYXRpb30lYDsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2d0LXJldC1yYXRpbycpLmlubmVyVGV4dCA9IGAke3RvdGFsUmV0UmF0aW99JWA7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBvcGVuUGFzdGVNb2RhbCgpIHsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Bhc3RlTW9kYWwnKS5jbGFzc0xpc3QucmVtb3ZlKCdoaWRkZW4nKTsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Bhc3RlSW5wdXQnKS5mb2N1cygpOwoKICAgICAgICAgICAgY29uc3Qgb3JkZXJQcmV2aWV3ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ29yZGVyUHJldmlldycpOwogICAgICAgICAgICBvcmRlclByZXZpZXcuaW5uZXJIVE1MID0gbWFzdGVyTGlzdC5tYXAoYSA9PiBgPGxpPjxiPiR7YS5laWR9PC9iPiAtICR7YS5uYW1lfTwvbGk+YCkuam9pbignJyk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBjbG9zZVBhc3RlTW9kYWwoKSB7CiAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwYXN0ZU1vZGFsJykuY2xhc3NMaXN0LmFkZCgnaGlkZGVuJyk7CiAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwYXN0ZUlucHV0JykudmFsdWUgPSAnJzsKICAgICAgICB9CgogICAgICAgIGZ1bmN0aW9uIHByb2Nlc3NQYXN0ZURhdGEoKSB7CiAgICAgICAgICAgIGNvbnN0IHBhc3RlVGV4dCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwYXN0ZUlucHV0JykudmFsdWUudHJpbSgpOwogICAgICAgICAgICBjb25zdCB0YXJnZXQgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncGFzdGVUYXJnZXQnKS52YWx1ZTsKCiAgICAgICAgICAgIGlmICghcGFzdGVUZXh0KSB7CiAgICAgICAgICAgICAgICBzaG93VG9hc3QoJ1Bhc3RpbmcgdGV4dCBib3gga2hhbGkhJywgJ2Vycm9yJyk7CiAgICAgICAgICAgICAgICByZXR1cm47CiAgICAgICAgICAgIH0KCiAgICAgICAgICAgIGNvbnN0IGxpbmVzID0gcGFzdGVUZXh0LnNwbGl0KC9ccj9cbi8pOwoKICAgICAgICAgICAgbGluZXMuZm9yRWFjaCgobGluZSwgaW5kZXgpID0+IHsKICAgICAgICAgICAgICAgIGlmIChpbmRleCA8IGFnZW50cy5sZW5ndGgpIHsKICAgICAgICAgICAgICAgICAgICBpZiAodGFyZ2V0ID09PSAnYWxsJykgewogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBwYXJ0cyA9IGxpbmUuc3BsaXQoL1tcdCxdKy8pOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAocGFydHNbMF0gIT09IHVuZGVmaW5lZCkgYWdlbnRzW2luZGV4XS5hc3NpZ24gPSBwYXJzZUZsb2F0KHBhcnRzWzBdKSB8fCAwOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAocGFydHNbMV0gIT09IHVuZGVmaW5lZCkgYWdlbnRzW2luZGV4XS5kZWxpdmVyeSA9IHBhcnNlRmxvYXQocGFydHNbMV0pIHx8IDA7CiAgICAgICAgICAgICAgICAgICAgICAgIGlmIChwYXJ0c1syXSAhPT0gdW5kZWZpbmVkKSBhZ2VudHNbaW5kZXhdLmhvbGQgPSBwYXJzZUZsb2F0KHBhcnRzWzJdKSB8fCAwOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAocGFydHNbM10gIT09IHVuZGVmaW5lZCkgYWdlbnRzW2luZGV4XS5yZXR1cm5Db3VudCA9IHBhcnNlRmxvYXQocGFydHNbM10pIHx8IDA7CiAgICAgICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgY29uc3QgdmFsID0gcGFyc2VGbG9hdChsaW5lLnRyaW0oKSkgfHwgMDsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRhcmdldCA9PT0gJ2Fzc2lnbicpIGFnZW50c1tpbmRleF0uYXNzaWduID0gdmFsOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAodGFyZ2V0ID09PSAnZGVsaXZlcnknKSBhZ2VudHNbaW5kZXhdLmRlbGl2ZXJ5ID0gdmFsOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAodGFyZ2V0ID09PSAnaG9sZCcpIGFnZW50c1tpbmRleF0uaG9sZCA9IHZhbDsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRhcmdldCA9PT0gJ3JldHVybicpIGFnZW50c1tpbmRleF0ucmV0dXJuQ291bnQgPSB2YWw7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9KTsKCiAgICAgICAgICAgIHJlbmRlclRhYmxlKCk7CiAgICAgICAgICAgIGNsb3NlUGFzdGVNb2RhbCgpOwogICAgICAgICAgICBzaG93VG9hc3QoJ0RhdGEgc3VjY2Vzc2Z1bGx5IGFwcGxpZWQgJiBzb3J0ZWQhJyk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBvcGVuQWdlbnRNb2RhbCgpIHsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2FnZW50TW9kYWwnKS5jbGFzc0xpc3QucmVtb3ZlKCdoaWRkZW4nKTsKICAgICAgICAgICAgY29uc3Qgc2V0dXBJbnB1dCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdhZ2VudFNldHVwSW5wdXQnKTsKICAgICAgICAgICAgc2V0dXBJbnB1dC52YWx1ZSA9IG1hc3Rlckxpc3QubWFwKGEgPT4gYCR7YS5laWR9XHQke2EubmFtZX1gKS5qb2luKCdcbicpOwogICAgICAgIH0KCiAgICAgICAgZnVuY3Rpb24gY2xvc2VBZ2VudE1vZGFsKCkgewogICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYWdlbnRNb2RhbCcpLmNsYXNzTGlzdC5hZGQoJ2hpZGRlbicpOwogICAgICAgIH0KCiAgICAgICAgZnVuY3Rpb24gc2F2ZUFnZW50U2V0dXAoKSB7CiAgICAgICAgICAgIGNvbnN0IHJhd1RleHQgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYWdlbnRTZXR1cElucHV0JykudmFsdWUudHJpbSgpOwogICAgICAgICAgICBpZiAoIXJhd1RleHQpIHJldHVybjsKCiAgICAgICAgICAgIGNvbnN0IGxpbmVzID0gcmF3VGV4dC5zcGxpdCgvXHI/XG4vKTsKICAgICAgICAgICAgY29uc3QgbmV3TGlzdCA9IGxpbmVzLm1hcCgobGluZSwgaWR4KSA9PiB7CiAgICAgICAgICAgICAgICBjb25zdCBwYXJ0cyA9IGxpbmUuc3BsaXQoL1x0Lyk7CiAgICAgICAgICAgICAgICByZXR1cm4gewogICAgICAgICAgICAgICAgICAgIGlkOiBpZHggKyAxLAogICAgICAgICAgICAgICAgICAgIGVpZDogcGFydHNbMF0gPyBwYXJ0c1swXS50cmltKCkgOiBgUyAke2lkeCsxfWAsCiAgICAgICAgICAgICAgICAgICAgbmFtZTogcGFydHNbMV0gPyBwYXJ0c1sxXS50cmltKCkgOiBgQWdlbnQgJHtpZHgrMX1gCiAgICAgICAgICAgICAgICB9OwogICAgICAgICAgICB9KTsKCiAgICAgICAgICAgIG1hc3Rlckxpc3QgPSBuZXdMaXN0OwogICAgICAgICAgICBsb2NhbFN0b3JhZ2Uuc2V0SXRlbSgnc2hpYnB1cl9tYXN0ZXJfYWdlbnRzJywgSlNPTi5zdHJpbmdpZnkobWFzdGVyTGlzdCkpOwogICAgICAgICAgICBhZ2VudHMgPSBtYXN0ZXJMaXN0Lm1hcChhID0+ICh7IC4uLmEsIGFzc2lnbjogMCwgZGVsaXZlcnk6IDAsIGhvbGQ6IDAsIHJldHVybkNvdW50OiAwIH0pKTsKICAgICAgICAgICAgCiAgICAgICAgICAgIHJlbmRlclRhYmxlKCk7CiAgICAgICAgICAgIGNsb3NlQWdlbnRNb2RhbCgpOwogICAgICAgICAgICBzaG93VG9hc3QoIk1vbnRobHkgQWdlbnQgTGlzdCBTdWNjZXNzZnVsbHkgU2F2ZWQhIik7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiByZXNldERlZmF1bHRBZ2VudHMoKSB7CiAgICAgICAgICAgIG1hc3Rlckxpc3QgPSBkZWZhdWx0QWdlbnRzOwogICAgICAgICAgICBsb2NhbFN0b3JhZ2UucmVtb3ZlSXRlbSgnc2hpYnB1cl9tYXN0ZXJfYWdlbnRzJyk7CiAgICAgICAgICAgIGFnZW50cyA9IG1hc3Rlckxpc3QubWFwKGEgPT4gKHsgLi4uYSwgYXNzaWduOiAwLCBkZWxpdmVyeTogMCwgaG9sZDogMCwgcmV0dXJuQ291bnQ6IDAgfSkpOwogICAgICAgICAgICByZW5kZXJUYWJsZSgpOwogICAgICAgICAgICBjbG9zZUFnZW50TW9kYWwoKTsKICAgICAgICAgICAgc2hvd1RvYXN0KCJEZWZhdWx0IGxpc3QgcmVzdG9yZWQhIiwgImVycm9yIik7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBjbGVhckFsbERhdGEoKSB7CiAgICAgICAgICAgIGFnZW50cy5mb3JFYWNoKGEgPT4gewogICAgICAgICAgICAgICAgYS5hc3NpZ24gPSAwOwogICAgICAgICAgICAgICAgYS5kZWxpdmVyeSA9IDA7CiAgICAgICAgICAgICAgICBhLmhvbGQgPSAwOwogICAgICAgICAgICAgICAgYS5yZXR1cm5Db3VudCA9IDA7CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICByZW5kZXJUYWJsZSgpOwogICAgICAgICAgICBzaG93VG9hc3QoIkFsbCBkYXRhIGNsZWFyZWQhIiwgImVycm9yIik7CiAgICAgICAgfQoKICAgICAgICByZW5kZXJUYWJsZSgpOwogICAgPC9zY3JpcHQ+CjwvYm9keT4KPC9odG1sPg==';
@@ -5884,8 +5877,6 @@ try {
                     if (Array.isArray(legacy) && legacy.length) saveHubAgentSetup(hubId, legacy);
                 } catch (e) {}
             }
-            window.__agentReportHubId = hubId;
-
             const must = (src, a, b) => { if (!src.includes(a)) console.warn('Agent report patch target not found:', a); return src.split(a).join(b); };
             reportHtml = reportHtml
                 .replace(/Shibpur Hub Agent Performance Report/g, hubTitle)
@@ -5916,7 +5907,23 @@ try {
                 "        };\n" +
                 "        function openAgentModal() {");
 
-            // Reuse one modal/iframe so no extra browser page or tab opens.
+            // Speed: load the report's Google Fonts without blocking the first paint
+            reportHtml = reportHtml
+                .replace(/^\s*@import url\('https:\/\/fonts\.googleapis\.com[^\n]*\n/gm, '')
+                .replace('<head>', '<head>\n<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+                    '<link rel="stylesheet" media="print" onload="this.media=\'all\'" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">');
+            return reportHtml;
+        }
+
+        /* One iframe per hub is built once and kept alive, so re-opening is instant */
+        window.__agentFrames = window.__agentFrames || {};
+        function openAgentPerformanceReport(hubId, hubName) {
+            if (!hasHubAccess(hubId)) {
+                showToast('You do not have access to this hub');
+                return;
+            }
+            window.__agentReportHubId = hubId;
+
             let modal = document.getElementById('agentPerformancePageModal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -5924,23 +5931,55 @@ try {
                 modal.className = 'fixed inset-0 z-[99999] bg-black/70 backdrop-blur-sm p-2 md:p-4';
                 modal.innerHTML = `
                     <div class="w-full h-full max-w-[1600px] mx-auto bg-white rounded-2xl overflow-hidden shadow-2xl relative">
-                        <iframe id="agentPerformancePageFrame" title="Agent Performance Report" class="w-full h-full border-0 bg-white"></iframe>
+                        <div id="agentPerformanceFrames" class="w-full h-full"></div>
+                        <div id="agentPerformanceLoader" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white text-slate-600 text-sm font-bold">
+                            <i class="fa-solid fa-spinner fa-spin text-2xl text-violet-600"></i>
+                            <span>Loading Agent Performance Report...</span>
+                        </div>
                     </div>`;
                 document.body.appendChild(modal);
             }
+            const loader = document.getElementById('agentPerformanceLoader');
+            const holder = document.getElementById('agentPerformanceFrames');
+            const frames = window.__agentFrames;
 
-            const frame = document.getElementById('agentPerformancePageFrame');
-            frame.srcdoc = reportHtml;
+            // Show the window immediately, before any heavy work
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            Object.keys(frames).forEach(k => { frames[k].style.display = 'none'; });
+
+            let frame = frames[hubId];
+            if (frame) {
+                frame.style.display = 'block';
+                if (frame.dataset.ready === '1') {
+                    loader.style.display = 'none';
+                    try { if (frame.contentWindow.__applyAgentSetup) frame.contentWindow.__applyAgentSetup(getHubAgentSetup(hubId)); } catch (e) {}
+                } else {
+                    loader.style.display = 'flex';
+                }
+                return;
+            }
+
+            loader.style.display = 'flex';
+            frame = document.createElement('iframe');
+            frame.title = 'Agent Performance Report';
+            frame.className = 'w-full h-full border-0 bg-white';
+            const finish = () => {
+                frame.dataset.ready = '1';
+                if (window.__agentReportHubId === hubId && frame.style.display !== 'none') loader.style.display = 'none';
+            };
+            frame.addEventListener('load', finish);
+            setTimeout(() => { if (frame.dataset.ready !== '1') finish(); }, 10000); // safety: never leave the spinner stuck
+            holder.appendChild(frame);
+            frames[hubId] = frame;
+            // let the spinner paint first, then build and load the report
+            setTimeout(() => { frame.srcdoc = buildAgentReportHtml(hubId, hubName); }, 30);
         }
 
         function closeAgentPerformanceReport() {
             const modal = document.getElementById('agentPerformancePageModal');
-            const frame = document.getElementById('agentPerformancePageFrame');
-            if (frame) frame.srcdoc = '';
             window.__agentReportHubId = null;
-            if (modal) modal.classList.add('hidden');
+            if (modal) modal.classList.add('hidden');   // keep the loaded report in memory for instant re-open
             document.body.style.overflow = '';
         }
 
@@ -6743,40 +6782,85 @@ try {
             showToast('Previous state restored!');
         }
 
-        /* =================== SHOW / HIDE SECTIONS ===================
-           Tick what you want to hide, then switch "Hidden mode" ON/OFF with one tap.
-           Saved per device in localStorage. Elements are tagged with data-hide-key="..." */
+        /* =================== HIDE FROM USERS ===================
+           The owner chooses which features to hide. Hidden items disappear for every
+           NON-owner user (shared through Firestore: ownerSettings/{ownerUid}).
+           The owner always sees everything (hidden items get a dashed amber outline).
+           Elements are tagged with data-hide-key="...". This is a visual hide, not a security rule. */
         const UI_HIDE_LS = 'narsingdi_ui_hide_v2';
         const UI_HIDE_ITEMS = [
-            { group: 'controls', key: 'tabsManage',    icon: 'fa-sliders',        label: 'Add / Edit / Remove Task Tabs buttons' },
-            { group: 'controls', key: 'hubAdd',        icon: 'fa-plus',           label: 'Add New Hub' },
-            { group: 'controls', key: 'hubRemove',     icon: 'fa-trash-can',      label: 'Remove Hub' },
-            { group: 'controls', key: 'dataImport',    icon: 'fa-upload',         label: 'Import Data' },
-            { group: 'controls', key: 'noticeActions', icon: 'fa-bullhorn',       label: 'Dismiss Notice buttons' },
-            { group: 'controls', key: 'sheetActions',  icon: 'fa-pen-to-square',  label: 'Add / Edit / Delete Sheet buttons' },
-            { group: 'sections', key: 'kpiCards',      icon: 'fa-chart-simple',   label: 'Top 4 KPI cards (Dispatch, Delivery, DA, Hold)' },
-            { group: 'sections', key: 'hubCards',      icon: 'fa-cubes',          label: 'Hub Management Cards' },
-            { group: 'sections', key: 'taskTabs',      icon: 'fa-star',           label: 'Daily Task Sheet tabs' },
-            { group: 'sections', key: 'navAnalytics',  icon: 'fa-table-list',     label: 'Analytics menu (Overview, Matrix, Leaderboard)' },
-            { group: 'sections', key: 'hubSummary',    icon: 'fa-chart-pie',      label: 'All Hub Summary (menu)' },
-            { group: 'sections', key: 'dataExport',    icon: 'fa-download',       label: 'Export Data (menu)' }
+            { group: 'cards',    key: 'kpiCards',        icon: 'fa-table-cells-large', label: 'All 4 top cards (Notice, Performance, Ageing, KPI)' },
+            { group: 'cards',    key: 'cardNotice',      icon: 'fa-bell',              label: 'Notice card' },
+            { group: 'cards',    key: 'noticeTicker',    icon: 'fa-bullhorn',          label: 'Notice scrolling bar' },
+            { group: 'cards',    key: 'cardPerformance', icon: 'fa-file-excel',        label: 'Performance Checker (card + menu)' },
+            { group: 'cards',    key: 'cardAgeing',      icon: 'fa-table',             label: 'Ageing Report (card + menu)' },
+            { group: 'cards',    key: 'cardKpi',         icon: 'fa-chart-pie',         label: 'KPI Report card' },
+            { group: 'sections', key: 'hubCards',        icon: 'fa-cubes',             label: 'Hub Management Cards (whole section)' },
+            { group: 'sections', key: 'taskTabs',        icon: 'fa-star',              label: 'Daily Task Sheet tabs (all tabs at once)' },
+            { group: 'hubbtns',  key: 'hubBtnReport',    icon: 'fa-file-lines',        label: 'Morning & Closing Report button' },
+            { group: 'hubbtns',  key: 'hubBtnAttendance',icon: 'fa-user-check',        label: 'D.A. Attendance Report button' },
+            { group: 'hubbtns',  key: 'hubBtnInventory', icon: 'fa-boxes-stacked',     label: 'Inventory Report button' },
+            { group: 'hubbtns',  key: 'hubBtnAgentPerf', icon: 'fa-chart-line',        label: 'Agent Performance Report button' },
+            { group: 'menu',     key: 'hubSummary',      icon: 'fa-chart-pie',         label: 'All Hub Summary' },
+            { group: 'menu',     key: 'dataExport',      icon: 'fa-download',          label: 'Export Data (JSON)' },
+            { group: 'controls', key: 'sheetActions',    icon: 'fa-pen-to-square',     label: 'Add / Edit / Delete Sheet buttons' }
         ];
         const UI_HIDE_GROUPS = [
-            ['controls', 'Edit / Add / Remove buttons'],
-            ['sections', 'Sections & data']
+            ['cards', 'Top cards'],
+            ['sections', 'Dashboard sections'],
+            ['tabs', 'Task tabs (new tabs appear here automatically)'],
+            ['hubs', 'Hub cards (new hubs appear here automatically)'],
+            ['sheets', 'Sheets inside tabs (new sheets appear here automatically)'],
+            ['hubbtns', 'Buttons inside Hub cards'],
+            ['menu', 'Navigation menu'],
+            ['controls', 'Sheet buttons'],
+            ['other', 'Other new items']
         ];
-        let uiHide = { active: false, keys: UI_HIDE_ITEMS.filter(i => i.group === 'controls').map(i => i.key) };
+        let uiHide = { active: false, keys: [] };
+
+        // Safe key for a dynamic item, e.g. hideKeyOf('tab_', 'custom_123') -> 'tab_custom_123'
+        function hideKeyOf(prefix, id) {
+            return prefix + String(id == null ? '' : id).replace(/[^A-Za-z0-9_-]/g, '_');
+        }
+
+        // Fixed items + ANY element on the page tagged data-hide-key that is not in the fixed list.
+        // So a new tab / hub / sheet / button shows up in the Hide panel by itself.
+        // Optional tags on the element: data-hide-label, data-hide-group, data-hide-icon.
+        function getHideItems() {
+            const items = UI_HIDE_ITEMS.slice();
+            const seen = new Set(items.map(i => i.key));
+            document.querySelectorAll('[data-hide-key]').forEach(el => {
+                String(el.getAttribute('data-hide-key') || '').split(/\s+/).forEach(k => {
+                    if (!k || seen.has(k)) return;
+                    seen.add(k);
+                    const label = String(el.getAttribute('data-hide-label') || el.getAttribute('title') || el.textContent || k)
+                        .replace(/\s+/g, ' ').trim().slice(0, 70) || k;
+                    items.push({
+                        group: el.getAttribute('data-hide-group') || 'other',
+                        key: k,
+                        icon: el.getAttribute('data-hide-icon') || 'fa-eye-slash',
+                        label,
+                        dynamic: true
+                    });
+                });
+            });
+            return items;
+        }
+
+        // Keep every well-formed key (dynamic keys such as tab_custom_123 cannot be checked at load time).
+        // Old saved data had a global ON/OFF switch; if it was OFF nothing was hidden, so start clean.
+        function normalizeUiHide(o) {
+            const keys = (o && o.active && Array.isArray(o.keys))
+                ? Array.from(new Set(o.keys.filter(k => typeof k === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(k))))
+                : [];
+            return { active: keys.length > 0, keys };
+        }
 
         (function initUiHide() {
             try {
                 const st = JSON.parse(localStorage.getItem(UI_HIDE_LS) || 'null');
-                if (st && Array.isArray(st.keys)) uiHide = { active: !!st.active, keys: st.keys };
+                if (st && Array.isArray(st.keys)) uiHide = normalizeUiHide(st);
             } catch (e) {}
-            const css = UI_HIDE_ITEMS.map(i => `body.hide-${i.key} [data-hide-key~="${i.key}"] { display: none !important; }`).join('\n');
-            const tag = document.createElement('style');
-            tag.id = 'uiHideStyle';
-            tag.textContent = css;
-            document.head.appendChild(tag);
             applyUiHide();
         })();
 
@@ -6785,42 +6869,46 @@ try {
             if (cloudDb) cloudSyncUiHide();
         }
 
+        function isOwnerView() {
+            try { return !!(ownerPermissionReady && myAccess.isOwner); } catch (e) { return false; }
+        }
+
         function applyUiHide() {
-            UI_HIDE_ITEMS.forEach(i => document.body.classList.toggle('hide-' + i.key, uiHide.active && uiHide.keys.includes(i.key)));
-            const on = uiHide.active;
+            const owner = isOwnerView();
+            const keys = uiHide.active ? uiHide.keys : [];
+            // One style rule per hidden key. Because it is a CSS selector, tabs / hubs / sheets that are
+            // rendered later are hidden automatically too. Owner: nothing hidden, just an outline.
+            const css = keys.map(k => owner
+                ? ''
+                : `[data-hide-key~="${k}"] { display: none !important; }`).join('\n');
+            let tag = document.getElementById('uiHideStyle');
+            if (!tag) { tag = document.createElement('style'); tag.id = 'uiHideStyle'; document.head.appendChild(tag); }
+            if (tag.textContent !== css) tag.textContent = css;
+
+            const known = getHideItems();
+            const knownKeys = new Set(known.map(i => i.key));
+            const n = keys.filter(k => knownKeys.has(k)).length;     // ignore keys of removed tabs/hubs/sheets
             const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
-            set('topHideModeIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash' : 'fa-eye'));
-            set('topHideModeLabel', el => el.textContent = on ? 'Hidden' : 'Hide');
+            set('topHideModeIcon', el => el.className = 'fa-solid ' + (n ? 'fa-eye-slash' : 'fa-eye'));
+            set('topHideModeLabel', el => el.textContent = n ? 'Hide (' + n + ')' : 'Hide');
             set('topBtnHideMode', el => {
-                el.classList.toggle('bg-amber-600', on); el.classList.toggle('text-white', on); el.classList.toggle('border-amber-500', on);
-                el.classList.toggle('bg-slate-800', !on); el.classList.toggle('text-slate-300', !on); el.classList.toggle('border-slate-700', !on);
+                el.classList.toggle('bg-amber-600', !!n); el.classList.toggle('text-white', !!n); el.classList.toggle('border-amber-500', !!n);
+                el.classList.toggle('bg-slate-800', !n); el.classList.toggle('text-slate-300', !n); el.classList.toggle('border-slate-700', !n);
             });
-            set('sideHideModeIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash' : 'fa-eye'));
+            set('sideHideModeIcon', el => el.className = 'fa-solid ' + (n ? 'fa-eye-slash' : 'fa-eye'));
             set('sideHideModePill', el => {
-                el.textContent = on ? 'ON' : 'OFF';
-                el.className = 'px-2 py-0.5 rounded-full text-[9px] font-black ' + (on ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
+                el.textContent = n ? String(n) : 'OFF';
+                el.className = 'px-2 py-0.5 rounded-full text-[9px] font-black ' + (n ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
             });
-            set('visMasterIcon', el => el.className = 'fa-solid ' + (on ? 'fa-eye-slash text-amber-400' : 'fa-eye'));
-            set('visMasterText', el => el.textContent = on ? 'Hidden mode is ON (ticked items are hidden)' : 'Hidden mode is OFF (everything visible)');
-            set('visMasterPill', el => {
-                el.textContent = on ? 'ON' : 'OFF';
-                el.className = 'px-2 py-0.5 rounded-full text-[10px] font-black ' + (on ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
-            });
+            set('visCount', el => el.textContent = n ? (n + ' of ' + known.length + ' hidden from users') : 'Nothing is hidden - all users see everything');
         }
 
         /* Owner account controls visibility directly. No PIN is required. */
         let uiPinOk = false;
-
         function requirePin() { return false; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function submitPin() { closePinModal(); }
 
-        function doToggleHideMode() {
-            uiHide.active = !uiHide.active;
-            saveUiHide();
-            applyUiHide();
-            showToast(uiHide.active ? 'Selected sections are now hidden' : 'Everything is visible again');
-        }
         function getSignedInOwnerEmail() {
             try {
                 return String(
@@ -6838,7 +6926,7 @@ try {
 
         async function ensureOwnerAccess() {
             // Primary owner is always allowed immediately. This also prevents a
-            // temporary Firebase/ownerAccess read delay from blocking Hidden Mode.
+            // temporary Firebase/ownerAccess read delay from blocking the Hide panel.
             if (myAccess.isOwner || isPrimaryOwnerAccount()) {
                 myAccess.isOwner = true;
                 if (currentUser?.uid) dashboardOwnerUid = currentUser.uid;
@@ -6858,53 +6946,62 @@ try {
             return !!myAccess.isOwner;
         }
 
-        async function toggleHideMode() {
-            if (!(await ensureOwnerAccess())) { showToast('Only the owner can change Hidden mode'); return; }
-            doToggleHideMode();
-        }
+        // Old buttons/shortcuts that used to flip a global ON/OFF now simply open the Hide panel.
+        function toggleHideMode() { openVisibilityModal(); }
 
         async function toggleHideKey(key, hide) {
             if (!(await ensureOwnerAccess())) { showToast('Only the owner can change visibility settings'); renderVisibilityList(); return; }
             const has = uiHide.keys.includes(key);
             if (hide && !has) uiHide.keys.push(key);
             if (!hide && has) uiHide.keys = uiHide.keys.filter(k => k !== key);
-            if (hide) uiHide.active = true;      // ticking something hides it right away
+            uiHide.active = uiHide.keys.length > 0;
             saveUiHide();
             applyUiHide();
         }
 
         async function setHidePreset(kind) {
-            if (!(await ensureOwnerAccess())) { showToast('Only the owner can change Hidden mode'); return; }
-            if (kind === 'controls') { uiHide.keys = UI_HIDE_ITEMS.filter(i => i.group === 'controls').map(i => i.key); uiHide.active = true; }
-            else if (kind === 'all') { uiHide.keys = UI_HIDE_ITEMS.map(i => i.key); uiHide.active = true; }
-            else { uiHide.keys = []; uiHide.active = false; }
+            if (!(await ensureOwnerAccess())) { showToast('Only the owner can change visibility settings'); return; }
+            uiHide.keys = (kind === 'all') ? getHideItems().map(i => i.key) : [];
+            uiHide.active = uiHide.keys.length > 0;
             saveUiHide();
             applyUiHide();
             renderVisibilityList();
+            showToast(kind === 'all' ? 'Everything is hidden from users (you still see all)' : 'Everything is visible to all users');
         }
 
         function renderVisibilityList() {
             const box = document.getElementById('visibilityList');
             if (!box) return;
-            box.innerHTML = UI_HIDE_GROUPS.map(([g, title]) => `
+            const q = String(document.getElementById('visSearch')?.value || '').trim().toLowerCase();
+            const all = getHideItems();
+            const html = UI_HIDE_GROUPS.map(([g, title]) => {
+                const items = all.filter(i => i.group === g && (!q || i.label.toLowerCase().includes(q)));
+                if (!items.length) return '';
+                return `
                 <div>
-                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${title}</p>
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${escapeHtml(title)}</p>
                     <div class="space-y-1.5">
-                        ${UI_HIDE_ITEMS.filter(i => i.group === g).map(i => `
+                        ${items.map(i => `
                             <label class="flex items-center gap-3 bg-[#0b1329] border border-slate-800 hover:border-slate-600 rounded-xl px-3 py-2.5 cursor-pointer transition">
-                                <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 text-xs flex-shrink-0"><i class="fa-solid ${i.icon}"></i></span>
-                                <span class="flex-1 text-xs font-bold text-white">${i.label}</span>
-                                <span class="text-[10px] font-bold text-slate-500">Hide</span>
-                                <input type="checkbox" class="w-4 h-4 accent-amber-500" ${uiHide.keys.includes(i.key) ? 'checked' : ''} onchange="toggleHideKey('${i.key}', this.checked)">
+                                <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 text-xs flex-shrink-0"><i class="fa-solid ${escapeHtml(i.icon)}"></i></span>
+                                <span class="flex-1 text-xs font-bold text-white break-words min-w-0">${escapeHtml(i.label)}${i.dynamic ? ' <span class="ml-1 px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 text-[8px] font-black uppercase">auto</span>' : ''}</span>
+                                <span class="relative inline-flex items-center flex-shrink-0">
+                                    <input type="checkbox" class="sr-only peer" ${uiHide.keys.includes(i.key) ? 'checked' : ''} onchange="toggleHideKey('${escapeHtml(i.key)}', this.checked)">
+                                    <span class="w-9 h-5 bg-slate-700 rounded-full peer-checked:bg-amber-500 transition-colors"></span>
+                                    <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></span>
+                                </span>
                             </label>`).join('')}
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
+            box.innerHTML = html || '<p class="text-xs text-slate-500 text-center py-6">No matching item.</p>';
+            applyUiHide();
         }
 
         function showVisibilityModal() {
             uiPinOk = true;
+            const sq = document.getElementById('visSearch'); if (sq) sq.value = '';
             renderVisibilityList();
-            applyUiHide();
             document.getElementById('visibilityModal').classList.remove('hidden');
         }
         function openVisibilityModal() {
@@ -7400,7 +7497,7 @@ try {
         function ageingAgeOf(row) {
             const d = ageingParseDate(ageingSortedAt(row));
             if (!d || !ageingReportDate) return null;
-            return Math.floor((ageingReportDate.getTime() - d.getTime()) / 86400000);
+            return Math.round((ageingReportDate.getTime() - d.getTime()) / 86400000);
         }
         function ageingFieldValue(row, key) {
             if (key === '__age') { const a = ageingAgeOf(row); return a === null ? '' : a; }
@@ -7475,6 +7572,148 @@ try {
             try { localStorage.setItem(AGEING_CFG_KEY, JSON.stringify(ageingCustom)); } catch (e) {}
         }
 
+        let ageingFileName = '';
+        let ageingRefMode = 'auto';
+        function ageingDayStart(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+        function ageingIso(d) {
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+        // Auto reference date: latest SortedAt day in the file (if earlier than today), else today.
+        function ageingAutoRefDate() {
+            const today = ageingDayStart(new Date());
+            let max = null;
+            ageingRows.forEach(r => {
+                const d = ageingParseDate(ageingSortedAt(r));
+                if (!d) return;
+                const ds = ageingDayStart(new Date(d.getTime() + 12*3600000)); // tolerate minute drift
+                if (!max || ds > max) max = ds;
+            });
+            return (max && max < today) ? max : today;
+        }
+        function ageingRebuildMatrix() {
+            ageingMatrix = {};
+            const ageSet = new Set();
+            ageingRows.forEach(row => {
+                const hub = ageingHub(row);
+                const id = ageingConsignmentId(row);
+                const age = ageingAgeOf(row);
+                if (age === null || age < 0 || !id) return;
+                if (!ageingMatrix[hub]) ageingMatrix[hub] = {};
+                if (!ageingMatrix[hub][age]) ageingMatrix[hub][age] = [];
+                ageingMatrix[hub][age].push(id);
+                ageSet.add(age);
+            });
+            ageingAges = Array.from(ageSet).sort((a,b) => a-b);
+        }
+        function ageingUpdateMeta() {
+            const meta = document.getElementById('ageingReportMeta');
+            if (meta) {
+                meta.textContent = `${ageingFileName} | Age 0 date: ${ageingDateText(ageingReportDate)} | ` +
+                    `${ageingRows.length} consignments | Click any count to view Consignment IDs`;
+            }
+        }
+        function ageingUpdateRefUi() {
+            const inp = document.getElementById('ageingRefInput');
+            if (inp && ageingReportDate) inp.value = ageingIso(ageingReportDate);
+            const note = document.getElementById('ageingRefNote');
+            if (note && ageingReportDate) {
+                note.textContent = 'Age 0 = ' + ageingDateText(ageingReportDate) +
+                    (ageingRefMode === 'auto' ? ' (auto: latest SortedAt)' : ' (manual)');
+            }
+        }
+        function ageingApplyRef() {
+            ageingRebuildMatrix();
+            ageingUpdateMeta();
+            ageingUpdateRefUi();
+            renderAgeingReport();
+            ageingSetMode(ageingMode);
+        }
+        function ageingSetRefDate(iso) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+            if (!m) return;
+            ageingRefMode = 'manual';
+            ageingReportDate = new Date(+m[1], +m[2]-1, +m[3]);
+            ageingApplyRef();
+        }
+        function ageingRefAuto() { ageingRefMode = 'auto'; ageingReportDate = ageingAutoRefDate(); ageingApplyRef(); }
+        function ageingRefToday() { ageingRefMode = 'manual'; ageingReportDate = ageingDayStart(new Date()); ageingApplyRef(); }
+
+        // ===== Excel-style multi-cell selection with live Sum (Ageing views) =====
+        let agSel = new Set(), agAnchor = null, agDrag = false, agMoved = false;
+        function agCellOf(t) {
+            const td = t && t.closest ? t.closest('td') : null;
+            if (!td) return null;
+            const tb = td.closest('.ag-pv-table, .ageing-table');
+            if (!tb || !td.closest('#ageingReportView, #ageingReportContent, #ageingDeliveryContent, #ageingReceiveContent, #ageingCustomContent')) return null;
+            return td;
+        }
+        function agCellNum(td) {
+            const t = (td.textContent || '').replace(/[৳,\s]/g, '').replace(/\u00a0/g, '');
+            if (!t || !/^-?\d+(\.\d+)?$/.test(t)) return null;
+            return Number(t);
+        }
+        function agFmt(n) { return Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', {maximumFractionDigits: 2}); }
+        function agClearSel() {
+            agSel.forEach(td => td.classList.remove('ag-sel'));
+            agSel.clear(); agAnchor = null; agUpdateBar();
+        }
+        function agUpdateBar() {
+            let bar = document.getElementById('ageingSelBar');
+            if (!bar) {
+                bar = document.createElement('div'); bar.id = 'ageingSelBar';
+                document.body.appendChild(bar);
+            }
+            agSel.forEach(td => { if (!td.isConnected) agSel.delete(td); });
+            if (!agSel.size) { bar.style.display = 'none'; return; }
+            const nums = [...agSel].map(agCellNum).filter(n => n !== null);
+            const sum = nums.reduce((a, b) => a + b, 0);
+            bar.innerHTML = `<span>Cells: <b>${agSel.size}</b></span><span>Numeric: <b>${nums.length}</b></span>` +
+                `<span>Sum: <b>${agFmt(sum)}</b></span>` +
+                `<span>Average: <b>${nums.length ? agFmt(sum / nums.length) : '-'}</b></span>` +
+                `<button type="button" id="ageingSelClear">Clear</button>`;
+            bar.style.display = 'flex';
+            document.getElementById('ageingSelClear').onclick = agClearSel;
+        }
+        function agSelectRange(a, b) {
+            const tb = a.closest('table');
+            if (!tb || tb !== b.closest('table')) return;
+            const rows = [...tb.rows];
+            const r1 = rows.indexOf(a.parentElement), r2 = rows.indexOf(b.parentElement);
+            const c1 = a.cellIndex, c2 = b.cellIndex;
+            const [ra, rb] = [Math.min(r1, r2), Math.max(r1, r2)], [ca, cb] = [Math.min(c1, c2), Math.max(c1, c2)];
+            agSel.forEach(td => td.classList.remove('ag-sel')); agSel.clear();
+            for (let r = ra; r <= rb; r++) for (let c = ca; c <= cb; c++) {
+                const td = rows[r].cells[c];
+                if (td && td.tagName === 'TD') { td.classList.add('ag-sel'); agSel.add(td); }
+            }
+        }
+        document.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            const td = agCellOf(e.target);
+            if (!td) { if (!e.target.closest || !e.target.closest('#ageingSelBar')) { if (agSel.size) agClearSel(); } return; }
+            agMoved = false;
+            if (e.shiftKey && agAnchor && agAnchor.isConnected) { agSelectRange(agAnchor, td); agUpdateBar(); e.preventDefault(); return; }
+            if (e.ctrlKey || e.metaKey) {
+                if (agSel.has(td)) { agSel.delete(td); td.classList.remove('ag-sel'); } else { agSel.add(td); td.classList.add('ag-sel'); }
+                agAnchor = td; agUpdateBar(); agMoved = true; e.preventDefault(); return;
+            }
+            agDrag = true; agAnchor = td;
+        });
+        document.addEventListener('mouseover', e => {
+            if (!agDrag) return;
+            const td = agCellOf(e.target);
+            if (!td || td === agAnchor && !agMoved) return;
+            agMoved = true;
+            agSelectRange(agAnchor, td); agUpdateBar();
+        });
+        document.addEventListener('mouseup', () => { agDrag = false; });
+        // After a drag / ctrl-click selection, don't also open the Consignment-ID list
+        document.addEventListener('click', e => {
+            if (agMoved && agCellOf(e.target)) { e.stopPropagation(); e.preventDefault(); }
+            agMoved = false;
+        }, true);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && agSel.size) agClearSel(); });
+
         function ageingInitModes() {
             ageingCustomLoad();
             document.getElementById('ageingModeBar')?.classList.remove('hidden');
@@ -7482,11 +7721,18 @@ try {
         }
 
         function ageingSetMode(mode) {
-            ageingMode = mode === 'custom' ? 'custom' : 'pivot';
+            ageingMode = ['pivot', 'delivery', 'receive', 'custom'].includes(mode) ? mode : 'pivot';
+            agClearSel();
             document.getElementById('ageingReportContent')?.classList.toggle('hidden', ageingMode !== 'pivot');
+            document.getElementById('ageingDeliveryContent')?.classList.toggle('hidden', ageingMode !== 'delivery');
+            document.getElementById('ageingReceiveContent')?.classList.toggle('hidden', ageingMode !== 'receive');
             document.getElementById('ageingCustomContent')?.classList.toggle('hidden', ageingMode !== 'custom');
             document.getElementById('ageingModePivotBtn')?.classList.toggle('active', ageingMode === 'pivot');
+            document.getElementById('ageingModeDeliveryBtn')?.classList.toggle('active', ageingMode === 'delivery');
+            document.getElementById('ageingModeReceiveBtn')?.classList.toggle('active', ageingMode === 'receive');
             document.getElementById('ageingModeCustomBtn')?.classList.toggle('active', ageingMode === 'custom');
+            if (ageingMode === 'delivery') renderAgeingDelivery();
+            if (ageingMode === 'receive') renderAgeingReceive();
             if (ageingMode === 'custom') renderAgeingCustom();
         }
 
@@ -7781,6 +8027,209 @@ try {
             XLSX.writeFile(wb, `Ageing_Custom_Report_${stamp}.xlsx`);
         }
 
+
+        /* =================== AGEING: DELIVERY SUMMARY & PARCEL RECEIVE AGE =================== */
+        const ageingViewStore = { d: [], r: [] };
+        const ageingViewExport = { d: null, r: null };
+
+        function ageingStatusKey() {
+            const keys = ageingFields.filter(f => !String(f.key).startsWith('__')).map(f => f.key);
+            const nameHints = ['status','orderstatus','deliverystatus','consignmentstatus','currentstatus','finalstatus','parcelstatus','laststatus','statusname','orderstatusname','deliverystatusname'];
+            const words = ['delivered','exchange','paidreturn','partialdelivery','return','returned','hold','pending','cancelled','intransit'];
+            const sample = ageingRows.slice(0, 500);
+            let best = '', bestScore = 0;
+            keys.forEach(k => {
+                let n = 0;
+                sample.forEach(r => { if (words.includes(ageingNormalizeKey(r[k]))) n++; });
+                if (n > 0 && nameHints.includes(ageingNormalizeKey(k))) n += 0.5;
+                if (n > bestScore) { best = k; bestScore = n; }
+            });
+            if (best) return best;
+            return keys.find(k => nameHints.includes(ageingNormalizeKey(k))) || '';
+        }
+
+        function ageingAmountKey() {
+            return ageingFindKey(['CollectedAmount','Collected Amount','Collected_Amount','CollectionAmount','Collection Amount','Collected']);
+        }
+        function ageingToNumber(v) {
+            if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+            const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, ''));
+            return Number.isFinite(n) ? n : 0;
+        }
+        function ageingFmtMoney(n) {
+            return '৳ ' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(n);
+        }
+
+        function ageingViewCountBtn(kind, title, ids) {
+            if (!ids || !ids.length) return '';
+            ageingViewStore[kind].push({ title, ids });
+            const i = ageingViewStore[kind].length - 1;
+            return `<button type="button" class="count-link" onclick="ageingShowViewList('${kind}', ${i})">${ids.length}</button>`;
+        }
+
+        function ageingShowViewList(kind, i) {
+            const e = (ageingViewStore[kind] || [])[i];
+            const modal = document.getElementById('ageingConsignmentModal');
+            const title = document.getElementById('ageingModalTitle');
+            const body = document.getElementById('ageingModalBody');
+            if (!e || !modal || !title || !body) return;
+            title.innerHTML = `<span style="display:inline-flex;align-items:center;gap:9px;">
+                <span>${ageingSafe(e.title)}</span>
+                <span style="display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);font-size:10px;font-weight:900;">${e.ids.length} IDs</span>
+            </span>`;
+            body.innerHTML = `<table class="ageing-id-table">
+                <thead><tr><th>#</th><th>ConsignmentId</th></tr></thead>
+                <tbody>${e.ids.map((id, n) => `<tr><td>${n + 1}</td><td>${ageingSafe(id)}</td></tr>`).join('')}</tbody>
+            </table>`;
+            modal.classList.remove('hidden');
+        }
+
+        function ageingViewHeader(titleText, subText) {
+            return `<div class="ag-title" style="border-bottom-color:#1f4e78;"><div class="t">${ageingSafe(titleText)}</div><div class="st">${ageingSafe(subText)}</div></div>`;
+        }
+        function ageingViewToolbar(kind) {
+            return `<div class="ageing-result-meta ageing-no-print">
+                <span>${kind === 'd' ? 'Delivery Summary' : 'Parcel Receive Age'}</span>
+                <span style="display:inline-flex;gap:7px;flex-wrap:wrap;">
+                    <button type="button" class="ageing-mode-btn" onclick="ageingViewCopy('${kind}')"><i class="fa-solid fa-copy mr-1"></i> Copy Table</button>
+                    <button type="button" class="ageing-mode-btn" onclick="ageingViewExcel('${kind}')"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+                    <button type="button" class="ageing-mode-btn" onclick="printAgeingReport()"><i class="fa-solid fa-print mr-1"></i> Print / PDF</button>
+                </span>
+            </div>`;
+        }
+
+        function renderAgeingDelivery() {
+            const host = document.getElementById('ageingDeliveryContent');
+            if (!host) return;
+            ageingViewStore.d = [];
+            const sub = `Report date: ${ageingDateText(ageingReportDate || new Date())}  |  ${ageingRows.length} consignments`;
+            const statusKey = ageingStatusKey();
+            if (!statusKey) {
+                ageingViewExport.d = null;
+                host.innerHTML = `<div class="ag-pv-card">${ageingViewHeader('Delivery Summary', sub)}<div class="ag-pv-empty">এই file-এ Status column (Delivered / Exchange / Paid Return / Partial Delivery) পাওয়া যায়নি। Status column সহ raw file import করুন।</div></div>`;
+                return;
+            }
+            const amountKey = ageingAmountKey();
+            const statusMap = new Map();   // status -> Map(ageKey -> ids[])
+            const ageSet = new Set();
+            let hasBlank = false, totalCollected = 0;
+            ageingRows.forEach(r => {
+                const st = String(r[statusKey] ?? '').trim() || '(blank)';
+                const a = ageingAgeOf(r);
+                const ak = a === null ? 'blank' : a;
+                if (a === null) hasBlank = true; else ageSet.add(a);
+                if (!statusMap.has(st)) statusMap.set(st, new Map());
+                const m = statusMap.get(st);
+                if (!m.has(ak)) m.set(ak, []);
+                m.get(ak).push(ageingConsignmentId(r));
+                if (amountKey) totalCollected += ageingToNumber(r[amountKey]);
+            });
+            const ages = [...ageSet].sort((a, b) => a - b);
+            const cols = hasBlank ? [...ages, 'blank'] : ages;
+            const statuses = [...statusMap.keys()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+            const colLabel = c => c === 'blank' ? '(blank)' : String(c);
+            const colTotals = cols.map(() => 0);
+            let grand = 0;
+            const exportRows = [['Delivery Summary'], [sub.replace(/\s{2,}/g, ' ')], [], ['Row Labels', ...cols.map(colLabel), 'Grand Total']];
+
+            const bodyHtml = statuses.map(st => {
+                const m = statusMap.get(st);
+                let rowTotal = 0;
+                const exLine = [st];
+                const cells = cols.map((c, i) => {
+                    const ids = m.get(c) || [];
+                    rowTotal += ids.length; colTotals[i] += ids.length;
+                    exLine.push(ids.length || '');
+                    return `<td>${ageingViewCountBtn('d', `Delivery Summary — ${st} — Age ${colLabel(c)}`, ids)}</td>`;
+                }).join('');
+                grand += rowTotal;
+                exLine.push(rowTotal);
+                exportRows.push(exLine);
+                return `<tr><td class="l">${ageingSafe(st)}</td>${cells}<td class="gc">${rowTotal}</td></tr>`;
+            }).join('');
+            exportRows.push(['Grand Total', ...colTotals.map(n => n || ''), grand]);
+            if (amountKey) { exportRows.push([]); exportRows.push(['Total Collected Amount', totalCollected]); }
+
+            ageingViewExport.d = { name: 'Delivery Summary', rows: exportRows };
+            const span = Math.max(1, cols.length + 1);
+            host.innerHTML = ageingViewToolbar('d') + `<div class="ag-pv-card">
+                ${ageingViewHeader('Delivery Summary', sub)}
+                <table class="ag-pv-table">
+                    <thead>
+                        <tr><th class="l">Count of ConsignmentId</th><th class="l" colspan="${span}">Column Labels</th></tr>
+                        <tr><th class="l">Row Labels</th>${cols.map(c => `<th>${colLabel(c)}</th>`).join('')}<th>Grand Total</th></tr>
+                    </thead>
+                    <tbody>${bodyHtml}
+                        <tr class="gt"><td class="l">Grand Total</td>${colTotals.map(n => `<td>${n || ''}</td>`).join('')}<td>${grand}</td></tr>
+                    </tbody>
+                </table>
+                <div class="ag-pv-total"><span>Total Collected Amount</span><span>${amountKey ? ageingFmtMoney(totalCollected) : 'CollectedAmount column not found'}</span></div>
+            </div>`;
+        }
+
+        function renderAgeingReceive() {
+            const host = document.getElementById('ageingReceiveContent');
+            if (!host) return;
+            ageingViewStore.r = [];
+            const sub = `Report date: ${ageingDateText(ageingReportDate || new Date())}  |  ${ageingRows.length} consignments`;
+            const byAge = new Map();
+            let blankIds = [];
+            ageingRows.forEach(r => {
+                const a = ageingAgeOf(r);
+                const id = ageingConsignmentId(r);
+                if (a === null) { blankIds.push(id); return; }
+                if (!byAge.has(a)) byAge.set(a, []);
+                byAge.get(a).push(id);
+            });
+            const ages = [...byAge.keys()].sort((a, b) => a - b);
+            const exportRows = [['Parcel Receive Age'], [sub.replace(/\s{2,}/g, ' ')], [], ['Row Labels', 'Count of ConsignmentId']];
+            const bodyHtml = ages.map(a => {
+                const ids = byAge.get(a);
+                exportRows.push([a, ids.length]);
+                return `<tr><td class="l">${a}</td><td>${ageingViewCountBtn('r', `Parcel Receive Age — Age ${a}`, ids)}</td></tr>`;
+            }).join('') + `<tr><td class="l">(blank)</td><td>${ageingViewCountBtn('r', 'Parcel Receive Age — (blank)', blankIds)}</td></tr>`;
+            exportRows.push(['(blank)', blankIds.length || '']);
+            exportRows.push(['Grand Total', ageingRows.length]);
+            ageingViewExport.r = { name: 'Parcel Receive Age', rows: exportRows };
+            host.innerHTML = ageingViewToolbar('r') + `<div class="ag-pv-card">
+                ${ageingViewHeader('Parcel Receive Age', sub)}
+                <table class="ag-pv-table">
+                    <thead><tr><th class="l">Row Labels</th><th>Count of ConsignmentId</th></tr></thead>
+                    <tbody>${bodyHtml}
+                        <tr class="gt"><td class="l">Grand Total</td><td>${ageingRows.length}</td></tr>
+                    </tbody>
+                </table>
+            </div>`;
+        }
+
+        function ageingViewCopy(kind) {
+            const ex = ageingViewExport[kind];
+            if (!ex) return;
+            const text = ex.rows.map(r => r.map(v => String(v ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+            const done = () => { try { showToast('Table copied — paste into Excel'); } catch (e) {} };
+            const fallback = () => {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(ta);
+            };
+            if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+        }
+
+        function ageingViewExcel(kind) {
+            const ex = ageingViewExport[kind];
+            if (!ex) return;
+            if (typeof XLSX === 'undefined') { try { showToast('Excel library is not loaded'); } catch (e) {} return; }
+            const ws = XLSX.utils.aoa_to_sheet(ex.rows);
+            const widths = [];
+            ex.rows.forEach(r => r.forEach((v, i) => { widths[i] = Math.max(widths[i] || 8, Math.min(40, String(v ?? '').length + 2)); }));
+            ws['!cols'] = widths.map(w => ({ wch: w }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, ex.name.slice(0, 31));
+            XLSX.writeFile(wb, `${ex.name.replace(/\s+/g, '_')}_${ageingDateText(ageingReportDate || new Date())}.xlsx`);
+        }
+
         function openAgeingReportView() {
             document.getElementById('hubDashboardView')?.classList.add('hidden');
             document.getElementById('hubReportView')?.classList.add('hidden');
@@ -7853,39 +8302,16 @@ try {
                     throw new Error('No valid SortedAt dates were found.');
                 }
 
-                // Report date = today's local date. This matches the pivot format:
-                // on 25-Sep-2026, SortedAt 22-Sep-2026 is Age 3.
-                const now = new Date();
-                ageingReportDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-                ageingMatrix = {};
-                const ageSet = new Set();
-
-                datedRows.forEach(({row, date}) => {
-                    const hub = ageingHub(row);
-                    const id = ageingConsignmentId(row);
-                    const age = Math.floor((ageingReportDate.getTime() - date.getTime()) / 86400000);
-
-                    if (age < 0 || !id) return;
-
-                    if (!ageingMatrix[hub]) ageingMatrix[hub] = {};
-                    if (!ageingMatrix[hub][age]) ageingMatrix[hub][age] = [];
-                    ageingMatrix[hub][age].push(id);
-                    ageSet.add(age);
-                });
-
-                ageingAges = Array.from(ageSet).sort((a,b) => a-b);
-
-                const meta = document.getElementById('ageingReportMeta');
-                if (meta) {
-                    meta.textContent =
-                        `${file.name} | Report date: ${ageingDateText(ageingReportDate)} | ` +
-                        `${ageingRows.length} consignments | Click any count to view Consignment IDs`;
-                }
+                ageingFileName = file.name;
+                ageingRefMode = 'auto';
+                ageingReportDate = ageingAutoRefDate();
+                ageingRebuildMatrix();
+                ageingUpdateMeta();
 
                 openAgeingReportView();
                 renderAgeingReport();
                 ageingInitModes();
+                ageingUpdateRefUi();
 
             } catch (err) {
                 console.error('Ageing import error:', err);
@@ -8232,5 +8658,96 @@ try {
 </form>
 </div>
 </div>
+<!-- ===== NSD ADD-ON v1 (additive only; original code untouched). Remove this whole block to revert. ===== -->
+<style id="nsdAddonCss">
+#nsdBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:10px;border-radius:14px;background:#131d36;border:1px solid #1e293b}
+#nsdBar input{flex:1 1 200px;min-width:0;background:#0b1329;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600}
+#nsdBar input:focus{outline:none;border-color:#0ea5e9}
+#nsdBar button{background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+#nsdBar button:hover{border-color:#0ea5e9}
+#nsdCount{font-size:11px;font-weight:800;color:#94a3b8}
+#nsdEmpty{display:none;text-align:center;padding:28px;color:#94a3b8;font-size:13px;font-weight:700;border:1px dashed #334155;border-radius:14px}
+#hubCardsGrid:empty{min-height:150px;border-radius:14px;background:linear-gradient(100deg,#131d36 30%,#1b2a4a 50%,#131d36 70%);background-size:200% 100%;animation:nsdShim 1.4s linear infinite}
+@keyframes nsdShim{to{background-position:-200% 0}}
+#nsdBottom{display:none}
+@media(max-width:767px){
+ #nsdBottom{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:#0f1a33;border-top:1px solid #1e293b;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+ #nsdBottom button{flex:1;background:none;border:0;color:#94a3b8;font-size:10px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px}
+ #nsdBottom button i{font-size:16px;color:#38bdf8}
+ body{padding-bottom:64px}
+}
+html.nsd-light body{background:#f1f5f9;color:#0f172a}
+html.nsd-light [class~="bg-[#0b1329]"],html.nsd-light [class~="bg-[#131d36]"],html.nsd-light #nsdBar,html.nsd-light #nsdBottom{background:#fff!important;border-color:#e2e8f0!important}
+html.nsd-light h1,html.nsd-light h2,html.nsd-light h3,html.nsd-light [class~="bg-[#131d36]"] .text-white:not([class*="bg-"]){color:#0f172a!important}
+html.nsd-light .text-slate-200,html.nsd-light .text-slate-300,html.nsd-light .text-slate-400{color:#475569!important}
+html.nsd-light [class~="bg-slate-800"],html.nsd-light [class~="bg-slate-900"],html.nsd-light [class~="bg-slate-700"]{background-color:#e2e8f0!important;border-color:#cbd5e1!important;color:#0f172a!important}
+html.nsd-light [class~="bg-slate-800"] .text-white,html.nsd-light [class~="bg-slate-900"] .text-white{color:#0f172a!important}
+html.nsd-light [class*="hover:bg-slate-700"]:hover{background-color:#cbd5e1!important}
+html.nsd-light [class*="hover:bg-slate-800"]:hover{background-color:#e2e8f0!important}
+html.nsd-light [class*="text-slate-500"],html.nsd-light [class*="text-slate-600"]{color:#64748b!important}
+html.nsd-light [class~="bg-[#131d36]"].text-white,html.nsd-light [class~="bg-[#0b1329]"].text-white,html.nsd-light [class~="bg-[#0b1329]"] .text-white,html.nsd-light td.sticky,html.nsd-light th.sticky{color:#0f172a!important}
+html.nsd-light tfoot td:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]),html.nsd-light tfoot th{color:#0f172a!important}
+html.nsd-light tr:hover>td,html.nsd-light tr:hover>th{background-color:#eef2f7!important}
+html.nsd-light [class*="divide-slate-"]>*{border-color:#e2e8f0!important}
+html.nsd-light thead th,html.nsd-light thead td{color:#334155!important}
+html.nsd-light .text-emerald-300,html.nsd-light .text-emerald-400{color:#059669!important}
+html.nsd-light .text-amber-300,html.nsd-light .text-amber-400{color:#b45309!important}
+html.nsd-light .text-rose-300,html.nsd-light .text-rose-400{color:#e11d48!important}
+html.nsd-light [class*="border-slate-"]{border-color:#e2e8f0!important}
+html.nsd-light #nsdBar input{background:#f8fafc;color:#0f172a;border-color:#cbd5e1}
+html.nsd-light #nsdBar button{background:#f1f5f9;color:#0f172a;border-color:#cbd5e1}
+@media print{#nsdBar,#nsdBottom,.toast-notify{display:none!important}
+ body{background:#fff!important;color:#000!important}
+ #hubCardsGrid>*{break-inside:avoid;page-break-inside:avoid}}
+</style>
+<script id="nsdAddonJs">
+(function(){
+ function safe(fn){try{fn()}catch(e){console.warn('[NSD add-on]',e)}}
+ function toast(m){try{typeof showToast==='function'?showToast(m):console.log(m)}catch(e){}}
+ var LS='nsdTheme';
+ function applyTheme(t){document.documentElement.classList.toggle('nsd-light',t==='light');
+  var m=document.querySelector('meta[name=theme-color]');if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m)}
+  m.content=t==='light'?'#f1f5f9':'#0b1329'}
+ function toggleTheme(){var n=document.documentElement.classList.contains('nsd-light')?'dark':'light';
+  applyTheme(n);safe(function(){localStorage.setItem(LS,n)})}
+ applyTheme('dark');
+
+ function cards(g){return Array.prototype.filter.call(g.children,function(c){return c.id!=='nsdEmpty'})}
+ function filter(g){var q=(document.getElementById('nsdQ').value||'').trim().toLowerCase(),vis=0,all=cards(g);
+  all.forEach(function(c){var ok=!q||c.textContent.toLowerCase().indexOf(q)>-1;c.style.display=ok?'':'none';if(ok)vis++});
+  document.getElementById('nsdCount').textContent=all.length?('Showing '+vis+' of '+all.length):'';
+  document.getElementById('nsdEmpty').style.display=(all.length&&!vis)?'block':'none'}
+ function summary(g){var d=new Date().toLocaleDateString('en-GB');
+  var lines=cards(g).filter(function(c){return c.style.display!=='none'}).map(function(c){
+   return '• '+c.innerText.replace(/\s*\n\s*/g,' | ').replace(/\s+/g,' ').trim().slice(0,200)});
+  return 'Narsingdi Cluster Summary - '+d+'\n'+lines.join('\n')}
+ function copy(t){if(navigator.clipboard)return navigator.clipboard.writeText(t);
+  var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();return Promise.resolve()}
+ function backup(){safe(function(){var o={};
+  for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(/narsingdi|shibpur|nsd/i.test(k)&&k!=='nsdTheme')o[k]=localStorage.getItem(k)}
+  var b=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),data:o},null,1)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='nsd-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();toast('Backup downloaded')})}
+
+ function init(){
+  var g=document.getElementById('hubCardsGrid');if(!g||document.getElementById('nsdBottom'))return;}
+
+ function aria(){document.querySelectorAll('button:not([aria-label])').forEach(function(b){
+  if(b.textContent.trim())return;var i=b.querySelector('i');var t=b.getAttribute('title');
+  var m=i&&(i.className.match(/fa-(?:solid|regular|brands)\s+fa-([a-z0-9-]+)/)||[])[1];
+  b.setAttribute('aria-label',t||(m?m.replace(/-/g,' '):'button'))})}
+
+ document.addEventListener('keydown',function(e){
+  var t=e.target,typing=t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable);
+  if(typing||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='g'||e.key==='G'){window._nsdG=Date.now()}
+  else if((e.key==='h'||e.key==='H')&&Date.now()-(window._nsdG||0)<1200){var g=document.getElementById('hubCardsGrid');if(g)g.scrollIntoView({behavior:'smooth'})}
+ });
+ function boot(){safe(init);safe(aria);var n;new MutationObserver(function(){clearTimeout(n);n=setTimeout(function(){safe(aria)},400)}).observe(document.body,{childList:true,subtree:true})}
+ if(document.readyState==='complete')boot();else window.addEventListener('load',boot,{once:true});
+})();
+</script>
+<!-- ===== END NSD ADD-ON ===== -->
+
 </body>
 </html>
