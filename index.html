@@ -40,7 +40,6 @@
         .notice-bell { position:relative; width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg,#8b5cf6,#d946ef); color:#fff; font-size:12px; }
         .notice-bell::after { content:''; position:absolute; inset:0; border-radius:999px; border:2px solid rgba(167,139,250,.7); animation: noticePulse 1.8s ease-out infinite; }
         @keyframes noticePulse { 0% { transform:scale(1); opacity:.9; } 100% { transform:scale(1.9); opacity:0; } }
-        .notice-count { min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:#ef4444; color:#fff; font-size:10px; font-weight:900; letter-spacing:0; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 0 0 3px rgba(239,68,68,.22); }
         .notice-ticker-wrap { overflow:hidden; position:relative; flex:1 1 auto; min-width:0;
             -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
                     mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
@@ -125,6 +124,13 @@
         .ageing-card.ag-themed .ageing-table .row-label { min-width:0; }
         /* ===== Ageing: Delivery Summary & Parcel Receive Age (Excel pivot look) ===== */
         .ag-pv-table td, .ageing-table td { user-select:none; cursor:cell; }
+        body.ag-edit-on .ag-pv-table td, body.ag-edit-on .ageing-table td, body.ag-edit-on .ag-pv-table th, body.ag-edit-on .ageing-table th { user-select:text; -webkit-user-select:text; cursor:text; }
+        body.ag-edit-on #ageingReportView table [contenteditable="true"] { outline:1px dashed #f59e0b; outline-offset:-2px; background-image:linear-gradient(rgba(254,243,199,.45),rgba(254,243,199,.45)); }
+        body.ag-edit-on #ageingReportView table [contenteditable="true"]:focus { outline:2px solid #2563eb; background:#fff; }
+        body.ag-edit-on #ageingReportView table .count-link { pointer-events:none; }
+        #ageingReportView table td.ag-edited, #ageingReportView table th.ag-edited { color:#b45309 !important; font-weight:800; }
+        #ageingEditBtn.on { background:#f59e0b; color:#fff; border-color:#f59e0b; }
+
         .ag-sel { background:#2563eb !important; color:#fff !important; }
         .ag-sel .count-link { color:#fff !important; }
         #ageingSelBar { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:99999; display:none; align-items:center; gap:16px; background:#0f172a; color:#fff; padding:8px 16px; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.35); font-family:Calibri,Arial,sans-serif; font-size:13px; font-weight:700; flex-wrap:wrap; justify-content:center; max-width:95vw; }
@@ -144,6 +150,81 @@
         .ag-presets { max-width:1500px; margin:0 auto 10px; display:flex; gap:7px; flex-wrap:wrap; align-items:center; font-size:10px; font-weight:900; color:#475569; }
         .ag-presets button { border:1px dashed #1f4e78; background:#f0f6fc; color:#1f4e78; border-radius:999px; padding:5px 12px; font-size:10px; font-weight:900; cursor:pointer; }
         .ag-presets button:hover { background:#1f4e78; color:#fff; }
+        /* ===== Ageing Report: modern professional theme (applies to all ageing formats) ===== */
+        #ageingReportView { --ag-line:#e2e8f0; --ag-ink:#0f172a; --ag-muted:#64748b; font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; }
+        #ageingReportView.ageing-report-wrap { background:linear-gradient(180deg,#e9f0f8 0,#f6f8fb 280px,#f8fafc 100%); padding:22px 18px 70px; }
+        #ageingReportView .ageing-report-toolbar { background:linear-gradient(135deg,#0f2942 0%,#1f4e78 62%,#2a6aa6 100%); border-radius:14px; padding:14px 18px; box-shadow:0 10px 28px rgba(15,41,66,.22); margin-bottom:16px; }
+        #ageingReportView .ageing-report-title { font-size:15px; font-weight:800; letter-spacing:.2px; }
+        #ageingReportView .ageing-report-meta { font-size:11px; font-weight:600; color:#cfe3f7; margin-top:4px; }
+        #ageingReportView .ageing-btn { border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.12); border-radius:9px; padding:8px 13px; font-size:11px; font-weight:700; transition:background .15s, transform .15s; }
+        #ageingReportView .ageing-btn:hover { background:rgba(255,255,255,.22); transform:translateY(-1px); }
+        #ageingReportView .ageing-btn.light { background:#fff; color:#1f4e78; border-color:#fff; }
+        #ageingReportView .ageing-btn.light:hover { background:#eef4fb; }
+        #ageingReportView .ageing-modebar { background:#fff; border:1px solid var(--ag-line); border-radius:14px; padding:6px; gap:4px; align-items:center; box-shadow:0 1px 3px rgba(15,23,42,.06); margin-bottom:16px; }
+        #ageingReportView .ageing-mode-btn { border:1px solid transparent; background:transparent; color:#334155; border-radius:9px; padding:8px 13px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; transition:background .15s, color .15s, box-shadow .15s; }
+        #ageingReportView .ageing-mode-btn:hover { background:#eef4fb; color:#1f4e78; }
+        #ageingReportView .ageing-mode-btn.active { background:linear-gradient(135deg,#1f4e78,#2a6aa6); color:#fff; box-shadow:0 4px 12px rgba(31,78,120,.32); }
+        #ageingReportView .ageing-modebar span .ageing-mode-btn { background:#f1f5f9; border-color:#e2e8f0; padding:5px 11px; font-size:11px; }
+        #ageingReportView .ageing-modebar span .ageing-mode-btn:hover { background:#1f4e78; border-color:#1f4e78; color:#fff; }
+        #ageingReportView .ageing-modebar input[type=date]:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.18); }
+        #ageingDeliveryContent, #ageingReceiveContent, #ageingXsaContent, #ageingXscContent, #ageingXhsContent, #ageingXhsaContent { max-width:1500px; margin:0 auto; }
+        #ageingReportView .ageing-result-meta { margin:0 auto 10px; font-size:12px; font-weight:700; color:#334155; }
+        #ageingReportView .ageing-result-meta > span:first-child { color:#0f2942; font-weight:800; }
+        #ageingReportView .ageing-result-meta .ageing-mode-btn { background:#fff; border-color:#cbd5e1; color:#1f4e78; box-shadow:0 1px 2px rgba(15,23,42,.05); }
+        #ageingReportView .ageing-result-meta .ageing-mode-btn:hover { background:#1f4e78; border-color:#1f4e78; color:#fff; }
+        /* cards: no scrollbar sliver, rounded, soft shadow */
+        #ageingReportView .ageing-card, #ageingReportView .ag-pv-card, #ageingReportView .ag-x-card { background:#fff; border:1px solid var(--ag-line); border-radius:14px; box-shadow:0 6px 22px rgba(15,23,42,.07); overflow-x:auto; overflow-y:hidden; }
+        #ageingReportView .ag-pv-card, #ageingReportView .ag-x-card { margin:0; width:fit-content; max-width:100%; min-width:320px; }
+        #ageingReportView .ag-title { padding:16px 20px 12px; background:linear-gradient(180deg,#fff,#f8fafc); border-bottom:3px solid #1f4e78; }
+        #ageingReportView .ag-title .t { font-size:17px; font-weight:800; }
+        #ageingReportView .ag-title .st { font-size:11px; font-weight:600; margin-top:4px; }
+        /* pivot tables (Delivery Summary, Parcel Receive Age and the 4 Excel-format pivots) */
+        #ageingReportView .ag-pv-table { font-family:'Inter',system-ui,sans-serif; font-size:13px; color:var(--ag-ink); border-collapse:separate; border-spacing:0; width:100%; }
+        #ageingReportView .ag-pv-table th, #ageingReportView .ag-pv-table td { padding:9px 16px; border:0; border-bottom:1px solid #eef2f7; }
+        #ageingReportView .ag-pv-table thead th { background:#dfeaf6; color:#0f2942; font-weight:800; font-size:12px; letter-spacing:.2px; border-bottom:1px solid #c5d6ea; }
+        #ageingReportView .ag-pv-table thead tr:first-child th { border-bottom:0; }
+        #ageingReportView .ag-pv-table tbody tr:hover td { background:#f3f8fe; }
+        #ageingReportView .ag-pv-table tbody td.gc { font-weight:700; background:#f8fafc; }
+        #ageingReportView .ag-pv-table tbody tr:last-child td { border-bottom:0; }
+        #ageingReportView .ag-pv-table tr.gt td, #ageingReportView .ag-pv-table tr.gt:hover td { background:#e3edf9; color:#0f2942; font-weight:800; border-top:2px solid #1f4e78; border-bottom:0; }
+        #ageingReportView .ag-pv-table .count-link { color:#0f172a; font-weight:600; padding:2px 8px; border-radius:6px; transition:background .12s, color .12s; }
+        #ageingReportView .ag-pv-table .count-link:hover { background:#dbeafe; color:#1d4ed8; text-decoration:none; }
+        #ageingReportView .ag-x-table tr.hub td, #ageingReportView .ag-x-table tr.hub:hover td { background:#eef5fc; font-weight:800; border-top:1px solid #cfe0f3; }
+        #ageingReportView .ag-x-table tr.hub:first-child td { border-top:0; }
+        #ageingReportView .ag-x-table tr.hub .count-link { font-weight:800; }
+        #ageingReportView .ag-x-table td.ind { padding-left:38px; color:#334155; }
+        #ageingReportView .ag-pv-table.ag-x-grey thead th { background:#b4c4d2; color:#12263a; border-bottom:1px solid #8fa5b8; }
+        #ageingReportView .ag-pv-table.ag-x-grey tbody td { background:#e7ecf1; }
+        #ageingReportView .ag-pv-table.ag-x-grey tbody tr:nth-child(even) td { background:#dfe6ec; }
+        #ageingReportView .ag-pv-table.ag-x-grey tbody tr:hover td { background:#d3dde6; }
+        #ageingReportView .ag-pv-table.ag-x-grey tr.gt td, #ageingReportView .ag-pv-table.ag-x-grey tr.gt:hover td { background:#b4c4d2; }
+        #ageingReportView .ag-pv-total { background:linear-gradient(90deg,#ecfdf3,#dcfce7); border-top:1px solid #bbf7d0; padding:12px 20px; font-family:'Inter',system-ui,sans-serif; font-size:14px; font-weight:800; }
+        /* classic hub x age pivot + custom report tables */
+        #ageingReportView .ageing-table { font-family:'Inter',system-ui,sans-serif; font-size:12.5px; }
+        #ageingReportView .ageing-table th, #ageingReportView .ageing-table td { border-color:#e6ebf2; padding:8px 12px; }
+        #ageingReportContent .ageing-table thead th { background:#dfeaf6; color:#0f2942; }
+        #ageingReportContent .ageing-table .grand-total td { background:#e3edf9; color:#0f2942; border-top:2px solid #1f4e78; }
+        #ageingReportView .ageing-table tbody tr:not(.grand-total):hover td { background:#f3f8fe; }
+        #ageingReportView .ageing-table .count-link { color:#0f172a; font-weight:700; padding:2px 8px; border-radius:6px; transition:background .12s, color .12s; }
+        #ageingReportView .ageing-table .count-link:hover { background:#dbeafe; color:#1d4ed8; text-decoration:none; }
+        /* custom report builder */
+        #ageingReportView .ageing-builder { border-radius:14px; border:1px solid var(--ag-line); box-shadow:0 6px 22px rgba(15,23,42,.06); padding:16px; gap:16px; }
+        #ageingReportView .ageing-bsec { border-radius:10px; border:1px solid #e6ebf2; background:#f8fafc; padding:12px; }
+        #ageingReportView .ageing-bsec-title { font-size:10.5px; letter-spacing:.6px; }
+        #ageingReportView .ageing-bsec select, #ageingReportView .ageing-bsec input[type=text], #ageingReportView .ageing-colrow input[type=text] { border-radius:8px; border-color:#cbd5e1; }
+        #ageingReportView .ageing-bsec select:focus, #ageingReportView .ageing-bsec input[type=text]:focus, #ageingReportView .ageing-colrow input[type=text]:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.18); }
+        #ageingReportView .ageing-mini { border-radius:7px; }
+        #ageingReportView .ag-presets button { border:1px solid #cbd5e1; background:#fff; color:#1f4e78; border-radius:999px; padding:6px 13px; box-shadow:0 1px 2px rgba(15,23,42,.05); transition:background .15s, color .15s; }
+        #ageingReportView .ag-presets button:hover { background:#1f4e78; border-color:#1f4e78; color:#fff; }
+        #ageingSelBar { border-radius:12px; background:rgba(15,23,42,.94); backdrop-filter:blur(6px); font-family:'Inter',system-ui,sans-serif; }
+        @media (max-width:640px) {
+            #ageingReportView.ageing-report-wrap { padding:12px 10px 60px; }
+            #ageingReportView .ageing-modebar { flex-wrap:nowrap; overflow-x:auto; }
+            #ageingReportView .ag-pv-table th, #ageingReportView .ag-pv-table td { padding:8px 10px; }
+        }
+        @media print {
+            #ageingReportView .ageing-card, #ageingReportView .ag-pv-card, #ageingReportView .ag-x-card { box-shadow:none; border-radius:0; }
+        }
         .ageing-bsec input[type=text].plain { width:100%; border:1px solid #cbd5e1; border-radius:5px; padding:5px 7px; font-size:11px; font-weight:700; background:#fff; color:#111827; margin-bottom:6px; }
         @media print { .ageing-card, .ageing-card * { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
         .ageing-modal-backdrop {
@@ -320,7 +401,6 @@
         .import-report-table tbody tr.cluster-row td { background:#b7b7b7; font-weight:900; }
         .import-report-table tbody tr.total-row td { background:#f4b183; font-weight:900; }
         .import-report-table tbody tr.hub-row:nth-child(even) td { background:#fafafa; }
-        .import-report-empty { max-width:900px; margin:50px auto; background:#fff; border:1px dashed #94a3b8; border-radius:12px; padding:35px 20px; text-align:center; color:#475569; }
         .import-report-meta { font-size:10px; color:#475569; font-weight:700; margin:0 0 8px; }
         @media print {
             body.print-import-report * { visibility:hidden !important; }
@@ -340,6 +420,14 @@
         .header-title { text-align: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #cbd5e1; }
         .header-title h2 { margin: 0; color: #0f2942; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         .header-title p { margin: 3px 0 0; color: #475569; font-size: 11px; font-weight: 700; }
+        .header-title { position: relative; }
+        .rpt-date-widget { position:absolute; right:2px; bottom:7px; display:inline-flex; align-items:center; gap:6px; background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:2px 8px 2px 3px; }
+        .rpt-date-widget .rw-circle { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#1c3d5a 0%,#1a5e54 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; line-height:1; flex:none; }
+        .rpt-date-widget .rw-txt { display:grid; grid-template-columns:auto 1fr; column-gap:4px; align-items:center; color:#0f172a; text-align:left; line-height:1.1; }
+        .rpt-date-widget .rw-mon { grid-column:1; grid-row:1; font-size:11px; font-weight:700; text-transform:none; letter-spacing:0; }
+        .rpt-date-widget .rw-year { grid-column:2; grid-row:1; font-size:11px; font-weight:800; text-transform:none; letter-spacing:0; margin:0; }
+        .rpt-date-widget .rw-wk { grid-column:1 / span 2; grid-row:2; font-size:10px; font-weight:500; color:#334155; text-transform:none; letter-spacing:0; white-space:nowrap; }
+        @media (max-width: 600px) { .rpt-date-widget { position:static; margin:6px auto 0; } }
 
         .excel-table { border-collapse: collapse; width: 100%; table-layout: fixed; background-color: #ffffff; border: 1.5px solid #64748b; }
         .excel-table td { border: 1px solid #94a3b8; padding: 2px 4px; font-size: 10px; font-weight: 600; height: 23px; vertical-align: middle; color: #0f172a; position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -470,8 +558,6 @@
         /* ===== Bulk Copy panel (separate from report table) ===== */
         .inv-bulk-panel { margin-top:12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; overflow:hidden; font-family:Arial,sans-serif; }
         .inv-bulk-panel .inv-bulk-title { background:#595959; color:#fff; font-weight:900; font-size:11px; padding:7px 10px; text-align:center; }
-        .inv-bulk-panel .inv-bulk-date { display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #e2e8f0; font-size:11px; font-weight:800; color:#334155; }
-        .inv-bulk-panel .inv-bulk-date select { flex:1; border:1px solid #cbd5e1; border-radius:6px; padding:4px 6px; font-size:11px; font-weight:700; color:#0f172a; background:#fff; }
         .inv-bulk-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; border-bottom:1px solid #f1f5f9; font-size:11px; font-weight:700; color:#0f172a; }
         .inv-bulk-row:last-child { border-bottom:0; }
         .inv-bulk-row .inv-bulk-cnt { color:#64748b; font-weight:800; margin-left:4px; }
@@ -576,12 +662,10 @@
         .rcv-item:hover { background:#f8fafc; }
         .rcv-dot { width:9px; height:9px; border-radius:50%; margin-top:4px; flex:0 0 auto; background:#dc2626; }
         .rcv-item.warn .rcv-dot { background:#d97706; }
-        .rcv-sec { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:#475569; background:#e2e8f0; border-radius:4px; padding:1px 6px; margin-right:6px; }
         .rcv-it-title { font-size:11px; font-weight:800; }
         .rcv-it-msg { font-size:11px; color:#334155; margin-top:2px; }
         .rcv-it-diff { font-size:11px; font-weight:800; color:#b91c1c; }
         .rcv-item.warn .rcv-it-diff { color:#b45309; }
-        .rcv-it-hint { font-size:10px; color:#64748b; margin-top:2px; }
         /* ---- compact popup version ---- */
         .rcv-panel { position:fixed; top:12px; right:12px; width:330px; max-width:calc(100vw - 24px); margin:0; z-index:99999; display:none; }
         .rcv-panel.rcv-show { display:block; animation:rcvPop .2s ease-out; }
@@ -593,7 +677,6 @@
         .rcv-x:hover { color:#0f172a; }
         .rcv-list { max-height:200px; }
         .rcv-item { padding:6px 10px; }
-        .rcv-it-hint { display:none; }
         .rcv-grp { font-size:10px; font-weight:900; letter-spacing:.5px; color:#fff; background:#475569; padding:3px 10px; }
 </style>
 <script>
@@ -613,6 +696,7 @@ var APP_LOGO_SRC = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   if (fav && APP_LOGO_SRC.indexOf('data:image/svg+xml') !== 0) { fav.removeAttribute('type'); fav.href = APP_LOGO_SRC; }
   function apply() { document.querySelectorAll('img.app-logo').forEach(function (im) { im.src = APP_LOGO_SRC; }); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply); else apply();
+  window.addEventListener('load', apply); window.addEventListener('pageshow', apply);
 })();
 </script>
 <style id="nsdAuthCss">
@@ -657,19 +741,63 @@ select.nsd-input{appearance:auto}
 .nsd-row{display:flex;align-items:center;gap:10px;background:#0b1329;border:1px solid #1e293b;border-radius:12px;padding:8px 10px;margin-top:8px}
 .nsd-code{display:block;word-break:break-all;background:#0b1329;border:1px dashed #334155;border-radius:10px;padding:10px;font:600 11px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#7dd3fc;margin-top:6px;user-select:all}
 .nsd-x{background:none;border:0;color:#94a3b8;font-size:18px;cursor:pointer;padding:2px 8px}
+/* ===== SITE CONTROL (maintenance notice + full close) ===== */
+/* Maintenance bar: existing Notice ticker-er (notice-bar / notice-ticker-*) same style + same right->left motion, amber color */
+.notice-bar.nsd-maint{position:relative;flex-shrink:0;border-color:rgba(245,158,11,.38);box-shadow:0 8px 30px -12px rgba(245,158,11,.55),inset 0 1px 0 rgba(255,255,255,.06);background:linear-gradient(110deg,rgba(217,119,6,.26) 0%,rgba(19,29,54,.94) 38%,rgba(19,29,54,.94) 100%)}
+.notice-bar.nsd-maint::before{background:linear-gradient(180deg,#fbbf24,#f59e0b,#ea580c)}
+.nsd-maint .notice-badge{background:rgba(245,158,11,.18);border-color:rgba(251,191,36,.4);color:#fde68a}
+.nsd-maint .notice-bell{background:linear-gradient(135deg,#f59e0b,#ea580c)}
+.nsd-maint .notice-bell::after{border-color:rgba(251,191,36,.7)}
+.notice-bar.nsd-maint.closed{border-color:rgba(251,113,133,.4);box-shadow:0 8px 30px -12px rgba(244,63,94,.55),inset 0 1px 0 rgba(255,255,255,.06);background:linear-gradient(110deg,rgba(225,29,72,.28) 0%,rgba(19,29,54,.94) 38%,rgba(19,29,54,.94) 100%)}
+.notice-bar.nsd-maint.closed::before{background:linear-gradient(180deg,#fb7185,#e11d48,#9f1239)}
+.nsd-maint.closed .notice-badge{background:rgba(244,63,94,.18);border-color:rgba(251,113,133,.4);color:#fecdd3}
+.nsd-maint.closed .notice-bell{background:linear-gradient(135deg,#f43f5e,#be123c)}
+.nsd-maint.closed .notice-bell::after{border-color:rgba(251,113,133,.7)}
+.nsd-maint .notice-item-ico{background:rgba(245,158,11,.16);color:#fbbf24}
+.nsd-maint.closed .notice-item-ico{background:rgba(244,63,94,.16);color:#fb7185}
+#nsdClosedOverlay{position:fixed;inset:0;z-index:99;background:radial-gradient(circle at 50% 0%,#14213d 0%,#0b1329 62%);display:none;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;overflow-y:auto}
+.nsd-closed-card{width:100%;max-width:440px;text-align:center;background:#131d36;border:1px solid #1e293b;border-radius:22px;padding:34px 24px 24px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.nsd-closed-ic{width:72px;height:72px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(120,53,15,.35);color:#fbbf24;border:1px solid rgba(180,83,9,.45)}
+body.nsd-site-closed{overflow:hidden}
+body.nsd-site-closed>*:not(#nsdClosedOverlay):not(#authGate):not(#toastNotify):not(script):not(style){visibility:hidden!important}
+.nsd-gate-closed{display:none;margin:10px 0 2px;padding:10px 12px;border-radius:12px;background:rgba(120,53,15,.3);border:1px solid rgba(180,83,9,.5);color:#fcd34d;font-size:12px;font-weight:800;line-height:1.55;text-align:center}
+.nsd-opt{background:#0b1329;border:1px solid #1e293b;border-radius:14px;padding:12px;margin-top:12px}
+.nsd-opt-head{display:flex;align-items:center;gap:12px}
+.nsd-opt-title{font-size:13px;font-weight:900;color:#fff}
+.nsd-opt-desc{font-size:10px;font-weight:700;color:#64748b;margin-top:2px;line-height:1.5}
+.nsd-sw{-webkit-appearance:none;appearance:none;width:46px;height:26px;border-radius:999px;background:#334155;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s;border:0;outline:none;margin:0}
+.nsd-sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.nsd-sw:checked{background:#0ea5e9}
+.nsd-sw.danger:checked{background:#e11d48}
+.nsd-sw:checked::after{transform:translateX(20px)}
+.nsd-sitestat{display:block;text-align:center;padding:8px 10px;border-radius:10px;font-size:11px;font-weight:900;letter-spacing:.03em;margin-top:12px}
+.nsd-sitestat.live{background:#064e3b;color:#6ee7b7}
+.nsd-sitestat.notice{background:#78350f;color:#fcd34d}
+.nsd-sitestat.closed{background:#4c0519;color:#fda4af}
 </style>
 </head>
 <body class="min-h-screen antialiased flex flex-col owner-permission-pending">
 <div class="toast-notify" id="toastNotify">
 <span id="toastMsg">Action completed successfully</span>
 </div>
+
+<!-- CLOSED SCREEN (Owner "Close Dashboard" on korle Owner chhara sobar jonno puro page cover kore) -->
+<div id="nsdClosedOverlay" role="alertdialog" aria-live="assertive">
+  <div class="nsd-closed-card">
+    <div class="nsd-closed-ic"><i class="fa-solid fa-lock"></i></div>
+    <h2 style="margin:0;font-size:18px;font-weight:900;color:#fff">Dashboard Temporarily Closed</h2>
+    <p id="nsdClosedMsg" style="margin:12px 0 0;font-size:14px;font-weight:700;color:#cbd5e1;line-height:1.7;white-space:pre-line"></p>
+    <button class="nsd-btn" type="button" style="margin-top:22px" onclick="NSD_AUTH.logout(false)"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+  </div>
+</div>
 <!-- LOGIN GATE: Gmail + Password. Login na korle ei screen puro page cover kore thake (app-er kichu dekha jay na) -->
 <div class="fixed inset-0 z-[100] bg-[#0b1329] flex items-start justify-center p-5 overflow-y-auto" id="authGate" style="position:fixed;inset:0;z-index:100;background:#0b1329;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;box-sizing:border-box">
 <div style="width:100%;max-width:380px;margin:auto 0">
 <div class="nsd-card">
-<img alt="Logo" class="app-logo mx-auto w-14 h-14 rounded-2xl shadow-lg" src="" style="display:block;margin:0 auto 14px;width:56px;height:56px"/>
+<img alt="Logo" class="app-logo mx-auto w-14 h-14 rounded-2xl shadow-lg" src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2338bdf8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230369a1%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M32%2011%20L51%2022%20V42%20L32%2053%20L13%2042%20V22%20Z%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M24%2040%20V25%20L40%2040%20V25%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E" style="display:block;margin:0 auto 14px;width:56px;height:56px"/>
 <h2 id="authGateTitle" style="text-align:center;margin:0;font-size:18px;font-weight:900;color:#fff">Login</h2>
 <p id="authGateStatus" class="nsd-hint" style="text-align:center;margin:8px 0 4px;font-size:11px;line-height:1.5"></p>
+<div id="nsdGateClosed" class="nsd-gate-closed" role="alert"></div>
 <form id="nsdLoginForm" autocomplete="on" novalidate>
 <label class="nsd-lbl" for="nsdLoginEmail">Gmail</label>
 <input id="nsdLoginEmail" class="nsd-input" type="text" name="username" inputmode="email" autocapitalize="none" autocomplete="username" spellcheck="false" placeholder="name@gmail.com">
@@ -762,6 +890,16 @@ try {
 <span class="truncate">Admin Panel</span>
 </button>
 </div>
+<div class="space-y-1.5" data-owner-strict="" style="display:none">
+<p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Access Control</p>
+<button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" onclick="NSD_AUTH.openSite(); toggleSidebar();">
+<span class="w-8 h-8 rounded-lg bg-rose-950/60 border border-rose-800/40 flex items-center justify-center flex-shrink-0 text-rose-400 text-sm">
+<i class="fa-solid fa-power-off"></i>
+</span>
+<span class="truncate flex-1 text-left">Dashboard Control</span>
+<span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-800 text-slate-400" id="nsdSidePill">LIVE</span>
+</button>
+</div>
 <div class="space-y-1.5">
 <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Display</p>
 <button class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/70" data-owner-only="" id="sideBtnHideMode" onclick="openVisibilityModal(); toggleSidebar();">
@@ -847,6 +985,8 @@ try {
 <input accept=".xlsx,.xls,.csv" class="hidden" id="excelReportInput" onchange="importExcelHubReport(event)" type="file"/>
 <input accept=".xlsx,.xls,.csv" class="hidden" id="ageingReportInput" onchange="importAgeingReport(event)" type="file"/>
 </div>
+<!-- MAINTENANCE NOTE (Owner "Maintenance Notice" on korle — Notice ticker-er pashe, same style) -->
+<div id="nsdMaintBanner" class="notice-bar nsd-maint" style="display:none" role="status"><div class="notice-badge"><span class="notice-bell"><i id="nsdMaintBell" class="fa-solid fa-screwdriver-wrench"></i></span><span class="notice-badge-text" id="nsdMaintBadge">Maintenance</span></div><div class="notice-ticker-wrap"><div class="notice-ticker-track" id="nsdMaintTrack"></div></div></div>
 <!-- NOTICE TICKER (unread notifications scroll until marked Read) -->
 <div class="notice-bar" data-hide-key="noticeTicker" id="dashboardNoticeTicker">
 <div class="notice-badge"><span class="notice-bell"><i class="fa-solid fa-bell"></i></span><span class="notice-badge-text">Notice</span></div>
@@ -857,13 +997,13 @@ try {
 <div class="bg-[#131d36] border border-slate-800 rounded-xl px-3.5 py-3 gap-2.5 flex items-center justify-between shadow-md hover:-translate-y-0.5 hover:border-violet-800/60 transition-all duration-200 cursor-pointer" onclick="toggleDashboardNotificationPanel()" title="Open Notice" data-hide-key="cardNotice">
 <div class="min-w-0">
 <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">NOTICE</span>
-<div class="text-lg leading-tight font-black truncate text-violet-400 mt-1">Notice</div>
+<div id="nsdNoticeCardTitle" class="text-lg leading-tight font-black truncate text-violet-400 mt-1">Notice</div>
 <span class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mt-0.5">
-<i class="fa-solid fa-bell"></i> <span id="dashboardNotificationSubText">View Notifications</span>
+<i id="nsdNoticeCardSubI" class="fa-solid fa-bell"></i> <span id="dashboardNotificationSubText">View Notifications</span>
                     </span>
 </div>
-<div class="relative w-9 h-9 shrink-0 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 text-base border border-violet-800/40">
-<i class="fa-solid fa-bell"></i>
+<div id="nsdNoticeCardIcon" class="relative w-9 h-9 shrink-0 bg-violet-950/60 rounded-xl flex items-center justify-center text-violet-400 text-base border border-violet-800/40">
+<i id="nsdNoticeCardIconI" class="fa-solid fa-bell"></i>
 </div>
 </div>
 <div class="bg-[#131d36] border border-slate-800 rounded-xl px-3.5 py-3 gap-2.5 flex items-center justify-between shadow-md hover:-translate-y-0.5 hover:border-amber-800/60 transition-all duration-200 cursor-pointer" onclick="triggerExcelReportImport()" title="Open Performance Checker" data-hide-key="cardPerformance">
@@ -915,24 +1055,11 @@ try {
 </div>
 </div>
 </div>
-<!-- NAVIGATION MENU TRIGGER & TASK TABS BAR -->
-<div class="flex flex-wrap items-center justify-between bg-[#131d36] p-2.5 rounded-xl border border-slate-800 gap-3">
-<div class="flex items-center gap-2">
-<button aria-label="Menu" class="px-3.5 py-2 text-sm font-bold rounded-lg transition bg-sky-600 hover:bg-sky-500 text-white shadow-sm flex items-center justify-center" onclick="toggleSidebar()" title="Menu">
-<i class="fa-solid fa-bars"></i>
-                </button>
-<button class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-slate-700" data-owner-only="" id="topBtnHideMode" onclick="openVisibilityModal()" title="Choose what to hide from users (you always see everything)">
-<i class="fa-solid fa-eye" id="topHideModeIcon"></i> <span id="topHideModeLabel">Hide</span>
-</button>
-</div>
+<!-- TASK TABS BAR (centered) -->
+<div class="flex flex-wrap items-center justify-center bg-[#131d36] p-2.5 rounded-xl border border-slate-800 gap-3">
 <!-- TASK TABS (dynamic) -->
-<div class="flex items-center gap-2 flex-wrap" data-hide-key="taskTabs" id="topTaskTabsContainer">
+<div class="flex items-center justify-center gap-2 flex-wrap" data-hide-key="taskTabs" id="topTaskTabsContainer">
 <!-- Rendered dynamically by renderTaskTabs() -->
-</div>
-<div class="flex items-center gap-2">
-<button class="px-3 py-2 text-xs font-bold rounded-lg transition bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 border border-dashed border-slate-600" data-hide-key="tabsManage" data-owner-only="" onclick="openManageTabsModal()" title="Add / Edit / Remove Tabs">
-<i class="fa-solid fa-sliders"></i> Manage Tabs
-                </button>
 </div>
 </div>
 <!-- MANAGE TABS MODAL -->
@@ -1224,9 +1351,8 @@ try {
 <col style="width: 13%;"/>
 </colgroup>
 <tr>
-<td class="c-date-label text-center" colspan="3">Date</td>
-<td class="c-date-val text-center" colspan="3">
-<input id="m_reportDate" placeholder="DD-MM-YYYY" style="color: #fff;" type="text"/>
+<td class="c-date-label text-center" colspan="3">Dispatch Turnaround Time Report</td>
+<td class="c-date-val text-center" colspan="3">Agent Report<input id="m_reportDate" placeholder="DD-MM-YYYY" style="display:none;" type="text"/>
 </td>
 </tr>
 <tr>
@@ -1366,6 +1492,7 @@ try {
 <div class="header-title">
 <h2 id="closingHeaderTitle">NARSINGDI HUB - CLOSING REPORT</h2>
 <p>Delivery Performance &amp; Operational Summary</p>
+<div class="rpt-date-widget"><div class="rw-circle"><span class="rw-day"></span></div><div class="rw-txt"><span class="rw-mon"></span><span class="rw-year"></span><span class="rw-wk"></span></div></div>
 </div>
 <table class="excel-table" id="fullReportTable">
 <colgroup>
@@ -1593,6 +1720,12 @@ try {
 <button class="ageing-mode-btn" id="ageingModeDeliveryBtn" onclick="ageingSetMode('delivery')" type="button"><i class="fa-solid fa-truck-ramp-box mr-1"></i> Delivery Summary</button>
 <button class="ageing-mode-btn" id="ageingModeReceiveBtn" onclick="ageingSetMode('receive')" type="button"><i class="fa-solid fa-calendar-day mr-1"></i> Parcel Receive Age</button>
 <button class="ageing-mode-btn" id="ageingModeCustomBtn" onclick="ageingSetMode('custom')" type="button"><i class="fa-solid fa-table-list mr-1"></i> Custom Report</button>
+<button class="ageing-mode-btn" id="ageingModeXsaBtn" onclick="ageingSetMode('xsa')" type="button"><i class="fa-solid fa-table-cells mr-1"></i> Status × Age</button>
+<button class="ageing-mode-btn" id="ageingModeXscBtn" onclick="ageingSetMode('xsc')" type="button"><i class="fa-solid fa-list-ol mr-1"></i> Status Count</button>
+<button class="ageing-mode-btn" id="ageingModeXhsBtn" onclick="ageingSetMode('xhs')" type="button"><i class="fa-solid fa-building mr-1"></i> Hub × Status</button>
+<button class="ageing-mode-btn" id="ageingModeXhsaBtn" onclick="ageingSetMode('xhsa')" type="button"><i class="fa-solid fa-sitemap mr-1"></i> Hub › Status × Age</button>
+<button class="ageing-mode-btn" id="ageingEditBtn" type="button" onclick="agEditToggle()" title="Table-er jekono value click kore change korun"><i class="fa-solid fa-pen-to-square mr-1"></i> <span id="ageingEditLbl">Edit Mode: OFF</span></button>
+<button class="ageing-mode-btn hidden" id="ageingEditResetBtn" type="button" onclick="agEditReset()"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Edits</button>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;">
 <label for="ageingRefInput" style="font-weight:600;">Age 0 date:</label>
 <input type="date" id="ageingRefInput" onchange="ageingSetRefDate(this.value)" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;">
@@ -1604,6 +1737,10 @@ try {
 <div class="hidden" id="ageingDeliveryContent"></div>
 <div class="hidden" id="ageingReceiveContent"></div>
 <div class="hidden" id="ageingCustomContent"></div>
+<div class="hidden" id="ageingXsaContent"></div>
+<div class="hidden" id="ageingXscContent"></div>
+<div class="hidden" id="ageingXhsContent"></div>
+<div class="hidden" id="ageingXhsaContent"></div>
 <div id="ageingReportContent">
 <div class="ageing-card" style="margin-top:18px;">
 <div style="padding:45px 25px;text-align:center;">
@@ -2061,6 +2198,49 @@ try {
   </div>
 </div>
 
+<!-- ===== DASHBOARD CONTROL (sudhu primary Owner — Admin-ra dekhbe na, change korte parbe na) ===== -->
+<div id="nsdSiteCtl" class="nsd-overlay" style="display:none;z-index:96" onclick="if(event.target===this)NSD_AUTH.closeSite()">
+  <div class="nsd-sheet wide">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="font-size:16px;font-weight:900;color:#fff;margin:0">Dashboard Control</h2>
+        <div class="nsd-hint" style="margin-top:2px">Owner only &mdash; Admin ba Incharge eta dekhte ba change korte pare na.</div>
+      </div>
+      <button class="nsd-x" type="button" onclick="NSD_AUTH.closeSite()" title="Close">&times;</button>
+    </div>
+    <div id="nsdSiteStatus" class="nsd-sitestat live"></div>
+
+    <div class="nsd-opt">
+      <div class="nsd-opt-head">
+        <div style="flex:1;min-width:0">
+          <div class="nsd-opt-title"><i class="fa-solid fa-screwdriver-wrench" style="color:#fbbf24;margin-right:6px"></i>Maintenance Notice</div>
+          <div class="nsd-opt-desc">Dashboard cholbe. Sob user-er upore ekta notice dekhabe (jemon &ldquo;ekhon kaj cholche&rdquo;).</div>
+        </div>
+        <input id="nsdSiteNoticeOn" class="nsd-sw" type="checkbox" aria-label="Maintenance notice on/off">
+      </div>
+      <label class="nsd-lbl" for="nsdSiteNoticeMsg">Notice message</label>
+      <textarea id="nsdSiteNoticeMsg" class="nsd-input" rows="2" maxlength="300" style="resize:vertical;font-family:inherit"></textarea>
+    </div>
+
+    <div class="nsd-opt">
+      <div class="nsd-opt-head">
+        <div style="flex:1;min-width:0">
+          <div class="nsd-opt-title"><i class="fa-solid fa-lock" style="color:#fb7185;margin-right:6px"></i>Close Dashboard</div>
+          <div class="nsd-opt-desc">Owner chhara kew dhukte parbe na. Sobar screen-e nicher message dekhabe.</div>
+        </div>
+        <input id="nsdSiteClosedOn" class="nsd-sw danger" type="checkbox" aria-label="Close dashboard on/off">
+      </div>
+      <label class="nsd-lbl" for="nsdSiteClosedMsg">Closed message</label>
+      <textarea id="nsdSiteClosedMsg" class="nsd-input" rows="2" maxlength="300" style="resize:vertical;font-family:inherit"></textarea>
+    </div>
+
+    <label class="nsd-lbl" for="nsdSitePw">Confirm with your Owner password</label>
+    <div class="nsd-pwrow"><input id="nsdSitePw" class="nsd-input" type="password" autocomplete="current-password" placeholder="Owner password"><button class="nsd-eye" type="button" onclick="NSD_AUTH.togglePw('nsdSitePw',this)">Show</button></div>
+    <div id="nsdSiteErr" class="nsd-err" role="alert"></div>
+    <button class="nsd-btn primary" type="button" onclick="NSD_AUTH.saveSite()">Save changes</button>
+  </div>
+</div>
+
 <!-- ===== ADMIN PANEL (sudhu Owner / Admin) ===== -->
 <div id="nsdAdminPanel" class="nsd-overlay" style="display:none;z-index:95" onclick="if(event.target===this)NSD_AUTH.closeAdmin()">
   <div class="nsd-sheet wide">
@@ -2199,11 +2379,11 @@ const ACCOUNTS = [
   }
 
   /* =================== STATE (accounts, remove list, profiles) =================== */
-  function emptyState() { return { accounts: {}, removed: {}, profiles: {}, owner: null }; }
+  function emptyState() { return { accounts: {}, removed: {}, profiles: {}, owner: null, site: null }; }
   function loadState() {
     try {
       var s = JSON.parse(localStorage.getItem(LS_STATE));
-      if (s && typeof s === 'object') return { accounts: s.accounts || {}, removed: s.removed || {}, profiles: s.profiles || {}, owner: s.owner || null };
+      if (s && typeof s === 'object') return { accounts: s.accounts || {}, removed: s.removed || {}, profiles: s.profiles || {}, owner: s.owner || null, site: (s.site && typeof s.site === 'object') ? s.site : null };
     } catch (e) {}
     return emptyState();
   }
@@ -2284,6 +2464,7 @@ const ACCOUNTS = [
     for (k in (t.removed || {})) { if (t.removed[k]) s.removed[decKey(k)] = 1; }
     for (k in (t.profiles || {})) { v = t.profiles[k]; if (v && typeof v === 'object') s.profiles[decKey(k)] = v; }
     if (t.owner && typeof t.owner === 'object') s.owner = t.owner;
+    if (t.site && typeof t.site === 'object') s.site = t.site;
     state = s; saveState(); changed();
   }
   function dbFlush() {
@@ -2390,6 +2571,9 @@ const ACCOUNTS = [
       var ok = makeHash(email, pw) === a.hash;
       if (!ok) { var t = trimEnd(pw); if (t && t !== pw) ok = makeHash(email, t) === a.hash; }   // shesh-er extra space trim kore abar try
       if (!ok) { failAttempt('password thik nai'); return; }
+      /* Dashboard closed thakle Owner chhara kew login korte parbe na (bhul-password count hobe na) */
+      var stc = siteState();
+      if (stc.closedOn && a.role !== 'owner') { writeLock({ n: 0, until: 0 }); $('nsdLoginPw').value = ''; setHint(''); setErr(stc.closedMsg); updateLoginUi(); return; }
       writeLock({ n: 0, until: 0 }); setHint(''); setErr('');
       $('nsdLoginPw').value = '';
       writeSession(email);
@@ -2449,6 +2633,7 @@ const ACCOUNTS = [
     var slb = $('sidebarLogoutBtn'); if (slb) slb.classList.toggle('hidden', !u);   /* Navigation Menu er Logout: login thakle-i dekhay */
     if (!u) { var open = $('nsdProfileSheet'); if (open) open.style.display = 'none'; }
     else if ($('nsdProfileSheet').style.display !== 'none') fillProfile(false);
+    applySite();
   }
 
   /* =================== PROFILE (name, photo) =================== */
@@ -2474,12 +2659,13 @@ const ACCOUNTS = [
     var item = 'display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;border-radius:10px;background:transparent;font-size:12px;font-weight:800;cursor:pointer;text-align:left;';
     m.innerHTML =
       (isAdm(u) ? '<button type="button" data-mn="admin" style="' + item + 'color:#e2e8f0"><i class="fa-solid fa-user-shield" style="width:16px;color:#38bdf8"></i> Admin Panel</button>' : '') +
+      (isOwnerUser(u) ? '<button type="button" data-mn="site" style="' + item + 'color:#e2e8f0"><i class="fa-solid fa-power-off" style="width:16px;color:#fb7185"></i> Dashboard Control</button>' : '') +
       '<button type="button" data-mn="logout" style="' + item + 'color:#fda4af"><i class="fa-solid fa-right-from-bracket" style="width:16px"></i> Logout</button>';
     m.addEventListener('mouseover', function (e) { var b = e.target.closest('[data-mn]'); m.querySelectorAll('[data-mn]').forEach(function (x) { x.style.background = x === b ? '#1e293b' : 'transparent'; }); });
     m.addEventListener('click', function (e) {
       var b = e.target.closest('[data-mn]'); if (!b) return;
       closeMenu();
-      if (b.getAttribute('data-mn') === 'admin') openAdmin(); else logout(true);
+      var act = b.getAttribute('data-mn'); if (act === 'admin') openAdmin(); else if (act === 'site') openSite(); else logout(true);
     });
     document.body.appendChild(m);
     document.addEventListener('click', onMenuOutside, true);
@@ -2715,6 +2901,159 @@ const ACCOUNTS = [
     setInterval(function () { changed(); }, 20000);   // file/config-er por role ba access bodlaleo dhore felbe
   }
 
+  /* =================== SITE CONTROL (sudhu primary Owner) ===================
+     Database-e save hoy:  /nsdAuth/site  =  { notice:{on,msg}, closed:{on,msg}, by, at }
+     1) Maintenance Notice : user-ra dhukte pare, upore notice banner dekhay.
+     2) Close Dashboard    : Owner chhara kew dhukte pare na; sobar screen-e closed message dekhay.
+     Control kora jay sudhu role === 'owner' (OWNER_EMAIL) — Admin/Incharge na. Save-er somoy Owner password lage. */
+  var DEF_NOTICE = 'এই মুহূর্তে ড্যাশবোর্ডে কাজ চলছে। সাময়িক অসুবিধার জন্য আমরা দুঃখিত।';
+  var DEF_CLOSED = 'ড্যাশবোর্ডটি সাময়িকভাবে বন্ধ আছে। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।';
+  function isOwnerUser(u) { return !!u && u.role === 'owner'; }
+  function siteState() {
+    var s = (state && state.site) || {}, n = s.notice || {}, c = s.closed || {};
+    return {
+      noticeOn: n.on === true, noticeMsg: String(n.msg || '').trim() || DEF_NOTICE,
+      closedOn: c.on === true, closedMsg: String(c.msg || '').trim() || DEF_CLOSED
+    };
+  }
+  function fitMaint() {
+    var tr = $('nsdMaintTrack'); if (!tr || !tr.parentElement) return;
+    var c = tr.parentElement.clientWidth, w = tr.offsetWidth; if (!c || !w) return;
+    if (tr.dataset.tkC !== String(c) || tr.dataset.tkW !== String(w)) {
+      tr.dataset.tkC = String(c); tr.dataset.tkW = String(w);
+      tr.style.setProperty('--tk-to', c + 'px');
+      tr.style.animationDuration = Math.max(6, Math.round((w + c) / 130)) + 's';
+    }
+  }
+  window.addEventListener('resize', fitMaint);
+  /* ---- Maintenance note ke Notice card + Notice panel-eo dekhano (jekhane notice show hoy) ---- */
+  function maintInfo() {
+    var u = user(), st = siteState(), owner = isOwnerUser(u);
+    var ownerClosed = owner && st.closedOn, blocked = st.closedOn && !!u && !owner;
+    return {
+      on: !!u && !blocked && (st.noticeOn || ownerClosed), closed: ownerClosed,
+      ttl: ownerClosed ? 'Closed' : 'Maintenance',
+      txt: ownerClosed ? 'ড্যাশবোর্ড এখন ইউজারদের জন্য বন্ধ আছে — শুধু আপনি (Owner) এটি দেখতে পাচ্ছেন।' : st.noticeMsg,
+      ico: ownerClosed ? 'fa-lock' : 'fa-screwdriver-wrench'
+    };
+  }
+  function applyMaintCard(mi) {
+    var t = $('nsdNoticeCardTitle'), ib = $('nsdNoticeCardIcon'), ii = $('nsdNoticeCardIconI'), si = $('nsdNoticeCardSubI'), sub = $('dashboardNotificationSubText');
+    if (!t || !ib || !sub) return;
+    if (mi.on) {
+      var rose = mi.closed;
+      t.textContent = mi.ttl; t.style.color = rose ? '#fb7185' : '#fbbf24';
+      ib.style.cssText = rose ? 'background:rgba(136,19,55,.5);border-color:rgba(190,18,60,.5);color:#fb7185' : 'background:rgba(120,53,15,.5);border-color:rgba(180,83,9,.5);color:#fbbf24';
+      if (ii) ii.className = 'fa-solid ' + mi.ico; if (si) si.className = 'fa-solid ' + mi.ico;
+      sub.textContent = mi.txt; sub.dataset.nsd = '1';
+      sub.style.cssText = 'display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0';
+      if (sub.parentElement) sub.parentElement.style.cssText = 'max-width:100%;min-width:0';
+    } else if (sub.dataset.nsd === '1') {   /* off hole ager Notice card-e fire jao */
+      sub.dataset.nsd = ''; t.textContent = 'Notice'; t.style.color = ''; ib.style.cssText = '';
+      if (ii) ii.className = 'fa-solid fa-bell'; if (si) si.className = 'fa-solid fa-bell';
+      sub.style.cssText = ''; if (sub.parentElement) sub.parentElement.style.cssText = '';
+      sub.textContent = 'View Notifications';
+      try { if (typeof window.renderDashboardNotificationTab === 'function') window.renderDashboardNotificationTab(); } catch (e) {}
+    }
+  }
+  function applyMaintList(mi) {
+    var list = $('dashboardNotificationList'); if (!list) return;
+    var old = list.querySelector('[data-nsd-maint]'); if (old) old.remove();
+    if (!mi.on) return;
+    if (list.children.length === 1 && /No new notifications/i.test(list.textContent)) list.innerHTML = '';
+    var d = document.createElement('div'); d.setAttribute('data-nsd-maint', '');
+    d.className = 'bg-[#0b1329] border rounded-xl p-3 ' + (mi.closed ? 'border-rose-800/60' : 'border-amber-800/60');
+    d.innerHTML = '<div class="flex items-start gap-3"><span class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs ' + (mi.closed ? 'bg-rose-950/70 text-rose-400' : 'bg-amber-950/70 text-amber-400') + '"><i class="fa-solid ' + mi.ico + '"></i></span>' +
+      '<div class="min-w-0"><div class="text-[11px] font-black ' + (mi.closed ? 'text-rose-300' : 'text-amber-300') + '">' + esc(mi.ttl) + '</div>' +
+      '<div class="text-[10px] text-slate-300 mt-1 leading-relaxed whitespace-pre-wrap">' + esc(mi.txt) + '</div></div></div>';
+    list.insertBefore(d, list.firstChild);
+  }
+  function maintRefresh() { var mi = maintInfo(); applyMaintCard(mi); applyMaintList(mi); fitMaint(); }
+  /* main app-er Notice render hoye gele-i amar maintenance note abar boshe (nahole app overwrite kore felto) */
+  function hookNoticeRender() {
+    try {
+      var f = window.renderDashboardNotificationTab;
+      if (typeof f === 'function' && !f.__nsd) {
+        var w = function () { var r = f.apply(this, arguments); try { maintRefresh(); } catch (e) {} return r; };
+        w.__nsd = 1; window.renderDashboardNotificationTab = w;
+      }
+    } catch (e) {}
+    maintRefresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hookNoticeRender); else hookNoticeRender();
+  function applySite() {
+    var u = user(), st = siteState(), owner = isOwnerUser(u), blocked = st.closedOn && !!u && !owner;
+    document.body.classList.toggle('nsd-site-closed', blocked);
+    var ov = $('nsdClosedOverlay');
+    if (ov) { ov.style.display = blocked ? 'flex' : 'none'; var cm = $('nsdClosedMsg'); if (cm) cm.textContent = st.closedMsg; }
+    var gn = $('nsdGateClosed');
+    if (gn) { gn.style.display = (st.closedOn && !u) ? 'block' : 'none'; gn.textContent = st.closedMsg; }
+    var b = $('nsdMaintBanner');
+    if (b) {
+      var ownerClosed = owner && st.closedOn, show = !!u && !blocked && (st.noticeOn || ownerClosed);
+      b.style.display = show ? 'flex' : 'none';
+      if (show) {
+        var ttl = ownerClosed ? 'Closed' : 'Maintenance';
+        var txt = ownerClosed ? 'ড্যাশবোর্ড এখন ইউজারদের জন্য বন্ধ আছে — শুধু আপনি (Owner) এটি দেখতে পাচ্ছেন।' : st.noticeMsg;
+        var ico = ownerClosed ? 'fa-lock' : 'fa-screwdriver-wrench';
+        b.className = 'notice-bar nsd-maint' + (ownerClosed ? ' closed' : '');
+        $('nsdMaintBell').className = 'fa-solid ' + ico; $('nsdMaintBadge').textContent = ttl;
+        var tr = $('nsdMaintTrack'), sig = ttl + '|' + txt;
+        if (tr.dataset.sig !== sig) {   /* sudhu message bodlale rebuild, nahole scroll restart hoy */
+          tr.dataset.sig = sig; tr.dataset.tkC = '';
+          tr.innerHTML = '<span class="notice-item"><span class="notice-item-ico"><i class="fa-solid ' + ico + '"></i></span><span class="notice-item-title">' + esc(ttl) + '</span><span class="notice-item-msg">' + esc(String(txt).replace(/\s+/g, ' ')) + '</span></span>';
+        }
+        fitMaint();
+      }
+    }
+    document.querySelectorAll('[data-owner-strict]').forEach(function (el) { el.style.display = owner ? '' : 'none'; });
+    var pill = $('nsdSidePill');
+    if (pill) {
+      pill.textContent = st.closedOn ? 'CLOSED' : st.noticeOn ? 'NOTICE' : 'LIVE';
+      pill.className = 'px-2 py-0.5 rounded-full text-[9px] font-black ' + (st.closedOn ? 'bg-rose-900 text-rose-200' : st.noticeOn ? 'bg-amber-900 text-amber-200' : 'bg-slate-800 text-slate-400');
+    }
+    maintRefresh();
+    renderSiteStatus();
+  }
+  function renderSiteStatus() {
+    var el = $('nsdSiteStatus'); if (!el) return; var st = siteState();
+    el.className = 'nsd-sitestat ' + (st.closedOn ? 'closed' : st.noticeOn ? 'notice' : 'live');
+    el.textContent = st.closedOn ? 'CLOSED — ইউজাররা ঢুকতে পারছে না' : st.noticeOn ? 'NOTICE ON — ইউজারদের উপরে নোটিশ দেখাচ্ছে' : 'LIVE — সব স্বাভাবিক';
+  }
+  function openSite() {
+    if (!isOwnerUser(user())) { toast('Only the Owner can use Dashboard Control'); return; }
+    closeProfile(); closeAdmin();
+    var st = siteState();
+    $('nsdSiteNoticeOn').checked = st.noticeOn; $('nsdSiteNoticeMsg').value = st.noticeMsg;
+    $('nsdSiteClosedOn').checked = st.closedOn; $('nsdSiteClosedMsg').value = st.closedMsg;
+    $('nsdSitePw').value = ''; $('nsdSiteErr').textContent = '';
+    renderSiteStatus();
+    $('nsdSiteCtl').style.display = 'flex';
+  }
+  function closeSite() { var p = $('nsdSiteCtl'); if (p) p.style.display = 'none'; }
+  function saveSite() {
+    var err = $('nsdSiteErr'); err.textContent = '';
+    if (!isOwnerUser(user())) { err.textContent = 'Only the Owner can change this.'; return; }
+    var pw = $('nsdSitePw').value, a = accountsMap()[OWNER];
+    var ok = !!(a && pw && (makeHash(OWNER, pw) === a.hash || makeHash(OWNER, trimEnd(pw)) === a.hash));
+    if (!ok) { err.textContent = 'Owner password thik nai.'; return; }
+    var nOn = $('nsdSiteNoticeOn').checked, cOn = $('nsdSiteClosedOn').checked;
+    var nMsg = $('nsdSiteNoticeMsg').value.trim().slice(0, 300), cMsg = $('nsdSiteClosedMsg').value.trim().slice(0, 300);
+    if (nOn && !nMsg) { err.textContent = 'Notice message likhun.'; return; }
+    if (cOn && !cMsg) { err.textContent = 'Closed message likhun.'; return; }
+    function commit() {
+      var rec = { notice: { on: nOn, msg: nMsg }, closed: { on: cOn, msg: cMsg }, by: OWNER, at: Date.now() };
+      state.site = rec; saveState(); applySite();
+      dbSet('/site', rec);
+      $('nsdSitePw').value = ''; closeSite();
+      toast(cOn ? 'Dashboard closed for users' : nOn ? 'Maintenance notice is live' : 'Dashboard is live (normal)');
+    }
+    if (cOn && !siteState().closedOn) {
+      ask({ title: 'Close dashboard?', icon: 'fa-lock', tone: 'danger', ok: 'Close it',
+        html: '<div class="nsd-hint" style="font-size:12px;line-height:1.6">Owner chhara sob user sathe sathe block hoye jabe ar closed message dekhbe. Apni pore ei option off korle abar khule jabe.</div>' }, commit);
+    } else commit();
+  }
+
   /* =================== public API =================== */
   window.NSD_AUTH = {
     user: user,
@@ -2724,6 +3063,7 @@ const ACCOUNTS = [
     focusLogin: function () { var e = $('nsdLoginEmail'); if (e) e.focus(); },
     toggleMenu: toggleMenu, openProfile: openProfile, closeProfile: closeProfile, saveProfile: saveProfile, removePhoto: removePhoto,
     openAdmin: openAdmin, closeAdmin: closeAdmin, adminDone: adminDone,
+    openSite: openSite, closeSite: closeSite, saveSite: saveSite,
     togglePw: togglePw, copyEl: copyEl, makeLine: makeLine, saveOwner: saveOwner, closeHash: closeHash,
     _t: { sha256: sha256, encKey: encKey, decKey: decKey, accountsMap: accountsMap, makeHash: makeHash }
   };
@@ -2902,13 +3242,6 @@ const ACCOUNTS = [
         const LS_STATE_KEY = 'narsingdi_dashboard_state_v1';
         const pendingWrites = { hubList: 0, reports: {}, attendance: {}, inventory: {} };
 
-        function debounce(fn, wait) {
-            let t;
-            return function (...args) {
-                clearTimeout(t);
-                t = setTimeout(() => fn.apply(this, args), wait);
-            };
-        }
 
         let lastCloudErrorToast = 0;
         function cloudFail(e) {
@@ -3158,12 +3491,6 @@ const ACCOUNTS = [
             queueSharedDocument('config/notices', { clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds })
                 .finally(() => { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); });
         }
-        async function writeNoticesNow() {
-            if (!cloudDb) return;
-            noticeWriteInFlight++;
-            try { await queueSharedDocument('config/notices', { clusterNotices, dismissedNoticeIds: cloudDismissedNoticeIds }); }
-            finally { noticeWriteInFlight = Math.max(0, noticeWriteInFlight - 1); }
-        }
         function cloudSyncUiHide() {
             if (!cloudDb || !dashboardOwnerUid) return;
             queueSharedDocument('ownerSettings/' + dashboardOwnerUid, { uiHide, updatedAt: Date.now() });
@@ -3310,21 +3637,6 @@ const ACCOUNTS = [
             }
         }
 
-        async function openOwnerAccessModal() {
-            if (!myAccess.isOwner) {
-                // Re-check once because Google auth and owner status can finish asynchronously.
-                try { await refreshGoogleOwnerStatus(); } catch (e) {}
-            }
-            if (!myAccess.isOwner) {
-                showToast('Only the owner can manage Owner Access');
-                return;
-            }
-            const modal = document.getElementById('ownerAccessModal');
-            if (modal) modal.classList.remove('hidden');
-            const input = document.getElementById('ownerAccessEmail');
-            if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
-            await renderOwnerAccessList();
-        }
 
         function closeOwnerAccessModal() {
             document.getElementById('ownerAccessModal')?.classList.add('hidden');
@@ -3567,25 +3879,7 @@ const ACCOUNTS = [
             }
         });
 
-                function googleAuthErrorMessage(e) {
-            const code = e && e.code ? String(e.code) : '';
-            const map = {
-                'auth/unauthorized-domain': 'This website domain is not authorized in Firebase. Add your GitHub Pages domain in Firebase Authentication → Settings → Authorized domains.',
-                'auth/popup-blocked': 'Google sign-in popup was blocked. Allow popups for this site and try again.',
-                'auth/popup-closed-by-user': 'Google sign-in was cancelled. Please try again.',
-                'auth/cancelled-popup-request': 'A Google sign-in window is already open. Please complete it first.',
-                'auth/network-request-failed': 'Network error. Check your internet connection and try again.',
-                'auth/operation-not-allowed': 'Google sign-in is not enabled in Firebase Authentication → Sign-in method.',
-                'auth/invalid-api-key': 'Firebase API key is invalid. Check the Firebase web app configuration.',
-                'auth/app-not-authorized': 'This Firebase app is not authorized for this domain.'
-            };
-            return map[code] || ('Google sign-in failed' + (code ? ' (' + code + ')' : '') + '. Check the browser console for details.');
-        }
 
-        function setGateMessage(msg) {
-            const el = document.getElementById('authGateStatus');
-            if (el) el.textContent = msg;
-        }
 
         /* Purono Google login ar nai. Ei naam-gulo ager code-er jonno rakha holo (shim) — asol kaj NSD_AUTH (nsdAuthModule) kore. */
         async function googleSignIn() { try { NSD_AUTH.focusLogin(); } catch (e) {} }
@@ -5365,13 +5659,6 @@ const ACCOUNTS = [
             try { runReportValidation(); } catch (e) {}
         }
 
-        function formatCurrentTime12Hour(date = new Date()) {
-            let hours = date.getHours();
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
-        }
 
         function resetReportFormToDefault() {
             const today = new Date();
@@ -6778,36 +7065,8 @@ const ACCOUNTS = [
             } catch (e) {}
         }
 
-        function openAddNoticeModal() {
-            document.getElementById('noticeForm').reset();
-            document.getElementById('addNoticeModal').classList.remove('hidden');
-        }
 
-        function closeAddNoticeModal() {
-            document.getElementById('addNoticeModal').classList.add('hidden');
-            document.getElementById('noticeForm').reset();
-        }
 
-        function handleSaveNotice(event) {
-            event.preventDefault();
-            const title = document.getElementById('noticeTitleInput').value.trim();
-            const message = document.getElementById('noticeMessageInput').value.trim();
-            const severity = document.getElementById('noticeSeverityInput').value;
-
-            clusterNotices.unshift({
-                id: 'notice_' + Date.now(),
-                title,
-                message,
-                severity,
-                createdAt: new Date().toISOString(),
-                responses: {}
-            });
-
-            saveNoticesToStorage();
-            renderClusterNotices();
-            closeAddNoticeModal();
-            showToast('Notice posted for everyone to see!');
-        }
 
         function getNoticeResponseKey() {
             return currentUser?.uid || currentUser?.email || 'local_user';
@@ -7383,10 +7642,6 @@ const ACCOUNTS = [
             setTimeout(() => { try { el.focus(); if (el.select) el.select(); } catch (e) {} }, 350);
         }
 
-        function rcvToggleList() {
-            __rcvListOpen = !__rcvListOpen;
-            rcvRenderPanel(__rcvIssues, 1);
-        }
 
         function rcvToggleMarks() {
             const view = document.getElementById('hubReportView');
@@ -7923,7 +8178,7 @@ const ACCOUNTS = [
             });
             set('sideHideModeIcon', el => el.className = 'fa-solid ' + (n ? 'fa-eye-slash' : 'fa-eye'));
             set('sideHideModePill', el => {
-                el.textContent = n ? String(n) : 'OFF';
+                el.textContent = n ? ('Hide (' + n + ')') : 'OFF';
                 el.className = 'px-2 py-0.5 rounded-full text-[9px] font-black ' + (n ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400');
             });
             set('visCount', el => el.textContent = n ? (n + ' of ' + known.length + ' hidden from users') : 'Nothing is hidden - all users see everything');
@@ -7931,19 +8186,6 @@ const ACCOUNTS = [
 
         /* Owner account controls visibility directly. No PIN is required. */
         let uiPinOk = false;
-        function requirePin() { return false; }
-        function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
-        function submitPin() { closePinModal(); }
-
-        function getSignedInOwnerEmail() {
-            try {
-                return String(
-                    currentUser?.email ||
-                    currentUser?.providerData?.find(p => p && p.email)?.email ||
-                    ''
-                ).trim().toLowerCase();
-            } catch (e) { return ''; }
-        }
 
         function isPrimaryOwnerAccount() {
             const email = getSignedInOwnerEmail();
@@ -7972,18 +8214,6 @@ const ACCOUNTS = [
             return !!myAccess.isOwner;
         }
 
-        // Old buttons/shortcuts that used to flip a global ON/OFF now simply open the Hide panel.
-        function toggleHideMode() { openVisibilityModal(); }
-
-        async function toggleHideKey(key, hide) {
-            if (!(await ensureOwnerAccess())) { showToast('Only the owner can change visibility settings'); renderVisibilityList(); return; }
-            const has = uiHide.keys.includes(key);
-            if (hide && !has) uiHide.keys.push(key);
-            if (!hide && has) uiHide.keys = uiHide.keys.filter(k => k !== key);
-            uiHide.active = uiHide.keys.length > 0;
-            saveUiHide();
-            applyUiHide();
-        }
 
         async function setHidePreset(kind) {
             if (!(await ensureOwnerAccess())) { showToast('Only the owner can change visibility settings'); return; }
@@ -8093,12 +8323,6 @@ const ACCOUNTS = [
                 return `${h}:${String(min).padStart(2, '0')} ${ap}`;
             }
 
-            function normalizeReportTimes() {
-                ['m_vanInTime', 'm_dispatchTime'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && el.value) el.value = normalizeTime12(el.value);
-                });
-            }
 
             document.querySelectorAll('#hubReportView input, #hubReportView select').forEach(el => {
                 el.addEventListener('blur', () => {
@@ -8745,7 +8969,7 @@ const ACCOUNTS = [
         }
 
         function ageingSetMode(mode) {
-            ageingMode = ['pivot', 'delivery', 'receive', 'custom'].includes(mode) ? mode : 'pivot';
+            ageingMode = ['pivot', 'delivery', 'receive', 'custom', 'xsa', 'xsc', 'xhs', 'xhsa'].includes(mode) ? mode : 'pivot';
             agClearSel();
             document.getElementById('ageingReportContent')?.classList.toggle('hidden', ageingMode !== 'pivot');
             document.getElementById('ageingDeliveryContent')?.classList.toggle('hidden', ageingMode !== 'delivery');
@@ -8758,6 +8982,7 @@ const ACCOUNTS = [
             if (ageingMode === 'delivery') renderAgeingDelivery();
             if (ageingMode === 'receive') renderAgeingReceive();
             if (ageingMode === 'custom') renderAgeingCustom();
+            agxApplyMode();
         }
 
         function ageingUniqueValues(key) {
@@ -9226,6 +9451,182 @@ const ACCOUNTS = [
             </div>`;
         }
 
+        /* =================== AGEING: EXCEL-FORMAT PIVOTS =================== */
+        const AGX_MODES = {
+            xsa:  { btn: 'ageingModeXsaBtn',  box: 'ageingXsaContent',  label: 'Status × Age' },
+            xsc:  { btn: 'ageingModeXscBtn',  box: 'ageingXscContent',  label: 'Status Count' },
+            xhs:  { btn: 'ageingModeXhsBtn',  box: 'ageingXhsContent',  label: 'Hub × Status' },
+            xhsa: { btn: 'ageingModeXhsaBtn', box: 'ageingXhsaContent', label: 'Hub › Status × Age' }
+        };
+        function agxApplyMode() {
+            Object.keys(AGX_MODES).forEach(k => {
+                document.getElementById(AGX_MODES[k].box)?.classList.toggle('hidden', ageingMode !== k);
+                document.getElementById(AGX_MODES[k].btn)?.classList.toggle('active', ageingMode === k);
+            });
+            if (ageingMode === 'xsa') renderAgeingXsa();
+            if (ageingMode === 'xsc') renderAgeingXsc();
+            if (ageingMode === 'xhs') renderAgeingXhs();
+            if (ageingMode === 'xhsa') renderAgeingXhsa();
+        }
+        function agxAlpha(a, b) { return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }); }
+        function agxAgeKey(r) { return r.age === null ? 'blank' : r.age; }
+        function agxColLabel(c) { return c === 'blank' ? '(blank)' : String(c); }
+        function agxToolbar(kind, sub) {
+            return `<div class="ageing-result-meta ageing-no-print">
+                <span>${ageingSafe(AGX_MODES[kind].label)} <span style="color:#64748b;font-weight:600;">— ${ageingSafe(sub)}</span></span>
+                <span style="display:inline-flex;gap:7px;flex-wrap:wrap;">
+                    <button type="button" class="ageing-mode-btn" onclick="ageingViewCopy('${kind}')"><i class="fa-solid fa-copy mr-1"></i> Copy Table</button>
+                    <button type="button" class="ageing-mode-btn" onclick="ageingViewExcel('${kind}')"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+                    <button type="button" class="ageing-mode-btn" onclick="printAgeingReport()"><i class="fa-solid fa-print mr-1"></i> Print / PDF</button>
+                </span>
+            </div>`;
+        }
+        // common data prep; returns null (and paints a message) when the report cannot be built
+        function agxPrepare(kind) {
+            const host = document.getElementById(AGX_MODES[kind].box);
+            if (!host) return null;
+            ageingViewStore[kind] = [];
+            ageingViewExport[kind] = null;
+            const sub = `Report date: ${ageingDateText(ageingReportDate || new Date())}  |  ${ageingRows.length} consignments`;
+            const statusKey = ageingStatusKey();
+            if (!statusKey) {
+                host.innerHTML = `<div class="ag-x-card"><div class="ag-pv-empty">এই file-এ Status column পাওয়া যায়নি।</div></div>`;
+                return null;
+            }
+            if (!ageingRows.length) {
+                host.innerHTML = `<div class="ag-x-card"><div class="ag-pv-empty">No data found.</div></div>`;
+                return null;
+            }
+            const recs = ageingRows.map(r => ({
+                st: String(r[statusKey] ?? '').trim() || '(blank)',
+                hub: ageingHub(r) || '(blank)',
+                age: ageingAgeOf(r),
+                id: ageingConsignmentId(r)
+            }));
+            return { host, sub, recs };
+        }
+        function agxAgeCols(recs) {
+            const set = new Set(); let blank = false;
+            recs.forEach(r => { if (r.age === null) blank = true; else set.add(r.age); });
+            const ages = [...set].sort((a, b) => a - b);
+            return blank ? [...ages, 'blank'] : ages;
+        }
+        function agxGroup(recs, keyFn) {
+            const m = new Map();
+            recs.forEach(r => { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r.id); });
+            return m;
+        }
+        function agxBtn(kind, title, ids) { return ids && ids.length ? ageingViewCountBtn(kind, title, ids) : ''; }
+        function agxFinish(kind, p, tableClass, headHtml, bodyHtml, exportRows) {
+            ageingViewExport[kind] = { name: AGX_MODES[kind].label.replace(/[×›]/g, 'x').replace(/\s+/g, ' ').trim(), rows: exportRows };
+            p.host.innerHTML = agxToolbar(kind, p.sub) + `<div class="ag-x-card">
+                <table class="ag-pv-table ag-x-table ${tableClass}">
+                    <thead>${headHtml}</thead>
+                    <tbody>${bodyHtml}</tbody>
+                </table>
+            </div>`;
+        }
+        function agxMatrixHead(corner, cols) {
+            return `<tr class="h1"><th class="l">Count of ConsignmentId</th><th class="l" colspan="${cols.length + 1}">Column Labels</th></tr>` +
+                   `<tr class="h2"><th class="l">${corner}</th>${cols.map(c => `<th>${ageingSafe(c.label)}</th>`).join('')}<th>Grand Total</th></tr>`;
+        }
+
+        // 1) Status (rows) x Age (columns)
+        function renderAgeingXsa() {
+            const p = agxPrepare('xsa'); if (!p) return;
+            const ageCols = agxAgeCols(p.recs);
+            const cols = ageCols.map(c => ({ key: c, label: agxColLabel(c) }));
+            const sts = [...new Set(p.recs.map(r => r.st))].sort(agxAlpha);
+            const g = agxGroup(p.recs, r => r.st + '\u0001' + agxAgeKey(r));
+            const colTot = cols.map(() => 0); let grand = 0;
+            const ex = [['Count of ConsignmentId', 'Column Labels'], ['Row Labels', ...cols.map(c => c.label), 'Grand Total']];
+            const body = sts.map(st => {
+                let rt = 0; const line = [st];
+                const cells = cols.map((c, i) => {
+                    const ids = g.get(st + '\u0001' + c.key) || [];
+                    rt += ids.length; colTot[i] += ids.length; line.push(ids.length || '');
+                    return `<td>${agxBtn('xsa', `${st} — Age ${c.label}`, ids)}</td>`;
+                }).join('');
+                grand += rt; line.push(rt); ex.push(line);
+                return `<tr><td class="l">${ageingSafe(st)}</td>${cells}<td class="gc">${rt}</td></tr>`;
+            }).join('') + `<tr class="gt"><td class="l">Grand Total</td>${colTot.map(n => `<td>${n || ''}</td>`).join('')}<td>${grand}</td></tr>`;
+            ex.push(['Grand Total', ...colTot.map(n => n || ''), grand]);
+            agxFinish('xsa', p, '', agxMatrixHead('Row Labels', cols), body, ex);
+        }
+
+        // 2) Status count (grey style)
+        function renderAgeingXsc() {
+            const p = agxPrepare('xsc'); if (!p) return;
+            const sts = [...new Set(p.recs.map(r => r.st))].sort(agxAlpha);
+            const g = agxGroup(p.recs, r => r.st);
+            const ex = [['Row Labels', 'Count of ConsignmentId']]; let grand = 0;
+            const body = sts.map(st => {
+                const ids = g.get(st) || []; grand += ids.length; ex.push([st, ids.length]);
+                return `<tr><td class="l">${ageingSafe(st)}</td><td>${agxBtn('xsc', st, ids)}</td></tr>`;
+            }).join('') + `<tr class="gt"><td class="l">Grand Total</td><td>${grand}</td></tr>`;
+            ex.push(['Grand Total', grand]);
+            agxFinish('xsc', p, 'ag-x-grey', `<tr class="h2"><th class="l">Row Labels</th><th>Count of ConsignmentId</th></tr>`, body, ex);
+        }
+
+        // 3) Hub (rows) x Status (columns)
+        function renderAgeingXhs() {
+            const p = agxPrepare('xhs'); if (!p) return;
+            const hubs = [...new Set(p.recs.map(r => r.hub))].sort(agxAlpha);
+            const sts = [...new Set(p.recs.map(r => r.st))].sort(agxAlpha);
+            const cols = sts.map(s => ({ key: s, label: s }));
+            const g = agxGroup(p.recs, r => r.hub + '\u0001' + r.st);
+            const colTot = cols.map(() => 0); let grand = 0;
+            const ex = [['Count of ConsignmentId', 'Column Labels'], ['Row Labels', ...cols.map(c => c.label), 'Grand Total']];
+            const body = hubs.map(h => {
+                let rt = 0; const line = [h];
+                const cells = cols.map((c, i) => {
+                    const ids = g.get(h + '\u0001' + c.key) || [];
+                    rt += ids.length; colTot[i] += ids.length; line.push(ids.length || '');
+                    return `<td>${agxBtn('xhs', `${h} — ${c.label}`, ids)}</td>`;
+                }).join('');
+                grand += rt; line.push(rt); ex.push(line);
+                return `<tr><td class="l">${ageingSafe(h)}</td>${cells}<td class="gc">${rt}</td></tr>`;
+            }).join('') + `<tr class="gt"><td class="l">Grand Total</td>${colTot.map(n => `<td>${n || ''}</td>`).join('')}<td>${grand}</td></tr>`;
+            ex.push(['Grand Total', ...colTot.map(n => n || ''), grand]);
+            agxFinish('xhs', p, '', agxMatrixHead('Row Labels', cols), body, ex);
+        }
+
+        // 4) Hub > Status (rows) x Age (columns)
+        function renderAgeingXhsa() {
+            const p = agxPrepare('xhsa'); if (!p) return;
+            const cols = agxAgeCols(p.recs).map(c => ({ key: c, label: agxColLabel(c) }));
+            const hubs = [...new Set(p.recs.map(r => r.hub))].sort(agxAlpha);
+            const gh = agxGroup(p.recs, r => r.hub + '\u0001' + agxAgeKey(r));
+            const gs = agxGroup(p.recs, r => r.hub + '\u0001' + r.st + '\u0001' + agxAgeKey(r));
+            const colTot = cols.map(() => 0); let grand = 0;
+            const ex = [['Count of ConsignmentId', 'Column Labels'], ['Row Labels', ...cols.map(c => c.label), 'Grand Total']];
+            let body = '';
+            hubs.forEach(h => {
+                let ht = 0; const hl = [h];
+                const hc = cols.map((c, i) => {
+                    const ids = gh.get(h + '\u0001' + c.key) || [];
+                    ht += ids.length; colTot[i] += ids.length; hl.push(ids.length || '');
+                    return `<td>${agxBtn('xhsa', `${h} — Age ${c.label}`, ids)}</td>`;
+                }).join('');
+                grand += ht; hl.push(ht); ex.push(hl);
+                body += `<tr class="hub"><td class="l">⊟ ${ageingSafe(h)}</td>${hc}<td class="gc">${ht}</td></tr>`;
+                const sts = [...new Set(p.recs.filter(r => r.hub === h).map(r => r.st))].sort(agxAlpha);
+                sts.forEach(st => {
+                    let rt = 0; const sl = ['    ' + st];
+                    const cells = cols.map(c => {
+                        const ids = gs.get(h + '\u0001' + st + '\u0001' + c.key) || [];
+                        rt += ids.length; sl.push(ids.length || '');
+                        return `<td>${agxBtn('xhsa', `${h} — ${st} — Age ${c.label}`, ids)}</td>`;
+                    }).join('');
+                    sl.push(rt); ex.push(sl);
+                    body += `<tr><td class="l ind">${ageingSafe(st)}</td>${cells}<td class="gc">${rt}</td></tr>`;
+                });
+            });
+            body += `<tr class="gt"><td class="l">Grand Total</td>${colTot.map(n => `<td>${n || ''}</td>`).join('')}<td>${grand}</td></tr>`;
+            ex.push(['Grand Total', ...colTot.map(n => n || ''), grand]);
+            agxFinish('xhsa', p, '', agxMatrixHead('Row Labels', cols), body, ex);
+        }
+
         function ageingViewCopy(kind) {
             const ex = ageingViewExport[kind];
             if (!ex) return;
@@ -9367,9 +9768,6 @@ const ACCOUNTS = [
             return Number.isFinite(n) ? n : 0;
         }
 
-        function excelPct(v) {
-            return Math.round((excelNum(v) + Number.EPSILON) * 100) / 100;
-        }
 
         function excelFmtNum(v) {
             const n = excelNum(v);
@@ -9465,11 +9863,6 @@ const ACCOUNTS = [
                 .join(' ') + ' Cluster';
         }
 
-        function excelGroupName(hub) {
-            const s = String(hub || '').trim();
-            if (!s) return 'Other Cluster';
-            return excelClusterLabelFromKey(excelClusterKey(s));
-        }
 
         function averageExcelRatio(rows, key) {
             if (!rows.length) return 0;
@@ -9668,6 +10061,28 @@ const ACCOUNTS = [
 
     </script>
 <script>window.addEventListener('load', finishHeaderBoot, {once:true});</script>
+<script>
+(function(){
+  var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],W=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],last='';
+  function paint(){
+    try{
+      var inp=document.getElementById('m_reportDate'),d=null;
+      var iso=(inp&&typeof parseReportDateToISO==='function')?parseReportDateToISO(inp.value):'';
+      if(iso){var p=iso.split('-');d=new Date(+p[0],+p[1]-1,+p[2]);}else{d=new Date();}
+      var key=d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();
+      if(key===last)return;last=key;
+      document.querySelectorAll('.rpt-date-widget').forEach(function(w){
+        function set(c,v){var e=w.querySelector(c);if(e)e.textContent=v}
+        set('.rw-day',d.getDate());set('.rw-mon',M[d.getMonth()]);set('.rw-year',d.getFullYear());set('.rw-wk',W[d.getDay()]);
+      });
+    }catch(e){}
+  }
+  paint();
+  document.addEventListener('input',function(e){if(e.target&&e.target.id==='m_reportDate')paint()});
+  document.addEventListener('change',function(e){if(e.target&&e.target.id==='m_reportDate')paint()});
+  setInterval(paint,1000);
+})();
+</script>
 
 <div class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[90] flex items-center justify-center p-4" id="dashboardNotificationModal">
 <div class="bg-[#131d36] border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
@@ -9805,7 +10220,6 @@ html.nsd-light #nsdBar button{background:#f1f5f9;color:#0f172a;border-color:#cbd
 #ncr .ncr-card .s{color:var(--c-sub);font-size:12.5px}
 #ncr .ncr-card .ch{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:20px;line-height:1;color:var(--c-sub);background:var(--c-panel);transition:all .18s}
 #ncr .ncr-card:hover .ch{background:#1d546d;color:#fff;transform:translateX(2px)}
-#ncr .ncr-foot{margin:22px 2px 0;font-size:12.5px;color:var(--c-sub);display:flex;gap:8px;align-items:center}
 #ncr .ncr-modal{position:fixed;inset:0;z-index:99999;display:none;background:rgba(5,12,20,.88);align-items:center;justify-content:center;padding:14px}
 #ncr .ncr-modal.open{display:flex}
 #ncr .ncr-panel{background:var(--c-panel);border-radius:16px;max-width:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.5);min-width:min(360px,100%)}
@@ -9818,7 +10232,6 @@ html.nsd-light #nsdBar button{background:#f1f5f9;color:#0f172a;border-color:#cbd
 #ncr .ncr-btn:hover,#ncr .ncr-btn:focus-visible{background:rgba(255,255,255,.28)}
 #ncr .ncr-body{overflow:auto;padding:0 12px 12px;scroll-padding-top:0}
 #ncr .ncr-body>table{margin-top:12px}
-#ncr .ncr-hint2{padding:8px 18px;font-size:12px;color:var(--c-sub);border-top:1px solid var(--c-line);background:var(--c-card);display:flex;justify-content:space-between;gap:12px}
 #ncr table{border:0;border-collapse:collapse;table-layout:fixed;background:#fff;font-family:Arial,sans-serif;margin:0;max-width:none}
 #ncr td{padding:0 3px;overflow:hidden;box-sizing:border-box;line-height:1.25;background-clip:padding-box}
 #ncr td:focus{outline:1px solid #1a73e8;outline-offset:-1px}
@@ -9941,6 +10354,7 @@ document.addEventListener('keydown',function(e){var o=document.getElementById('d
   }
   function fmtN(v){return Number.isInteger(v)?String(v):String(Math.round(v*100)/100)}
   function pct(a,b){return b>0?Math.floor(a/b*100+1e-9)+'%':''}
+  function pctR(a,b){return b>0?Math.round(a/b*100)+'%':''}  /* Closing Report er moto Math.round */
   function sumCol(h,col,r1,r2,tot){
     var s=0,any=false;
     for(var r=r1;r<=r2;r++){if(h.has(col+r)){any=true;s+=h.n(col+r)}}
@@ -9958,7 +10372,7 @@ document.addEventListener('keydown',function(e){var o=document.getElementById('d
   }
   function dlt(h,r,I,B){
     if(!(B>0)||!h.has('K'+r))return '';
-    var d=Math.floor(I/B*100+1e-9)-h.n('K'+r);
+    var d=Math.round(I/B*100)-h.n('K'+r);
     return d===0?'0%':(d>0?'\u25B2 ':'\u25BC ')+Math.abs(d)+'%';
   }
   function arrow(i,k){if(!(k>0))return '';var d=(i-k)/k*100;return (d>=0?'\u25B2 ':'\u25BC ')+Math.floor(Math.abs(d)+1e-9)+'%'}
@@ -9981,17 +10395,17 @@ document.addEventListener('keydown',function(e){var o=document.getElementById('d
     for(r=16;r<=20;r++){
       var I=h.n('C'+r)+h.n('D'+r)+h.n('E'+r)+h.n('H'+r),B=h.n('B'+r);
       h.set('I'+r,fmtN(I));
-      h.set('J'+r,pct(I,B));
+      h.set('J'+r,pctR(I,B));
       h.set('L'+r,dlt(h,r,I,B));
-      h.set('N'+r,h.has('M'+r)?pct(h.n('M'+r),B):'');
-      h.set('P'+r,h.has('O'+r)?pct(h.n('O'+r),B):'');
+      h.set('N'+r,h.has('M'+r)?pctR(h.n('M'+r),B):'');
+      h.set('P'+r,h.has('O'+r)?pctR(h.n('O'+r),B):'');
     }
     ['B','C','D','E','F','G','H','I','M','O','Q'].forEach(function(c){t[c]=sumCol(h,c,16,20,21)});
-    h.set('J21',pct(t.I,t.B));
+    h.set('J21',pctR(t.I,t.B));
     h.set('L21',dlt(h,21,t.I,t.B));
     for(r=16;r<=21;r++){var ld=h.m['L'+r];if(ld){var tx=ld.textContent;ld.style.color=tx.indexOf('\u25BC')>-1?'#FF6B6B':(tx.indexOf('\u25B2')>-1?'#00FF00':'#FFFFFF')}}
-    h.set('N21',h.has('M21')?pct(t.M,t.B):'');
-    h.set('P21',h.has('O21')?pct(t.O,t.B):'');
+    h.set('N21',h.has('M21')?pctR(t.M,t.B):'');
+    h.set('P21',h.has('O21')?pctR(t.O,t.B):'');
     var s=0,c=0,pc=false;
     for(r=16;r<=20;r++){if(h.has('R'+r)){s+=h.n('R'+r);c++;if(h.raw('R'+r).indexOf('%')>-1)pc=true}}
     h.set('R21',c?fmtN(Math.round(s/c*100)/100)+(pc?'%':''):'');
@@ -10655,6 +11069,201 @@ document.addEventListener('keydown',function(e){var o=document.getElementById('d
     new MutationObserver(function () { var a = $('agentPerformancePageModal'); if (a && !a.__navW) watch(); }).observe(document.body, { childList: true, subtree: true });   // sudhu notun popup toiri holei
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<script>
+/* ===== Ageing Report: Edit Mode (all formats) ===== */
+(function(){
+  var IDS=['ageingReportContent','ageingDeliveryContent','ageingReceiveContent','ageingCustomContent','ageingXsaContent','ageingXscContent','ageingXhsContent','ageingXhsaContent'];
+  var store={}, on=false, busy=false, timer=null;
+  function conts(){return IDS.map(function(i){return document.getElementById(i);}).filter(Boolean);}
+  function cells(c){var out=[];c.querySelectorAll('table').forEach(function(t,ti){[].forEach.call(t.rows,function(r,ri){[].forEach.call(r.cells,function(cl,ci){out.push([c.id+'|'+ti+'|'+ri+'|'+ci,cl]);});});});return out;}
+  function cellKey(el){var c=el.closest('#'+IDS.join(',#'));if(!c)return null;var t=el.closest('table');if(!t)return null;var ti=[].indexOf.call(c.querySelectorAll('table'),t);var r=el.parentElement;return c.id+'|'+ti+'|'+r.rowIndex+'|'+el.cellIndex;}
+  function isDataCell(cl){return !cl.querySelector('table,input,select');}
+  function apply(){
+    busy=true;
+    try{conts().forEach(function(c){cells(c).forEach(function(p){var k=p[0],cl=p[1];
+      if(!isDataCell(cl))return;
+      if(Object.prototype.hasOwnProperty.call(store,k)){ if(cl.textContent!==store[k]) cl.textContent=store[k]; cl.classList.add('ag-edited'); } else cl.classList.remove('ag-edited');
+      if(on) cl.setAttribute('contenteditable','true'); else cl.removeAttribute('contenteditable');
+    });});}finally{busy=false;}
+    var rb=document.getElementById('ageingEditResetBtn'); if(rb) rb.classList.toggle('hidden',!Object.keys(store).length);
+  }
+  function sched(){ if(busy)return; clearTimeout(timer); timer=setTimeout(apply,30); }
+  window.agEditToggle=function(){
+    on=!on; document.body.classList.toggle('ag-edit-on',on);
+    var b=document.getElementById('ageingEditBtn'); if(b)b.classList.toggle('on',on);
+    var l=document.getElementById('ageingEditLbl'); if(l)l.textContent='Edit Mode: '+(on?'ON':'OFF');
+    if(on&&typeof agClearSel==='function')agClearSel();
+    apply();
+    try{showToast(on?'Edit mode ON — cell-e click kore value change korun':'Edit mode OFF');}catch(e){}
+  };
+  window.agEditClear=function(){store={};};
+  window.agEditReset=function(){
+    if(!confirm('Shob edit muche original value-e fire jabe. Continue?'))return;
+    store={}; var m=(typeof ageingMode!=='undefined')?ageingMode:'pivot';
+    try{ if(typeof ageingSetMode==='function')ageingSetMode(m);}catch(e){}
+    apply();
+  };
+  /* block the selection / count-link handlers while editing (capture phase, runs first) */
+  ['mousedown','mouseover','click'].forEach(function(ev){
+    window.addEventListener(ev,function(e){
+      if(!on||!e.target||!e.target.closest)return;
+      if(e.target.closest('#ageingReportView table')){ e.stopImmediatePropagation(); if(ev==='click'&&e.target.closest('button,a')) e.preventDefault(); }
+    },true);
+  });
+  document.addEventListener('input',function(e){
+    var el=e.target; if(!on||!el||!el.closest||el.getAttribute('contenteditable')!=='true')return;
+    var k=cellKey(el); if(k){store[k]=el.textContent; el.classList.add('ag-edited'); var rb=document.getElementById('ageingEditResetBtn'); if(rb)rb.classList.remove('hidden');}
+  });
+  document.addEventListener('keydown',function(e){
+    if(!on)return; var el=e.target; if(!el||el.getAttribute&&el.getAttribute('contenteditable')!=='true')return;
+    if(e.key==='Enter'){e.preventDefault();
+      var nxt=el.parentElement&&el.parentElement.nextElementSibling; var t=nxt&&nxt.cells[el.cellIndex];
+      if(t&&t.getAttribute('contenteditable')==='true'){t.focus();var r=document.createRange();r.selectNodeContents(t);var s=getSelection();s.removeAllRanges();s.addRange(r);} else el.blur();
+    }
+    if(e.key==='Escape'){el.blur();}
+  },true);
+  document.addEventListener('paste',function(e){
+    var el=e.target; if(!on||!el||!el.getAttribute||el.getAttribute('contenteditable')!=='true')return;
+    e.preventDefault(); var t=(e.clipboardData||window.clipboardData).getData('text').replace(/[\r\n\t]+/g,' ');
+    document.execCommand('insertText',false,t);
+  });
+  /* re-apply edits after every re-render */
+  function observe(){
+    var mo=new MutationObserver(function(){sched();});
+    conts().forEach(function(c){mo.observe(c,{childList:true,subtree:true});});
+  }
+  /* exports: use the on-screen (edited) table when edits exist */
+  function domRows(c){
+    var t=c.querySelector('table'); if(!t)return null;
+    return [].map.call(t.rows,function(r){return [].map.call(r.cells,function(cl){var v=cl.textContent.replace(/ /g,' ').trim(); var n=v.replace(/[,৳\s]/g,''); return (n!==''&&/^-?\d+(\.\d+)?$/.test(n)&&!/^0\d/.test(n))?Number(n):v;});});
+  }
+  function visibleCont(){return conts().filter(function(c){return !c.classList.contains('hidden');})[0];}
+  function hasEdits(){return Object.keys(store).length>0;}
+  function wrap(name,fn){
+    var orig=window[name]; if(typeof orig!=='function')return;
+    window[name]=function(){
+      var args=arguments, c=visibleCont();
+      if(!hasEdits()||!c) return orig.apply(this,args);
+      var rows=domRows(c); if(!rows) return orig.apply(this,args);
+      return fn(orig,args,rows);
+    };
+  }
+  function install(){
+    wrap('ageingViewCopy',function(orig,args,rows){var k=args[0],bk=ageingViewExport[k];if(!bk)return orig.apply(null,args);var old=bk.rows;bk.rows=rows;try{orig.apply(null,args);}finally{bk.rows=old;}});
+    wrap('ageingViewExcel',function(orig,args,rows){var k=args[0],bk=ageingViewExport[k];if(!bk)return orig.apply(null,args);var old=bk.rows;bk.rows=rows;try{orig.apply(null,args);}finally{bk.rows=old;}});
+    wrap('ageingCustomCopy',function(orig,args,rows){
+      var text=rows.map(function(r){return r.join('\t');}).join('\n');
+      if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(text).then(function(){try{showToast('Table copied — paste into Excel');}catch(e){}});
+      else{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Table copied');}catch(e){}ta.remove();}
+    });
+    wrap('ageingCustomDownload',function(orig,args,rows){
+      var type=args[0], stamp=(typeof ageingDateText==='function')?ageingDateText((typeof ageingReportDate!=='undefined'&&ageingReportDate)||new Date()):'edited';
+      if(type==='csv'){
+        var csv='﻿'+rows.map(function(r){return r.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+        var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='Ageing_Custom_Report_'+stamp+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href);},1500);return;
+      }
+      if(typeof XLSX==='undefined')return;
+      var ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');XLSX.writeFile(wb,'Ageing_Custom_Report_'+stamp+'.xlsx');
+    });
+  }
+  function init(){install();observe();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+
+<script>
+/* ===== Pivot Table: changeable layout (rows / columns / sort / totals / show-hide) ===== */
+(function(){
+  var pv={row:null,col:null,sort:'label',dir:'asc',rowTot:true,colTot:true,hideR:{},hideC:{},open:false};
+  var cellIds={};
+  function hubKey(){return (typeof ageingHubKey==='function')?ageingHubKey():'';}
+  function isDefault(){return pv.row===hubKey()&&pv.col==='__age'&&pv.sort==='label'&&pv.dir==='asc'&&pv.rowTot&&pv.colTot&&!Object.keys(pv.hideR).length&&!Object.keys(pv.hideC).length;}
+  function esc(v){return ageingSafe(v);}
+  function initKeys(){ if(pv.row===null){pv.row=hubKey()||(ageingFields[0]||{}).key||'';pv.col='__age';} }
+  function opts(sel){return ageingFields.map(function(f){return '<option value="'+esc(f.key)+'"'+(f.key===sel?' selected':'')+'>'+esc(f.label)+'</option>';}).join('');}
+  function build(){
+    var rows=ageingRows,cell={},rs={},cs={};
+    rows.forEach(function(r){
+      var rk=String(ageingCellVal(ageingFieldValue(r,pv.row)))||'(blank)', ck=String(ageingCellVal(ageingFieldValue(r,pv.col)))||'(blank)';
+      rs[rk]=1;cs[ck]=1;var k=rk+'\u0001'+ck;(cell[k]=cell[k]||[]).push(ageingConsignmentId(r));
+    });
+    var rks=ageingSortKeys(Object.keys(rs),pv.row), cks=ageingSortKeys(Object.keys(cs),pv.col);
+    function tot(rk){return cks.reduce(function(a,ck){return a+((cell[rk+'\u0001'+ck]||[]).length);},0);}
+    if(pv.sort==='total'){rks.sort(function(a,b){return (tot(b)-tot(a))*(pv.dir==='asc'?-1:1);});}
+    else if(pv.dir==='desc'){rks.reverse();}
+    return {cell:cell,rks:rks,cks:cks};
+  }
+  function panel(){
+    var d=pv.open;
+    return '<div class="ageing-card ageing-no-print" id="agPvPanel" style="margin:12px 0;padding:10px 12px;">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;">'
+    +'<b style="color:#1f4e78;"><i class="fa-solid fa-sliders"></i> Pivot Layout</b>'
+    +'<label>Rows <select onchange="agPvSet(\'row\',this.value)">'+opts(pv.row)+'</select></label>'
+    +'<label>Columns <select onchange="agPvSet(\'col\',this.value)">'+opts(pv.col)+'</select></label>'
+    +'<button type="button" class="ageing-mode-btn" onclick="agPvSwap()"><i class="fa-solid fa-right-left mr-1"></i> Swap</button>'
+    +'<label>Sort rows <select onchange="agPvSet(\'sort\',this.value)"><option value="label"'+(pv.sort==='label'?' selected':'')+'>By label</option><option value="total"'+(pv.sort==='total'?' selected':'')+'>By total</option></select></label>'
+    +'<label><select onchange="agPvSet(\'dir\',this.value)"><option value="asc"'+(pv.dir==='asc'?' selected':'')+'>Asc</option><option value="desc"'+(pv.dir==='desc'?' selected':'')+'>Desc</option></select></label>'
+    +'<label><input type="checkbox" '+(pv.colTot?'checked':'')+' onchange="agPvSet(\'colTot\',this.checked)"> Total row</label>'
+    +'<label><input type="checkbox" '+(pv.rowTot?'checked':'')+' onchange="agPvSet(\'rowTot\',this.checked)"> Total column</label>'
+    +'<button type="button" class="ageing-mode-btn" onclick="agPvToggleShow()"><i class="fa-solid fa-eye mr-1"></i> Show / Hide '+(d?'▲':'▼')+'</button>'
+    +'<button type="button" class="ageing-mode-btn" onclick="agPvReset()"><i class="fa-solid fa-rotate-left mr-1"></i> Default layout</button>'
+    +'</div><div id="agPvShow" style="display:'+(d?'block':'none')+';margin-top:8px;font-size:12px;"></div></div>';
+  }
+  function showPanel(b){
+    var el=document.getElementById('agPvShow'); if(!el)return;
+    function list(title,keys,h,kind){return '<div style="margin-bottom:6px;"><b>'+title+'</b> '+keys.map(function(k){return '<label style="display:inline-block;margin:2px 10px 2px 0;"><input type="checkbox" '+(h[k]?'':'checked')+' onchange="agPvHide(\''+kind+'\',this.dataset.k,this.checked)" data-k="'+esc(k)+'"> '+esc(k)+'</label>';}).join('')+'</div>';}
+    el.innerHTML=list('Rows:',b.rks,pv.hideR,'R')+list('Columns:',b.cks,pv.hideC,'C');
+  }
+  function render(){
+    var host=document.getElementById('ageingReportContent'); if(!host||!ageingRows||!ageingRows.length)return;
+    var b=build(), rks=b.rks.filter(function(k){return !pv.hideR[k];}), cks=b.cks.filter(function(k){return !pv.hideC[k];});
+    cellIds={};
+    var head='<tr><th class="row-label">'+esc(ageingFieldLabel(pv.row))+'</th>'+cks.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+(pv.rowTot?'<th>Grand Total</th>':'')+'</tr>';
+    var colT=cks.map(function(){return 0;}), grand=0, body='';
+    rks.forEach(function(rk){
+      var t=0;
+      body+='<tr><td class="row-label">'+esc(rk)+'</td>';
+      cks.forEach(function(ck,i){
+        var ids=b.cell[rk+'\u0001'+ck]||[], key=rk+'\u0001'+ck; t+=ids.length; colT[i]+=ids.length;
+        if(ids.length){cellIds[key]=ids;body+='<td><button type="button" class="count-link" data-k="'+esc(key)+'" onclick="agPvShowIds(this.dataset.k)">'+ids.length+'</button></td>';} else body+='<td></td>';
+      });
+      grand+=t; if(pv.rowTot)body+='<td><strong>'+t+'</strong></td>'; body+='</tr>';
+    });
+    if(pv.colTot){body+='<tr class="grand-total"><td class="row-label">Grand Total</td>'+colT.map(function(n){return '<td>'+(n||'')+'</td>';}).join('')+(pv.rowTot?'<td>'+grand+'</td>':'')+'</tr>';}
+    host.innerHTML=panel()+'<div class="ageing-card"><table class="ageing-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+    showPanel(b);
+  }
+  window.agPvShowIds=function(key){
+    var ids=cellIds[key]||[],parts=key.split('\u0001');
+    var m=document.getElementById('ageingConsignmentModal'),t=document.getElementById('ageingModalTitle'),bd=document.getElementById('ageingModalBody');
+    if(!m||!t||!bd)return;
+    t.innerHTML='<span>'+esc(parts[0])+' — '+esc(parts[1])+' ('+ids.length+' IDs)</span>';
+    bd.innerHTML='<table class="ageing-id-table"><thead><tr><th>#</th><th>ConsignmentId</th></tr></thead><tbody>'+ids.map(function(id,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(id)+'</td></tr>';}).join('')+'</tbody></table>';
+    m.classList.remove('hidden');
+  };
+  function changed(clearHidden){
+    if(clearHidden){pv.hideR={};pv.hideC={};}
+    if(window.agEditClear)window.agEditClear();
+    window.renderAgeingReport();
+  }
+  window.agPvSet=function(k,v){pv[k]=v;changed(k==='row'||k==='col');};
+  window.agPvSwap=function(){var t=pv.row;pv.row=pv.col;pv.col=t;changed(true);};
+  window.agPvHide=function(kind,k,checked){var h=(kind==='R'?pv.hideR:pv.hideC); if(checked)delete h[k]; else h[k]=true; pv.open=true; changed(false);};
+  window.agPvToggleShow=function(){pv.open=!pv.open;var el=document.getElementById('agPvShow');if(el)el.style.display=pv.open?'block':'none';};
+  window.agPvReset=function(){pv.row=hubKey();pv.col='__age';pv.sort='label';pv.dir='asc';pv.rowTot=pv.colTot=true;pv.hideR={};pv.hideC={};changed(false);};
+  var orig=window.renderAgeingReport;
+  window.renderAgeingReport=function(){
+    orig.apply(this,arguments);
+    if(!ageingRows||!ageingRows.length)return;
+    if(typeof ageingFields==='undefined'||!ageingFields.length){try{ageingBuildFields();}catch(e){}}
+    initKeys(); if(!ageingFields.some(function(f){return f.key===pv.row;})){pv.row=hubKey();}
+    if(!ageingFields.some(function(f){return f.key===pv.col;})){pv.col='__age';}
+    if(isDefault()){var h=document.getElementById('ageingReportContent');if(h)h.insertAdjacentHTML('afterbegin',panel());showPanel(build());}
+    else render();
+  };
 })();
 </script>
 </body>
